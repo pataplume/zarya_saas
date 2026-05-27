@@ -1,6 +1,9 @@
 // @zarya/auth — Helpers auth + RBAC pour ZARYA
 // Tous les helpers serveur nécessitent Next.js (next/headers, next/server)
 
+// Admin (service role — server-only)
+export { createSupabaseAdminClient } from "./admin";
+
 // Clients Supabase
 export { createSupabaseBrowserClient } from "./browser";
 

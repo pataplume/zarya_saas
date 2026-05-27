@@ -1,0 +1,74 @@
+import { getCurrentUser } from "@zarya/auth";
+import { db, sessionOnboardingFiduciaire } from "@zarya/db";
+import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
+
+// Étapes du wizard avec leur chemin et label
+const ETAPES = [
+  { label: "Identité", href: "/onboarding/identite", numero: 1 },
+  { label: "Équipe", href: "/onboarding/equipe", numero: 2 },
+  { label: "Activation", href: "/onboarding/import", numero: 3 },
+] as const;
+
+interface Props {
+  children: React.ReactNode;
+}
+
+export default async function OnboardingLayout({ children }: Props) {
+  const user = await getCurrentUser();
+
+  const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
+  if (!cabinet_id) {
+    // Pas encore provisionné — retour au login
+    redirect("/login");
+  }
+
+  // Si l'onboarding est déjà terminé, rediriger vers l'app
+  const [session] = await db
+    .select({ statut: sessionOnboardingFiduciaire.statut })
+    .from(sessionOnboardingFiduciaire)
+    .where(eq(sessionOnboardingFiduciaire.cabinet_id, cabinet_id))
+    .limit(1);
+
+  if (session?.statut === "actif") {
+    redirect("/app");
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* En-tête wizard */}
+      <header className="border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
+          <span className="text-lg font-bold tracking-tight text-gray-900">ZARYA</span>
+          <span className="text-sm text-gray-500">Configuration de votre cabinet</span>
+        </div>
+      </header>
+
+      {/* Barre de progression */}
+      <div className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-3xl px-4 py-4">
+          <nav aria-label="Étapes d'onboarding">
+            <ol className="flex items-center gap-0">
+              {ETAPES.map((etape, idx) => (
+                <li key={etape.href} className="flex flex-1 items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-gray-300 text-xs font-semibold text-gray-500">
+                      {etape.numero}
+                    </span>
+                    <span className="text-sm font-medium text-gray-500">{etape.label}</span>
+                  </div>
+                  {idx < ETAPES.length - 1 && (
+                    <div className="mx-3 flex-1 border-t border-gray-200" />
+                  )}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        </div>
+      </div>
+
+      {/* Contenu */}
+      <main className="mx-auto max-w-3xl px-4 py-10">{children}</main>
+    </div>
+  );
+}

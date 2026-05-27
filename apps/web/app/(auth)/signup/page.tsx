@@ -88,6 +88,28 @@ export default function SignupPage() {
           />
         </div>
 
+        <div>
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              name="acceptCgu"
+              value="on"
+              required
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+            />
+            <span className="text-sm text-gray-600">
+              J&apos;accepte les{" "}
+              <a href="/cgu" className="font-medium text-gray-900 hover:underline">
+                Conditions générales d&apos;utilisation
+              </a>{" "}
+              et la{" "}
+              <a href="/confidentialite" className="font-medium text-gray-900 hover:underline">
+                politique de confidentialité
+              </a>
+            </span>
+          </label>
+        </div>
+
         {state.error && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
         )}
