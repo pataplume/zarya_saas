@@ -1,5 +1,3 @@
-"use client";
-
 import { createBrowserClient } from "@supabase/ssr";
 
 // Client Supabase côté navigateur (composants client uniquement)

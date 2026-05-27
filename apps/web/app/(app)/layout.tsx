@@ -1,6 +1,9 @@
 import { requireAuth, type User } from "@zarya/auth";
 import { redirect } from "next/navigation";
 
+// Les routes protégées ne doivent jamais être pré-rendues statiquement
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   let user: User;
   try {
