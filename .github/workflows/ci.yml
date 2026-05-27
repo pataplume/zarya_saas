@@ -60,9 +60,6 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      # GitHub Actions runners n'ont pas de connectivité IPv6 vers Supabase Cloud.
-      # Ce flag force la résolution DNS à préférer IPv4 dans Node.js et tous ses forks.
-      NODE_OPTIONS: "--dns-result-order=ipv4first"
     steps:
       - uses: actions/checkout@v4
 
@@ -75,6 +72,17 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Force IPv4 DNS for Supabase (GitHub Actions n'a pas de route IPv6 vers Supabase)
+        run: |
+          DB_HOST=$(node -e "const u=new URL(process.env.DATABASE_URL); console.log(u.hostname)")
+          IPV4=$(dig +short A "$DB_HOST" | grep -E '^[0-9]+\.' | head -1)
+          if [ -n "$IPV4" ]; then
+            echo "$IPV4 $DB_HOST" | sudo tee -a /etc/hosts
+            echo "Pinned $DB_HOST → $IPV4 (IPv4) in /etc/hosts"
+          else
+            echo "WARNING: could not resolve $DB_HOST to IPv4"
+          fi
 
       - name: Run tests
         run: pnpm test
