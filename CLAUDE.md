@@ -157,13 +157,13 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 
 [À METTRE À JOUR à chaque transition de phase]
 
-**Phase courante** : Phase 0 — Bootstrap
+**Phase courante** : Phase 1 — MVP P0
 
-**Modules en cours** : aucun
+**Modules en cours** : DB Foundation + Auth
 
-**Modules autorisés à coder** : aucun avant Phase 1
+**Modules autorisés à coder** : `packages/db`, `packages/auth`, `apps/web` (auth layer)
 
-**Modules interdits** : tous les modules métier tant que le bootstrap n'est pas terminé
+**Modules interdits** : CRM, Doc, Calendar, Extraction IA, Facture, Salaire, Search
 
 ## Tests obligatoires en CI
 
