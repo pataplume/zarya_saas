@@ -49,7 +49,7 @@ export async function queryAsTenant<T>(
       SELECT set_config(
         'request.jwt.claims',
         ${JSON.stringify({
-          sub: `test-user-${cabinet_id}`,
+          sub: cabinet_id,
           app_metadata: { cabinet_id },
         })},
         true

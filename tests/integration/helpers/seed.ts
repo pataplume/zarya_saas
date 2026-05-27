@@ -8,6 +8,16 @@
 import { randomUUID } from "node:crypto";
 import type postgres from "postgres";
 
+export interface TestInvitation {
+  id: string;
+  cabinet_id: string;
+}
+
+export interface TestZefixRecherche {
+  id: string;
+  cabinet_id: string;
+}
+
 export interface TestCabinet {
   id: string;
   raison_sociale: string;
@@ -59,6 +69,56 @@ export async function seedTwoCabinets(sql: postgres.Sql): Promise<{
       user_id: userIdB,
     },
   };
+}
+
+/**
+ * Retourne l'id de la session_onboarding_fiduciaire auto-créée pour un cabinet.
+ * (Créée par le trigger crm.provision_nouveau_cabinet lors de l'INSERT cabinet.)
+ */
+export async function getSessionId(sql: postgres.Sql, cabinet_id: string): Promise<string> {
+  const [row] = await sql`
+    SELECT id FROM crm.session_onboarding_fiduciaire WHERE cabinet_id = ${cabinet_id}
+  `;
+  if (!row?.id) throw new Error(`Session not found for cabinet ${cabinet_id}`);
+  return row.id as string;
+}
+
+/**
+ * Crée une invitation_membre de test pour un cabinet donné.
+ * Utilise le service role (bypass RLS).
+ */
+export async function seedInvitation(
+  sql: postgres.Sql,
+  cabinet_id: string,
+): Promise<TestInvitation> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.invitation_membre (id, cabinet_id, email, role_propose, token_expire_at)
+    VALUES (
+      ${id},
+      ${cabinet_id},
+      ${"test-invite-" + id.slice(0, 8) + "@zarya-ci.invalid"},
+      'collaborateur',
+      now() + interval '7 days'
+    )
+  `;
+  return { id, cabinet_id };
+}
+
+/**
+ * Crée un enregistrement zefix_recherche_cabinet de test pour un cabinet donné.
+ * Utilise le service role (bypass RLS).
+ */
+export async function seedZefixRecherche(
+  sql: postgres.Sql,
+  cabinet_id: string,
+): Promise<TestZefixRecherche> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.zefix_recherche_cabinet (id, cabinet_id, requete, consentement_donne)
+    VALUES (${id}, ${cabinet_id}, ${"Test CI " + id.slice(0, 8)}, true)
+  `;
+  return { id, cabinet_id };
 }
 
 /**
