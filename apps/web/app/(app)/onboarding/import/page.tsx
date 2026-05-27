@@ -121,6 +121,15 @@ export default async function ImportPage() {
         </p>
       </div>
 
+      {/* Note Phase 3 — import automatisé */}
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <p className="text-xs text-amber-800">
+          <span className="font-medium">🚧 Phase 3 (à venir) :</span> L&apos;import automatisé
+          depuis vos logiciels (Bexio, Crésus, WinBIZ) sera disponible dans une prochaine version.
+          En attendant, notre équipe vous accompagne lors d&apos;une session dédiée.
+        </p>
+      </div>
+
       {/* Note sur ce qui a été configuré */}
       <div className="rounded-lg border border-green-200 bg-green-50 p-4">
         <h3 className="text-sm font-medium text-green-800">

@@ -9,6 +9,7 @@ export default defineConfig({
   out: "./migrations",
   dialect: "postgresql",
   dbCredentials: {
+    // biome-ignore lint/style/noNonNullAssertion: env var required at runtime, loaded by dotenv above
     url: process.env.DATABASE_URL!,
   },
   schemaFilter: ["crm"],
