@@ -1,0 +1,260 @@
+{
+  "id": "88bcdab7-bd96-4261-b6a8-47df4a6f1b5e",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "crm.cabinet": {
+      "name": "cabinet",
+      "schema": "crm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "raison_sociale": {
+          "name": "raison_sociale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ide": {
+          "name": "ide",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_contact": {
+          "name": "email_contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "statut": {
+          "name": "statut",
+          "type": "cabinet_statut",
+          "typeSchema": "crm",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'actif'"
+        },
+        "plan_tarifaire": {
+          "name": "plan_tarifaire",
+          "type": "plan_tarifaire",
+          "typeSchema": "crm",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'starter'"
+        },
+        "onboarding_termine": {
+          "name": "onboarding_termine",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_cabinet_statut": {
+          "name": "idx_cabinet_statut",
+          "columns": [
+            {
+              "expression": "statut",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "crm.cabinet_membre": {
+      "name": "cabinet_membre",
+      "schema": "crm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "cabinet_id": {
+          "name": "cabinet_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "role_membre",
+          "typeSchema": "crm",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prenom": {
+          "name": "prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actif": {
+          "name": "actif",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_cabinet_membre_cabinet": {
+          "name": "idx_cabinet_membre_cabinet",
+          "columns": [
+            {
+              "expression": "cabinet_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_cabinet_membre_user": {
+          "name": "idx_cabinet_membre_user",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cabinet_membre_cabinet_id_cabinet_id_fk": {
+          "name": "cabinet_membre_cabinet_id_cabinet_id_fk",
+          "tableFrom": "cabinet_membre",
+          "tableTo": "cabinet",
+          "schemaTo": "crm",
+          "columnsFrom": ["cabinet_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uniq_user_cabinet": {
+          "name": "uniq_user_cabinet",
+          "nullsNotDistinct": false,
+          "columns": ["user_id", "cabinet_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "crm.cabinet_statut": {
+      "name": "cabinet_statut",
+      "schema": "crm",
+      "values": ["actif", "suspendu", "archive"]
+    },
+    "crm.plan_tarifaire": {
+      "name": "plan_tarifaire",
+      "schema": "crm",
+      "values": ["starter", "pro", "enterprise"]
+    },
+    "crm.role_membre": {
+      "name": "role_membre",
+      "schema": "crm",
+      "values": ["responsable", "gestionnaire_salaires", "collaborateur", "lecteur"]
+    }
+  },
+  "schemas": {
+    "crm": "crm"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

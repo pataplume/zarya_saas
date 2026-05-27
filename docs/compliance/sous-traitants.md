@@ -38,6 +38,20 @@ ZARYA recourt à 10 sous-traitants principaux, tous situés en UE. Ils sont cat�
 | **Date d'intégration** | À partir de [DATE] |
 | **Site web** | https://aws.amazon.com/compliance/ |
 
+AWS sous-traitant ZARYA — Setup 27 mai 2026
+─────────────────────────────────────────────
+Compte AWS         : 344156899985 (Condere)
+Région primaire    : eu-central-1 (Frankfurt)
+Régions fallback   : eu-west-1, eu-west-3, eu-north-1 (toutes UE)
+IAM User           : zarya-bedrock-prod
+ARN                : arn:aws:iam::344156899985:user/zarya-bedrock-prod
+Policy             : AmazonBedrockFullAccess (durcir Phase 2)
+Inference profiles : eu.anthropic.claude-sonnet-4-6
+                     eu.anthropic.claude-haiku-4-5-20251001-v1:0
+                     eu.anthropic.claude-opus-4-7
+Quotas demandés    : 27 mai 2026, 4 demandes (Sonnet/Haiku × TPM/RPM)
+Rotation clés      : tous les 12 mois (mai 2027)
+
 ### 2.2 Supabase — Critique
 
 | Élément | Valeur |
