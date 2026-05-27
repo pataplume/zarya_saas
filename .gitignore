@@ -1,0 +1,232 @@
+# ============================================================================
+# .gitignore — ZARYA
+# Monorepo pnpm + Next.js + Supabase + TypeScript
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Dependencies
+# ----------------------------------------------------------------------------
+node_modules/
+.pnpm-store/
+.pnp.*
+
+# ----------------------------------------------------------------------------
+# Build outputs
+# ----------------------------------------------------------------------------
+.next/
+out/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# ----------------------------------------------------------------------------
+# Environment variables — CRITIQUE
+# Ne JAMAIS commit ces fichiers (contiennent des secrets)
+# ----------------------------------------------------------------------------
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env*.local
+
+# Garder uniquement les exemples
+!.env.example
+!.env.sample
+
+# ----------------------------------------------------------------------------
+# Secrets et credentials
+# ----------------------------------------------------------------------------
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+secrets/
+credentials/
+.secrets/
+
+# Service account keys (Google, AWS, etc.)
+*-service-account.json
+*-credentials.json
+gcp-key.json
+aws-credentials
+
+# ----------------------------------------------------------------------------
+# Logs
+# ----------------------------------------------------------------------------
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+logs/
+
+# ----------------------------------------------------------------------------
+# Tests et coverage
+# ----------------------------------------------------------------------------
+coverage/
+*.lcov
+.nyc_output/
+test-results/
+playwright-report/
+playwright/.cache/
+.vitest-cache/
+
+# ----------------------------------------------------------------------------
+# IDE et éditeurs
+# ----------------------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# JetBrains
+*.iml
+
+# Sublime
+*.sublime-project
+*.sublime-workspace
+
+# ----------------------------------------------------------------------------
+# OS
+# ----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ----------------------------------------------------------------------------
+# Deployment
+# ----------------------------------------------------------------------------
+.vercel/
+.netlify/
+.serverless/
+
+# ----------------------------------------------------------------------------
+# Supabase
+# ----------------------------------------------------------------------------
+# Local development files
+**/supabase/.branches
+**/supabase/.temp
+**/supabase/.env
+
+# Generated types (à régénérer)
+**/supabase/types/generated.ts
+supabase/.env
+
+# Local migrations (si workflow forward-only en CI)
+# Décommenter si applicable :
+# **/supabase/migrations/local_*
+
+# ----------------------------------------------------------------------------
+# Drizzle
+# ----------------------------------------------------------------------------
+drizzle/.snapshots/
+.drizzle-cache/
+
+# ----------------------------------------------------------------------------
+# TypeScript
+# ----------------------------------------------------------------------------
+*.tsbuildinfo
+.tsbuildinfo
+
+# ----------------------------------------------------------------------------
+# Storybook
+# ----------------------------------------------------------------------------
+storybook-static/
+.storybook-out/
+
+# ----------------------------------------------------------------------------
+# Fichiers temporaires
+# ----------------------------------------------------------------------------
+tmp/
+temp/
+.tmp/
+.temp/
+*.tmp
+*.bak
+*.backup
+
+# ----------------------------------------------------------------------------
+# Données sensibles ZARYA
+# ----------------------------------------------------------------------------
+
+# DPA signés avec sous-traitants (cf. sous-traitants.md § 8)
+/legal/dpa-signed/
+
+# Données de seed contenant des PII réelles
+**/seed/real-data/
+**/fixtures/private/
+
+# Exports de données clients (pour les demandes droits des personnes)
+/exports/
+
+# Backups locaux (jamais committés)
+*.sql.bak
+*.dump
+backups/
+
+# Logs Sentry / Posthog locaux
+.sentry/
+.posthog/
+
+# ----------------------------------------------------------------------------
+# Outils dev
+# ----------------------------------------------------------------------------
+
+# Husky
+.husky/_
+
+# Cache linter / formatter
+.eslintcache
+.stylelintcache
+.prettiercache
+
+# pnpm
+.pnpm-debug.log
+
+# Cache générique
+.cache/
+
+# ----------------------------------------------------------------------------
+# Fichiers d'analyse et reports
+# ----------------------------------------------------------------------------
+bundle-analyzer-report.html
+lighthouse-report.html
+.lighthouseci/
+
+# ----------------------------------------------------------------------------
+# Misc
+# ----------------------------------------------------------------------------
+
+# Tarballs npm
+*.tgz
+*.tar.gz
+
+# Diagnostics
+*.cpuprofile
+*.heapprofile
+*.heapsnapshot
+
+# Tags
+tags
+TAGS

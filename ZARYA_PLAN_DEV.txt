@@ -1,0 +1,617 @@
+================================================================================
+            STRATÉGIE DE DÉVELOPPEMENT ZARYA AVEC CLAUDE CODE
+                          Document de référence personnel
+                              Version 1.0 - Mai 2026
+================================================================================
+
+Ce document est ton guide opérationnel pour passer de 63 docs à un produit en
+production. À garder ouvert pendant tes sessions de dev. À mettre à jour à
+chaque transition de phase.
+
+
+================================================================================
+PARTIE 1 - PRINCIPES DIRECTEURS
+================================================================================
+
+1.1 LA RÈGLE D'OR
+-----------------
+Ne pas tout coder. Choisir UN chemin critique vertical et le coder de bout en
+bout d'abord. Le reste vient en réaction au pilote.
+
+Chemin critique ZARYA pour MVP :
+  Multi-tenant + Auth → Onboarding fiduciaire minimal → Module Doc → CRM minimal
+
+Pas Search, pas Facture, pas Salaire, pas Calendar, pas Dashboard client riche.
+Juste de quoi prouver que l'inbox documentaire fonctionne chez un vrai cabinet.
+
+
+1.2 LE RÔLE DE CLAUDE CODE
+--------------------------
+Claude Code est un dev junior-senior qui exécute, pas un architecte qui décide.
+
+CE QU'IL FAIT BIEN :
+  - CRUD, validations, tests, refactors ciblés, debugging
+  - Implémentation de fonctions ciblées avec contexte clair
+  - Génération de code répétitif (schémas, validations Zod, tests)
+  - 80% du code "standard" du projet
+
+CE QU'IL FAIT MOINS BIEN (et où tu restes investi) :
+  - Architecture globale sur des centaines de fichiers
+  - Discipline produit ("non, on ne code pas ça maintenant")
+  - Performance Postgres avancée
+  - Optimisation prompts IA fins
+  - Sécurité subtile (RLS edge cases)
+  - 20% qui font la différence en production
+
+MESURE CLÉ À SURVEILLER :
+  Si tu réécris > 30% du code généré → tes prompts ne sont pas assez précis
+  ou tes CLAUDE.md manquent des contraintes critiques.
+  Au-delà de 50% → tu vas plus vite à coder toi-même.
+
+
+1.3 LE PIÈGE DU "VIBE CODING"
+-----------------------------
+Laisser Claude Code coder 2h sans review = catastrophe garantie.
+Au bout de 2h tu as 800 lignes dont :
+  - 200 fausses
+  - 100 hors scope
+  - 50 qui ont introduit une régression silencieuse
+
+LIMITE : 30-60 minutes max entre 2 reviews. Sessions courtes, focus serré.
+
+
+1.4 GRANULARITÉ DES PROMPTS
+----------------------------
+MAUVAIS : "Implémente le module Doc"
+  → 3000 lignes de code plausible mais avec décisions arbitraires non documentées
+
+BON : 
+  - "Crée le schéma doc.email_brut selon /docs/data-model/document-schema.md § 3"
+  - "Crée la migration RLS pour doc.email_brut"
+  - "Implémente le wrapper webhook Microsoft Graph"
+  - "Implémente le pipeline de déduplication SHA-256"
+
+Chaque prompt = 30 min Claude Code + 10 min review humaine.
+
+
+================================================================================
+PARTIE 2 - STRATÉGIE EN PHASES (12 SEMAINES)
+================================================================================
+
+Plan global pour passer de 0 à un cabinet pilote utilisant ZARYA en production
+sur le module Doc.
+
+
+PHASE 0 - BOOTSTRAP MANUEL (Semaine 1)
+======================================
+OBJECTIF : Repo opérationnel, infra de base en place. SANS Claude Code (volontairement).
+
+POURQUOI SANS IA :
+  Le bootstrap pose des choix structurants. Les faire manuellement t'oblige
+  à les comprendre. Si tu démarres en YOLO avec Claude Code, tu hérites de
+  choix opaques qui te collent ensuite pendant des mois.
+
+LIVRABLES :
+  [ ] Repo Git initialisé sur GitHub
+  [ ] Branches protégées (main + develop)
+  [ ] Monorepo pnpm + workspaces configuré
+  [ ] .nvmrc avec Node 22 LTS
+  [ ] TypeScript strict configuré
+  [ ] ESLint + Prettier (ou Biome) configurés
+  [ ] Husky + lint-staged pré-commit hooks
+  [ ] CLAUDE.md racine en place
+  [ ] CLAUDE.md par package en place
+  [ ] Projet Supabase créé (region eu-central-1)
+  [ ] Supabase CLI installée localement
+  [ ] supabase start fonctionne en local
+  [ ] Compte Vercel + projet créé
+  [ ] Variables d'env documentées dans .env.example
+  [ ] 1Password / Vault d'équipe configuré pour les secrets
+  [ ] Premier `pnpm install` qui passe sans erreur
+  [ ] Premier `pnpm dev` qui ouvre une page (peut être blanche)
+  [ ] Premier déploiement Vercel staging (peut être blanc)
+  [ ] AWS account créé + IAM role pour Bedrock eu-central-1
+  [ ] Compte Stripe test mode
+
+DURÉE : 5-7 jours en focus
+CRITÈRES SORTIE : repo cloné par un nouveau dev qui fait `pnpm install && pnpm dev`
+                  et ça marche sans questions.
+
+
+PHASE 1 - MULTI-TENANT + AUTH (Semaines 2-3)
+============================================
+OBJECTIF : Socle qui rend tout le reste possible. Aucune feature métier sans
+            cette base solide.
+
+AVEC CLAUDE CODE : oui, mais discipline stricte.
+
+LIVRABLES :
+  [ ] Schéma packages/db/schema/crm.ts (cabinet, cabinet_membre, invitation_membre)
+  [ ] Migration Drizzle initiale
+  [ ] Fonction SQL current_cabinet_id()
+  [ ] RLS policies génériques sur cabinet, cabinet_membre
+  [ ] Trigger consistency check cabinet_id ↔ client_id
+  [ ] packages/multi-tenant/db-client.ts (getDbForCabinet)
+  [ ] packages/multi-tenant/helpers.ts (requireCabinetId, etc.)
+  [ ] packages/auth/server.ts (requireAuth, requireCabinetMember, requireRole)
+  [ ] packages/auth/middleware.ts pour Next.js
+  [ ] Pages auth : signup, login, logout, magic link
+  [ ] Onboarding cabinet minimal (juste créer le tenant)
+  [ ] Tests d'isolation multi-tenant (8+ tests BLOQUANTS en CI)
+  [ ] Tests auth et RBAC
+  [ ] CI GitHub Actions configurée (lint, typecheck, tests, build)
+
+CRITÈRES SORTIE :
+  - Un utilisateur peut créer un compte cabinet
+  - Un utilisateur peut se connecter
+  - Un utilisateur d'un cabinet A ne voit JAMAIS les données du cabinet B
+  - Tous les tests d'isolation passent
+  - Le code passe la CI à 100%
+
+TEMPS RÉEL ATTENDU : 2-3 semaines, peut être 4 si galère sur RLS
+
+PIÈGES À ÉVITER :
+  - Ne pas oublier la fonction current_cabinet_id() dès la 1ère migration
+  - Ne pas désactiver les RLS "temporairement" pour débugger
+  - Tester l'isolation AVEC du vrai code, pas juste sur le papier
+
+
+PHASE 2 - PREMIER MODULE VERTICAL : DOC (Semaines 4-7)
+======================================================
+OBJECTIF : Module Doc complet, de l'ingestion email à la validation par
+            l'utilisateur. UN module bien fait > 3 modules bancals.
+
+POURQUOI DOC EN PREMIER :
+  - Démontre le plus de valeur perçue rapidement (email arrive → c'est classé)
+  - Utilise Microsoft Graph + pipeline IA + CRM minimal
+  - Pose les patterns architecturaux réutilisés partout ensuite
+  - Si Doc fonctionne, le reste est de l'application des mêmes patterns
+
+LIVRABLES :
+  [ ] Schéma packages/db/schema/doc.ts complet
+  [ ] Migrations pour doc.email_brut, doc.upload_brut, doc.fichier_physique,
+      doc.proposition_classement, doc.document, doc.document_version
+  [ ] RLS policies sur tout doc.*
+  [ ] packages/integrations/microsoft/ (Graph API wrapper)
+  [ ] packages/integrations/bedrock/ (LLM wrapper)
+  [ ] packages/integrations/mistral/ (OCR wrapper)
+  [ ] packages/extraction/ (pipeline générique)
+  [ ] Pipeline classification-doc avec prompt versionné
+  [ ] Route handler webhook Microsoft Graph
+  [ ] Server action pour upload manuel
+  [ ] Server action pour validation/correction/rejet d'une proposition
+  [ ] UI inbox documentaire (vue v_inbox_a_valider)
+  [ ] UI validation avec split-screen (PDF + champs)
+  [ ] Audit log des actions
+  [ ] Tests unitaires extraction
+  [ ] Tests intégration pipeline complet
+  [ ] Tests E2E flow A (document entrant → validation)
+
+CRITÈRES SORTIE :
+  - Un email arrive dans la boîte du cabinet
+  - ZARYA détecte les PJ
+  - Classification IA propose un client + type
+  - Utilisateur valide en 1 clic OU corrige
+  - Document final créé avec audit log
+  - Recherche dans l'inbox fonctionne
+
+TEMPS RÉEL ATTENDU : 4-6 semaines
+
+PIÈGES À ÉVITER :
+  - Ne pas vouloir tout l'OCR avancé tout de suite (basique d'abord)
+  - Ne pas vouloir l'auto-classement avant la validation manuelle
+  - Ne pas implémenter le versioning de docs avant le besoin réel
+
+
+PHASE 3 - ONBOARDING FIDUCIAIRE COMPLET (Semaines 8-10)
+========================================================
+OBJECTIF : Wizard complet qui permet à un cabinet de s'inscrire et de devenir
+            opérationnel sans accompagnement.
+
+LIVRABLES :
+  [ ] Schéma onboarding-fiduciaire-schema (session, étapes, état)
+  [ ] Wizard étapes A à E (selon flow F)
+  [ ] Intégration Zefix pour identité cabinet
+  [ ] Configuration Microsoft 365 OAuth depuis le wizard
+  [ ] Configuration NAS basique (test de connexion)
+  [ ] Import portefeuille assisté (Phase 2 du wizard)
+  [ ] Création des collaborateurs
+  [ ] Templates ZARYA pré-installés (modèles emails, checklists)
+  [ ] Tests E2E flow F complet
+  [ ] Branding cabinet basique (logo, couleurs)
+
+CRITÈRES SORTIE :
+  - Un cabinet peut s'inscrire en 30-60 minutes sans accompagnement
+  - Le cabinet est opérationnel sur le module Doc à la fin de l'onboarding
+  - Le wizard sauvegarde l'état (peut quitter et reprendre)
+
+TEMPS RÉEL ATTENDU : 2-3 semaines
+
+
+PHASE 4 - POLISH + MONITORING (Semaine 11)
+==========================================
+OBJECTIF : Préparer le pilote. Production-ready basique.
+
+LIVRABLES :
+  [ ] Sentry configuré en staging et prod
+  [ ] PostHog configuré (events utilisateur)
+  [ ] Status page basique (Better Uptime ou équivalent)
+  [ ] CGU validées par juriste + publiées sur le site
+  [ ] Politique de confidentialité validée + publiée
+  [ ] DPA signé avec AWS, Supabase, Stripe
+  [ ] Stripe en mode live (test → prod)
+  [ ] Backups Supabase vérifiés (PITR fonctionnel)
+  [ ] Documentation cabinet pilote (guide utilisateur basique)
+  [ ] Plan de rollback documenté en cas de problème
+  [ ] Email transactionnel configuré (Resend ou Mailgun EU)
+  [ ] Domaine zarya.ch configuré
+
+CRITÈRES SORTIE :
+  - Tout est en place pour signer un cabinet payant
+  - Les conditions légales sont remplies
+  - Le monitoring détecte les anomalies
+
+
+PHASE 5 - PILOTE (Semaine 12+)
+==============================
+OBJECTIF : Installer ZARYA chez 1er cabinet pilote.
+
+ATTENTION : Cette phase est volontairement non-bornée. Tu vas découvrir
+            des bugs, des manques, des incompréhensions. Le code va évoluer
+            en réaction au pilote.
+
+ACTIVITÉS :
+  [ ] Onboarding live avec le 1er cabinet (même si le wizard est self-service,
+      tu accompagnes pour observer les frictions)
+  [ ] Daily/weekly avec le cabinet pour récolter le feedback
+  [ ] Fix des bugs critiques en priorité
+  [ ] Documentation des manques pour Phase suivante
+  [ ] Décision de quoi coder ensuite : Facture ? Calendar ? Search ?
+      → Basé sur le besoin réel du cabinet, pas sur la roadmap théorique
+
+CRITÈRES SORTIE :
+  - Le cabinet utilise ZARYA quotidiennement
+  - Le cabinet peut témoigner positivement
+  - Tu as appris ce qui est essentiel vs nice-to-have
+
+
+================================================================================
+PARTIE 3 - WORKFLOW CONCRET PAR FEATURE
+================================================================================
+
+Voici le pattern à suivre POUR CHAQUE FEATURE individuelle.
+
+
+ÉTAPE 1 - LECTURE PRÉALABLE (5-15 min, SANS Claude Code)
+--------------------------------------------------------
+Avant TOUT prompt à Claude Code :
+
+  [ ] Lire la spec du module dans /docs/modules/[module].md
+  [ ] Lire le schéma DB concerné dans /docs/data-model/[schema].md
+  [ ] Lire le flow utilisateur si applicable dans /docs/flows/flow-X.md
+  [ ] Vérifier les ADR pertinents dans /docs/architecture/decisions/
+
+Si quelque chose n'est pas clair dans les docs : NE PAS demander à Claude Code,
+mais d'abord clarifier la doc (créer un ADR si nécessaire).
+
+
+ÉTAPE 2 - ISSUE STRUCTURÉE
+--------------------------
+Créer une issue Linear/GitHub avec :
+
+  - Titre clair : "Module Doc - Implémenter pipeline classification IA"
+  - Module concerné
+  - Comportement attendu
+  - Schémas DB impactés
+  - Tests à passer (au minimum lesquels)
+  - Documents de référence (liens vers /docs/)
+  - Definition of Done
+
+Le but : sortir de ta tête tout ce qui est nécessaire AVANT de lancer du code.
+
+
+ÉTAPE 3 - PROMPT STRUCTURÉ À CLAUDE CODE
+----------------------------------------
+Pattern recommandé :
+
+  "Implémente la fonctionnalité suivante :
+  
+  CONTEXTE :
+  [description courte du besoin]
+  
+  RÉFÉRENCES :
+  - Spec : /docs/modules/[module].md section [N]
+  - Schéma DB : /docs/data-model/[schema].md
+  - ADR pertinent : 0007 (validation granulaire)
+  
+  SCOPE :
+  [liste précise des fichiers à créer/modifier]
+  
+  CONTRAINTES :
+  - Tests d'isolation multi-tenant si table métier
+  - Validation Zod sur tous les inputs
+  - Audit log sur l'action
+  
+  HORS SCOPE :
+  [ce qu'il ne doit PAS faire]
+  
+  Propose un plan avant d'écrire le code."
+
+
+ÉTAPE 4 - VALIDATION DU PLAN
+----------------------------
+Claude Code propose un plan. Tu reviews :
+
+  - Le plan respecte-t-il le scope ?
+  - Les fichiers proposés sont-ils les bons ?
+  - L'approche technique est-elle saine ?
+  - Y a-t-il des effets de bord non mentionnés ?
+
+Si OK → "Procède"
+Si ajustements nécessaires → corriger le plan AVANT d'écrire du code
+
+
+ÉTAPE 5 - IMPLÉMENTATION PAR ITÉRATIONS COURTES
+-----------------------------------------------
+Claude Code implémente. Toi tu :
+
+  - Reviews chaque diff au fur et à mesure (pas en bloc à la fin)
+  - Demande des corrections sur les écarts (sans tout réécrire)
+  - Coupe la session toutes les 30-60 min pour faire le point
+
+Si tu te rends compte que ça part en vrille → STOP, redémarre avec un prompt
+plus précis.
+
+
+ÉTAPE 6 - TESTS LOCAUX
+----------------------
+Tu lances les tests :
+
+  pnpm test
+  pnpm test:integration
+  pnpm test:e2e (si applicable)
+
+Si rouge → tu donnes les logs d'erreur à Claude Code pour qu'il fix.
+
+Si vert mais pas couvrant → tu demandes plus de tests.
+
+
+ÉTAPE 7 - REVIEW FINALE HUMAINE
+-------------------------------
+Toi seul fais la review finale :
+
+  - Le code respecte-t-il les conventions ?
+  - Les commentaires sont-ils utiles ou superflus ?
+  - Y a-t-il du code mort à supprimer ?
+  - Les noms de variables sont-ils clairs ?
+  - Les RLS policies sont-elles correctes ?
+
+
+ÉTAPE 8 - COMMIT ET PR
+----------------------
+Toi seul commit, pas Claude Code en mode YOLO :
+
+  git add [fichiers reviewés]
+  git commit -m "feat(doc): implémenter pipeline classification IA"
+
+Push, ouvre la PR, attends que la CI passe.
+
+Si tu travailles solo : merge après avoir relu une dernière fois.
+Si tu travailles en équipe : review par un collègue avant merge.
+
+
+ÉTAPE 9 - DEPLOY ET VÉRIFICATION
+--------------------------------
+Merge → déploiement automatique sur staging via Vercel.
+
+Tu vas tester en staging avec un compte test :
+  - Le comportement attendu est-il là ?
+  - Pas de régression sur les autres modules ?
+  - Sentry remonte-t-il des erreurs inattendues ?
+
+Si OK → la feature est livrée.
+Si bug en staging → fix puis re-deploy.
+
+
+================================================================================
+PARTIE 4 - RÈGLES DE SURVIE
+================================================================================
+
+4.1 SESSIONS COURTES
+--------------------
+Max 30-60 min par session Claude Code. Au-delà, tu perds le contrôle.
+
+
+4.2 PLAN MODE OBLIGATOIRE
+-------------------------
+Pour toute feature non triviale (> 1 fichier), demande un plan avant le code.
+
+
+4.3 AUTO-ACCEPT OFF
+-------------------
+Tu valides chaque modification de fichier. Lent mais sûr les 2 premiers mois.
+Tu pourras activer l'auto-accept sur les tâches répétitives sûres ensuite.
+
+
+4.4 SOIS LE FILTRE
+------------------
+Claude Code va régulièrement proposer :
+  - "Pendant qu'on y est, j'ai amélioré X aussi"
+  - "J'ai aussi ajouté Y pour la robustesse"
+  - "J'ai refactoré Z parce que..."
+
+→ NON. Coupe et recadre. Une feature à la fois. Le scope creep est ton ennemi.
+
+
+4.5 MAINTIENS LE CLAUDE.md À JOUR
+---------------------------------
+Quand tu remarques une dérive récurrente, ajoute la règle dans CLAUDE.md.
+C'est là que Claude Code apprend les contraintes du projet.
+
+Exemples de règles à ajouter avec le temps :
+  - "Ne jamais utiliser useEffect pour data fetching"
+  - "Toujours typer les params Server Actions avec Zod"
+  - "Pas de console.log laissé dans le code"
+
+
+4.6 NE DÉLÈGUE JAMAIS À CLAUDE CODE
+-----------------------------------
+- Les ADR (tu les écris toi-même)
+- Les choix de schéma DB structurants
+- Les politiques RLS (review systématique)
+- Les credentials et secrets
+- Les décisions de pricing
+- Les conversations avec les cabinets pilotes
+- Le choix de quoi coder maintenant
+
+
+4.7 GARDE UNE ROADMAP RÉALISTE
+------------------------------
+12 semaines pour Phase 0-4 = ambitieux mais réaliste si tu es focused.
+24 semaines = plus réaliste si solo dev avec d'autres responsabilités.
+
+Si tu fais 30% du code toi-même à la main : c'est normal.
+Si tu fais 70% à la main : Claude Code n'est pas utile pour toi.
+
+
+4.8 INVESTIS DANS LE FILET DE SÉCURITÉ TÔT
+------------------------------------------
+- Tests d'isolation multi-tenant : EN PRIORITÉ ABSOLUE
+- CI bloquante : dès la Phase 1
+- Linting strict : dès la Phase 0
+- Pré-commit hooks : dès la Phase 0
+- Sentry : dès le premier déploiement staging
+
+Plus c'est tôt, moins ça coûte.
+
+
+4.9 LIBÈRE-TOI MENTALEMENT POUR LE PRODUIT
+------------------------------------------
+L'objectif d'utiliser Claude Code n'est pas de coder plus, c'est d'avoir
+plus d'énergie mentale pour le PRODUIT :
+  - Interviews avec les fiduciaires
+  - Décisions de roadmap
+  - Pricing
+  - Communication
+  - Vente
+
+Si tu te retrouves à passer 100% de ton temps à corriger Claude Code, tu rates
+le point.
+
+
+================================================================================
+PARTIE 5 - MÉTRIQUES À SUIVRE
+================================================================================
+
+5.1 MÉTRIQUES TECHNIQUES
+------------------------
+- % code réécrit / corrigé : cible < 30%
+- Tests d'isolation multi-tenant : 100% pass
+- Coverage tests : 70%+ code métier
+- Build time : < 5 min
+- Déploiement staging : automatique sur push develop
+- Bugs critiques en prod : 0
+
+
+5.2 MÉTRIQUES PRODUIT
+---------------------
+- Phase 1 terminée semaine 3 ?
+- Module Doc terminé semaine 7 ?
+- Onboarding fiduciaire terminé semaine 10 ?
+- 1er cabinet pilote opérationnel semaine 12 ?
+
+
+5.3 MÉTRIQUES BUSINESS
+----------------------
+- Interviews fiduciaires conduites : 10+ avant le pilote
+- Cabinets pilotes signés : 1 à 3 mois
+- Feedback structuré récolté : poids des douleurs validées
+- 1er cabinet payant : 6 mois
+
+
+================================================================================
+PARTIE 6 - CHECKLIST QUOTIDIENNE
+================================================================================
+
+À cocher mentalement chaque jour de dev :
+
+  [ ] J'ai un objectif clair pour cette session ?
+  [ ] J'ai lu la doc avant de coder ?
+  [ ] Je laisse Claude Code dériver hors scope ?
+  [ ] Je commit régulièrement (pas un mega-commit de 2000 lignes) ?
+  [ ] Les tests passent toujours ?
+  [ ] J'ai mis à jour la doc si nécessaire ?
+  [ ] J'ai parlé à un fiduciaire récemment ?
+
+
+================================================================================
+PARTIE 7 - QUAND TU ES BLOQUÉ
+================================================================================
+
+7.1 BLOQUÉ SUR UN PROBLÈME TECHNIQUE
+------------------------------------
+1. Pose la question à Claude Code avec le contexte complet
+2. Si pas résolu : recherche StackOverflow / docs officielles
+3. Si pas résolu : demande à un dev senior dans ton réseau
+4. Si toujours pas résolu : envisage de contourner (workaround documenté)
+
+
+7.2 BLOQUÉ SUR UN CHOIX ARCHITECTURAL
+-------------------------------------
+1. Re-lis les ADR existants
+2. Pose la question à Claude (pas Claude Code) en mode discussion
+3. Crée un nouvel ADR avec les options et ta décision
+
+
+7.3 BLOQUÉ SUR LA MOTIVATION
+----------------------------
+1. Re-regarde tes interviews (si déjà fait)
+2. Parle à un fiduciaire (rien ne re-motive autant qu'un client réel)
+3. Réduis ton scope (peut-être tu vises trop large)
+
+
+================================================================================
+PARTIE 8 - WORKFLOW HEBDO TYPE
+================================================================================
+
+Recommandation pour un solo dev sur ZARYA :
+
+
+LUNDI - Planning
+  - Définir les 3-5 tâches de la semaine
+  - Créer les issues Linear/GitHub
+  - Lire la doc des modules concernés
+
+
+MARDI à JEUDI - Coding
+  - Sessions Claude Code de 30-60 min
+  - 4-6 sessions par jour max
+  - Pauses entre les sessions
+  - Review PR au fur et à mesure
+
+
+VENDREDI - Polish & Communication
+  - Tests qui restent à écrire
+  - Doc à mettre à jour
+  - Email avec cabinet pilote
+  - Interview qualitative si planifiée
+  - Mise à jour de ce plan
+
+
+SAMEDI / DIMANCHE - Off (vraiment)
+  - Pas de code
+  - Lecture éventuelle (Mom Test, Inspired)
+  - Recharger
+
+
+================================================================================
+NOTES PERSONNELLES
+================================================================================
+
+[Espace pour tes notes au fur et à mesure]
+
+
+
+
+FIN DU DOCUMENT
+================================================================================

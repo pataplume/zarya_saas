@@ -1,0 +1,31 @@
+{
+  "name": "zarya",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.3.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @zarya/web dev",
+    "build": "pnpm --filter @zarya/web build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5"
+  },
+  "lint-staged": {
+    "**/*.{ts,tsx,js,jsx,json}": [
+      "biome check --write --no-errors-on-unmatched"
+    ],
+    "**/*.{md,yaml,yml,css}": [
+      "biome format --write --no-errors-on-unmatched"
+    ]
+  }
+}
