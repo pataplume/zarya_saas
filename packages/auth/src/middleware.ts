@@ -8,7 +8,9 @@ export async function updateSupabaseSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
+    // biome-ignore lint/style/noNonNullAssertion: env var required at runtime, validated by infrastructure
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    // biome-ignore lint/style/noNonNullAssertion: env var required at runtime, validated by infrastructure
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {

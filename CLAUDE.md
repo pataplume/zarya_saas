@@ -168,15 +168,33 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 
 ## Phase actuelle du projet
 
-[À METTRE À JOUR à chaque transition de phase]
+**Phase courante** : Phase 2b — Hardening (tests + dashboard + cleanup)
 
-**Phase courante** : Phase 1 — MVP P0
+**Historique des phases :**
+- ~~Phase 0 Bootstrap~~ ✅ terminée
+- ~~Phase 1 Multi-tenant + Auth~~ ✅ terminée
+- ~~Phase 2a Onboarding fiduciaire~~ ✅ terminée (85%)
+- **Phase 2b Hardening** ← en cours
+- Phase 2c : Onboarding finalisation + dashboard fiduciaire complet
+- Phase 3 : Module Doc complet
+- Phase 4 : Module Calendar / CRM / Facture
 
-**Modules en cours** : DB Foundation + Auth
+**Modules en cours** :
+- `tests/` (création de la suite de tests d'isolation multi-tenant)
+- `.github/workflows/` (CI bloquante)
+- `apps/web/app/(app)/` (dashboard post-onboarding minimal)
+- Cleanup tech debt documenté dans `docs/retro-sessions-claude.md`
 
-**Modules autorisés à coder** : `packages/db`, `packages/auth`, `apps/web` (auth layer)
+**Modules autorisés à toucher** :
+- `tests/`, `.github/workflows/`, `apps/web/app/(app)/`
+- Cleanup tech debt des packages existants (`packages/auth`, `packages/db`, `packages/integrations`)
 
-**Modules interdits** : CRM, Doc, Calendar, Extraction IA, Facture, Salaire, Search
+**Modules INTERDITS pendant Phase 2b** :
+- `packages/integrations/bedrock` — Phase 3
+- `packages/integrations/microsoft` — Phase 3
+- `packages/integrations/mistral` — Phase 3
+- Tous les modules métier non démarrés : CRM, Doc, Calendar, Facture, Salaire, Search
+- Nouveau schéma DB sans tests d'isolation multi-tenant associés
 
 ## Tests obligatoires en CI
 

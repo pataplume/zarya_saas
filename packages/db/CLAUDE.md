@@ -161,6 +161,42 @@ describe('Multi-tenant isolation - DB level', () => {
 - Pas de modification du schéma `auth.*` (géré par Supabase)
 - Pas de seed depuis le code applicatif (uniquement scripts dédiés)
 
+## Pièges connus
+
+### "TypeError: Invalid URL" au build Vercel — `DATABASE_URL` malformée
+
+`postgres-js` appelle `new URL()` au **chargement du module**, pas à l'exécution des queries.
+Une `DATABASE_URL` malformée crashe donc le build Next.js à l'étape "Collecting page data",
+avec un stack trace opaque pointant vers `.next/server/chunks/`.
+
+**Format correct :**
+```
+postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres
+```
+
+**Erreurs fréquentes :**
+- `@db.` manquant → `postgresql://postgres:PASSWORDdb.PROJECT_REF...` (password collé au hostname)
+- `@` manquant → le driver interprète tout comme le hostname
+- Espaces ou caractères spéciaux non-encodés dans le mot de passe
+
+**Diagnostic rapide :** si le build Vercel échoue sur "Collecting page data" avec `ERR_INVALID_URL`,
+vérifier `DATABASE_URL` en premier dans Vercel → Settings → Environment Variables.
+
+**Fix dans le code :** `packages/db/src/client.ts` lève maintenant une `Error` explicite
+si `DATABASE_URL` est absente, avec le format attendu dans le message (Sprint 2b.1).
+
+---
+
+### Création de users Supabase en SQL brut — pièges auth.*
+
+Ne jamais insérer directement dans `auth.users`. GoTrue requiert :
+1. Les champs `confirmation_token`, `recovery_token`, `email_change_token_new`, `email_change` à `''` (chaîne vide, **pas NULL**) — `pgx` ne sait pas convertir NULL en `string`.
+2. Une ligne dans `auth.identities` pour chaque provider (sinon le user ne peut pas se connecter).
+
+**Utiliser à la place :** `supabase.auth.admin.createUser()` via le service role (`createSupabaseAdminClient`), qui gère ces détails automatiquement.
+
+---
+
 ## Référence documentation produit
 
 - `/docs/architecture/multi-tenant.md` — RLS, cabinet_id, isolation

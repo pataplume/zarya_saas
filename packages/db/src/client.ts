@@ -5,7 +5,15 @@ import * as schema from "./schema";
 // Client Drizzle — connexion directe (service role, bypasse RLS)
 // Usage : migrations, background jobs, scripts admin
 // Ne JAMAIS utiliser pour des queries app sans cabinet_id explicite
-const queryClient = postgres(process.env.DATABASE_URL!);
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error(
+    "[zarya/db] DATABASE_URL env var manquante.\n" +
+      "Format attendu : postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres\n" +
+      "Vérifier la variable dans Vercel (Settings → Environment Variables) ou dans .env.local.",
+  );
+}
+const queryClient = postgres(databaseUrl);
 
 export const db = drizzle(queryClient, { schema });
 
