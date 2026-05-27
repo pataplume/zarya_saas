@@ -1,0 +1,1041 @@
+{
+  "id": "45c49257-123b-404b-8775-cce5931bc417",
+  "prevId": "88bcdab7-bd96-4261-b6a8-47df4a6f1b5e",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "crm.cabinet": {
+      "name": "cabinet",
+      "schema": "crm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "raison_sociale": {
+          "name": "raison_sociale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ide": {
+          "name": "ide",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_contact": {
+          "name": "email_contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "statut": {
+          "name": "statut",
+          "type": "cabinet_statut",
+          "typeSchema": "crm",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'actif'"
+        },
+        "plan_tarifaire": {
+          "name": "plan_tarifaire",
+          "type": "plan_tarifaire",
+          "typeSchema": "crm",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'starter'"
+        },
+        "onboarding_termine": {
+          "name": "onboarding_termine",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "onboarding_termine_at": {
+          "name": "onboarding_termine_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zefix_ehraid": {
+          "name": "zefix_ehraid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "forme_juridique": {
+          "name": "forme_juridique",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "adresse_rue": {
+          "name": "adresse_rue",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "adresse_npa": {
+          "name": "adresse_npa",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "adresse_ville": {
+          "name": "adresse_ville",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "adresse_canton": {
+          "name": "adresse_canton",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "date_inscription_rc": {
+          "name": "date_inscription_rc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capital_social": {
+          "name": "capital_social",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capital_devise": {
+          "name": "capital_devise",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'CHF'"
+        },
+        "but_statutaire": {
+          "name": "but_statutaire",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tva_numero": {
+          "name": "tva_numero",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "langues_operationnelles": {
+          "name": "langues_operationnelles",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "langue_principale": {
+          "name": "langue_principale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'fr'"
+        },
+        "fuseau_horaire": {
+          "name": "fuseau_horaire",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Europe/Zurich'"
+        },
+        "devise": {
+          "name": "devise",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'CHF'"
+        },
+        "site_web": {
+          "name": "site_web",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telephone": {
+          "name": "telephone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_cabinet_statut": {
+          "name": "idx_cabinet_statut",
+          "columns": [
+            {
+              "expression": "statut",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_cabinet_created_by": {
+          "name": "idx_cabinet_created_by",
+          "columns": [
+            {
+              "expression": "created_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "crm.cabinet_membre": {
+      "name": "cabinet_membre",
+      "schema": "crm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "cabinet_id": {
+          "name": "cabinet_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "role_membre",
+          "typeSchema": "crm",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prenom": {
+          "name": "prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actif": {
+          "name": "actif",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_cabinet_membre_cabinet": {
+          "name": "idx_cabinet_membre_cabinet",
+          "columns": [
+            {
+              "expression": "cabinet_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_cabinet_membre_user": {
+          "name": "idx_cabinet_membre_user",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cabinet_membre_cabinet_id_cabinet_id_fk": {
+          "name": "cabinet_membre_cabinet_id_cabinet_id_fk",
+          "tableFrom": "cabinet_membre",
+          "tableTo": "cabinet",
+          "schemaTo": "crm",
+          "columnsFrom": ["cabinet_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uniq_user_cabinet": {
+          "name": "uniq_user_cabinet",
+          "nullsNotDistinct": false,
+          "columns": ["user_id", "cabinet_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "crm.invitation_membre": {
+      "name": "invitation_membre",
+      "schema": "crm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "cabinet_id": {
+          "name": "cabinet_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prenom": {
+          "name": "prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role_propose": {
+          "name": "role_propose",
+          "type": "role_membre",
+          "typeSchema": "crm",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "specialisation": {
+          "name": "specialisation",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "token": {
+          "name": "token",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "token_expire_at": {
+          "name": "token_expire_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statut": {
+          "name": "statut",
+          "type": "statut_invitation_membre",
+          "typeSchema": "crm",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'envoyee'"
+        },
+        "date_envoi": {
+          "name": "date_envoi",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "date_lecture": {
+          "name": "date_lecture",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "date_acceptation": {
+          "name": "date_acceptation",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "date_refus": {
+          "name": "date_refus",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "envoyee_par": {
+          "name": "envoyee_par",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cabinet_membre_id": {
+          "name": "cabinet_membre_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "relance_count": {
+          "name": "relance_count",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0'"
+        },
+        "derniere_relance_at": {
+          "name": "derniere_relance_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_invitation_membre_cabinet": {
+          "name": "idx_invitation_membre_cabinet",
+          "columns": [
+            {
+              "expression": "cabinet_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "statut",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_invitation_membre_email": {
+          "name": "idx_invitation_membre_email",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_invitation_membre_token": {
+          "name": "idx_invitation_membre_token",
+          "columns": [
+            {
+              "expression": "token",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "invitation_membre_cabinet_id_cabinet_id_fk": {
+          "name": "invitation_membre_cabinet_id_cabinet_id_fk",
+          "tableFrom": "invitation_membre",
+          "tableTo": "cabinet",
+          "schemaTo": "crm",
+          "columnsFrom": ["cabinet_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "invitation_membre_session_id_session_onboarding_fiduciaire_id_fk": {
+          "name": "invitation_membre_session_id_session_onboarding_fiduciaire_id_fk",
+          "tableFrom": "invitation_membre",
+          "tableTo": "session_onboarding_fiduciaire",
+          "schemaTo": "crm",
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "invitation_membre_cabinet_membre_id_cabinet_membre_id_fk": {
+          "name": "invitation_membre_cabinet_membre_id_cabinet_membre_id_fk",
+          "tableFrom": "invitation_membre",
+          "tableTo": "cabinet_membre",
+          "schemaTo": "crm",
+          "columnsFrom": ["cabinet_membre_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "invitation_membre_token_unique": {
+          "name": "invitation_membre_token_unique",
+          "nullsNotDistinct": false,
+          "columns": ["token"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "crm.session_onboarding_fiduciaire": {
+      "name": "session_onboarding_fiduciaire",
+      "schema": "crm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "cabinet_id": {
+          "name": "cabinet_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statut": {
+          "name": "statut",
+          "type": "statut_session_onboarding_fiduciaire",
+          "typeSchema": "crm",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'inscrit'"
+        },
+        "date_inscription": {
+          "name": "date_inscription",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "date_verification_email": {
+          "name": "date_verification_email",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "date_derniere_activite": {
+          "name": "date_derniere_activite",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "date_completion": {
+          "name": "date_completion",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etape_a_terminee_at": {
+          "name": "etape_a_terminee_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etape_b_terminee_at": {
+          "name": "etape_b_terminee_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etape_c_terminee_at": {
+          "name": "etape_c_terminee_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etape_d_terminee_at": {
+          "name": "etape_d_terminee_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etape_e_terminee_at": {
+          "name": "etape_e_terminee_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etape_f_terminee_at": {
+          "name": "etape_f_terminee_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etape_f_differee_at": {
+          "name": "etape_f_differee_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "consentement_cgu": {
+          "name": "consentement_cgu",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "consentement_cgu_at": {
+          "name": "consentement_cgu_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "consentement_zefix": {
+          "name": "consentement_zefix",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "consentement_zefix_at": {
+          "name": "consentement_zefix_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_choisi": {
+          "name": "plan_choisi",
+          "type": "plan_tarifaire",
+          "typeSchema": "crm",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paiement_configure": {
+          "name": "paiement_configure",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "paiement_configure_at": {
+          "name": "paiement_configure_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "date_fin_essai": {
+          "name": "date_fin_essai",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code_parrainage_utilise": {
+          "name": "code_parrainage_utilise",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "utm_source": {
+          "name": "utm_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "utm_campaign": {
+          "name": "utm_campaign",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "utm_medium": {
+          "name": "utm_medium",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes_csm": {
+          "name": "notes_csm",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_session_onboarding_statut": {
+          "name": "idx_session_onboarding_statut",
+          "columns": [
+            {
+              "expression": "statut",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_session_onboarding_activite": {
+          "name": "idx_session_onboarding_activite",
+          "columns": [
+            {
+              "expression": "statut",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "date_derniere_activite",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "session_onboarding_fiduciaire_cabinet_id_cabinet_id_fk": {
+          "name": "session_onboarding_fiduciaire_cabinet_id_cabinet_id_fk",
+          "tableFrom": "session_onboarding_fiduciaire",
+          "tableTo": "cabinet",
+          "schemaTo": "crm",
+          "columnsFrom": ["cabinet_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "session_onboarding_fiduciaire_cabinet_id_unique": {
+          "name": "session_onboarding_fiduciaire_cabinet_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["cabinet_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "crm.zefix_recherche_cabinet": {
+      "name": "zefix_recherche_cabinet",
+      "schema": "crm",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cabinet_id": {
+          "name": "cabinet_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requete": {
+          "name": "requete",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nb_resultats": {
+          "name": "nb_resultats",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ide_selectionne": {
+          "name": "ide_selectionne",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reponse_brute": {
+          "name": "reponse_brute",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "consentement_donne": {
+          "name": "consentement_donne",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_appel": {
+          "name": "date_appel",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_zefix_recherche_cabinet": {
+          "name": "idx_zefix_recherche_cabinet",
+          "columns": [
+            {
+              "expression": "cabinet_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_zefix_recherche_session": {
+          "name": "idx_zefix_recherche_session",
+          "columns": [
+            {
+              "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "zefix_recherche_cabinet_session_id_session_onboarding_fiduciaire_id_fk": {
+          "name": "zefix_recherche_cabinet_session_id_session_onboarding_fiduciaire_id_fk",
+          "tableFrom": "zefix_recherche_cabinet",
+          "tableTo": "session_onboarding_fiduciaire",
+          "schemaTo": "crm",
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "zefix_recherche_cabinet_cabinet_id_cabinet_id_fk": {
+          "name": "zefix_recherche_cabinet_cabinet_id_cabinet_id_fk",
+          "tableFrom": "zefix_recherche_cabinet",
+          "tableTo": "cabinet",
+          "schemaTo": "crm",
+          "columnsFrom": ["cabinet_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "crm.cabinet_statut": {
+      "name": "cabinet_statut",
+      "schema": "crm",
+      "values": ["actif", "suspendu", "archive"]
+    },
+    "crm.plan_tarifaire": {
+      "name": "plan_tarifaire",
+      "schema": "crm",
+      "values": ["starter", "pro", "enterprise"]
+    },
+    "crm.role_membre": {
+      "name": "role_membre",
+      "schema": "crm",
+      "values": ["responsable", "gestionnaire_salaires", "collaborateur", "lecteur"]
+    },
+    "crm.statut_invitation_membre": {
+      "name": "statut_invitation_membre",
+      "schema": "crm",
+      "values": ["envoyee", "lue", "acceptee", "expiree", "refusee", "annulee"]
+    },
+    "crm.statut_session_onboarding_fiduciaire": {
+      "name": "statut_session_onboarding_fiduciaire",
+      "schema": "crm",
+      "values": [
+        "inscrit",
+        "email_verifie",
+        "etape_a_en_cours",
+        "etape_a_terminee",
+        "etape_b_en_cours",
+        "etape_b_terminee",
+        "etape_c_en_cours",
+        "etape_c_terminee",
+        "etape_d_en_cours",
+        "etape_d_terminee",
+        "etape_e_en_cours",
+        "etape_e_terminee",
+        "etape_f_en_cours",
+        "etape_f_terminee",
+        "etape_f_differee",
+        "paiement_configure",
+        "actif",
+        "abandonne",
+        "suspendu",
+        "archive"
+      ]
+    }
+  },
+  "schemas": {
+    "crm": "crm"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

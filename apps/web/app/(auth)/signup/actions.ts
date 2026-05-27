@@ -2,12 +2,14 @@
 
 import { createSupabaseServerClient } from "@zarya/auth";
 import { z } from "zod";
+import { provisionNewCabinet } from "@/lib/provisioning";
 
 const SignupSchema = z
   .object({
     email: z.string().email("Adresse email invalide"),
     password: z.string().min(12, "Le mot de passe doit contenir au moins 12 caractères"),
     confirmPassword: z.string(),
+    acceptCgu: z.literal("on", { errorMap: () => ({ message: "Vous devez accepter les CGU" }) }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Les mots de passe ne correspondent pas",
@@ -28,6 +30,7 @@ export async function signupAction(
     email: formData.get("email"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
+    acceptCgu: formData.get("acceptCgu"),
   });
 
   if (!parsed.success) {
@@ -35,24 +38,35 @@ export async function signupAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signUp({
+  const { data: authData, error: authError } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      // Redirection après vérification email
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      // Redirection après vérification email → wizard onboarding
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/onboarding`,
     },
   });
 
-  if (error) {
+  if (authError) {
     // Ne pas révéler si l'email existe déjà (sécurité)
-    if (error.message.includes("already registered")) {
-      return {
-        success: true,
-        email: parsed.data.email,
-      };
+    if (authError.message.includes("already registered")) {
+      return { success: true, email: parsed.data.email };
     }
     return { error: "Une erreur est survenue. Réessayez." };
+  }
+
+  // Provisioning du cabinet (atomique) : cabinet + membre + session onboarding
+  if (authData.user) {
+    try {
+      await provisionNewCabinet({
+        userId: authData.user.id,
+        email: parsed.data.email,
+      });
+    } catch (_err) {
+      // TODO: logger via pino avec redact PII (phase 2)
+      // On retourne l'erreur mais le compte auth.users est créé — support peut corriger
+      return { error: "Compte créé mais erreur de configuration. Contactez le support." };
+    }
   }
 
   return {
