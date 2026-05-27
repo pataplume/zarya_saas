@@ -12,7 +12,8 @@ const IdentiteSchema = z.object({
   raison_sociale: z.string().min(1, "La raison sociale est requise"),
   ide: z
     .string()
-    .regex(/^CHE-\d{3}\.\d{3}\.\d{3}$/, "Format IDE invalide (CHE-XXX.XXX.XXX)")
+    // Accepte CHE-123.456.789 et CHE123456789 (zefix-integration.md § 7.5)
+    .regex(/^CHE-?\d{3}\.?\d{3}\.?\d{3}$/, "Format IDE invalide (CHE-XXX.XXX.XXX)")
     .optional()
     .or(z.literal("")),
   zefix_ehraid: z.string().optional(),

@@ -1,6 +1,8 @@
 import type { ZefixCompanyDetail, ZefixCompanySummary, ZefixResultat } from "./types";
 
 // Base URL configurable via ZEFIX_BASE_URL (cf. ADR 0009)
+// Intégration : https://www.zefixintg.admin.ch/ZefixPublicREST/api/v1
+// Production  : https://www.zefix.admin.ch/ZefixPublicREST/api/v1
 const ZEFIX_BASE_URL =
   (typeof process !== "undefined" ? process.env.ZEFIX_BASE_URL : undefined) ??
   "https://www.zefix.admin.ch/ZefixPublicREST/api/v1";
@@ -12,6 +14,12 @@ function buildAuthHeader(): string | undefined {
   const password = typeof process !== "undefined" ? process.env.ZEFIX_PASSWORD : undefined;
   if (!username || !password) return undefined;
   return `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
+}
+
+// Normalise l'IDE vers le format sans séparateurs attendu par l'API Zefix
+// CHE-123.456.789 → CHE123456789   (zefix-integration.md § 3.4)
+function normaliserIde(ide: string): string {
+  return ide.replace(/[-.\s]/g, "");
 }
 
 // Erreur typée pour l'intégration Zefix
@@ -107,24 +115,29 @@ async function fetchAvecTimeout(url: string, options?: RequestInit): Promise<Res
 
 export class ZefixClient {
   /**
-   * Recherche par nom ou IDE (débouncing côté appelant).
+   * Recherche par nom (POST /company/search — zefix-integration.md § 3.4).
    * Retourne jusqu'à 20 résultats normalisés.
    */
   async rechercherParNom(
     nom: string,
     options?: { canton?: string; maxEntries?: number },
   ): Promise<ZefixResultat[]> {
-    const params = new URLSearchParams({
+    // POST avec body JSON (pas GET query string — cf. README corrections erreur factuelle #2)
+    const body: Record<string, unknown> = {
       name: nom,
-      lang: "fr",
-      maxEntries: String(options?.maxEntries ?? 20),
-      offset: "0",
-      ...(options?.canton ? { canton: options.canton } : {}),
+      languageKey: "fr",
+    };
+    if (options?.canton) body.canton = options.canton;
+    // activeOnly non forcé à true : on affiche aussi les entreprises en liquidation/radiées
+    // pour que l'utilisateur puisse voir l'état réel de son cabinet
+
+    const url = `${ZEFIX_BASE_URL}/company/search`;
+
+    const response = await fetchAvecTimeout(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
-
-    const url = `${ZEFIX_BASE_URL}/company/search?${params.toString()}`;
-
-    const response = await fetchAvecTimeout(url);
 
     if (response.status === 429) {
       throw new ZefixError("rate_limit", "Quota Zefix atteint, réessayez dans quelques secondes");
@@ -146,11 +159,13 @@ export class ZefixClient {
   }
 
   /**
-   * Récupère le détail complet d'une entreprise par son IDE (CHE-XXX.XXX.XXX).
+   * Récupère le détail complet d'une entreprise par son IDE.
+   * Accepte CHE-123.456.789 ou CHE123456789 — normalisation automatique (§ 3.4).
    */
   async rechercherParIde(ide: string): Promise<ZefixResultat | null> {
-    // L'API attend le format sans tirets/points pour l'URL : CHE-123.456.789 → CHE-123.456.789
-    const url = `${ZEFIX_BASE_URL}/company/uid/${encodeURIComponent(ide)}`;
+    // Zefix attend le format sans séparateurs : CHE-123.456.789 → CHE123456789
+    const uidNormalise = normaliserIde(ide);
+    const url = `${ZEFIX_BASE_URL}/company/uid/${encodeURIComponent(uidNormalise)}`;
 
     const response = await fetchAvecTimeout(url);
 
