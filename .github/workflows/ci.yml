@@ -54,8 +54,9 @@ jobs:
   test:
     name: Tests (isolation multi-tenant)
     runs-on: ubuntu-latest
-    # Secrets requis : DATABASE_URL, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-    # Configurés dans GitHub → Settings → Secrets → Actions
+    # DATABASE_URL doit pointer vers le connection pooler Supabase (IPv4 only).
+    # Format : postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
+    # Le hostname db.PROJECT_REF.supabase.co est IPv6-only — inaccessible depuis GitHub Actions.
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -72,17 +73,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Force IPv4 DNS for Supabase (GitHub Actions n'a pas de route IPv6 vers Supabase)
-        run: |
-          DB_HOST=$(node -e "const u=new URL(process.env.DATABASE_URL); console.log(u.hostname)")
-          IPV4=$(dig +short A "$DB_HOST" | grep -E '^[0-9]+\.' | head -1)
-          if [ -n "$IPV4" ]; then
-            echo "$IPV4 $DB_HOST" | sudo tee -a /etc/hosts
-            echo "Pinned $DB_HOST → $IPV4 (IPv4) in /etc/hosts"
-          else
-            echo "WARNING: could not resolve $DB_HOST to IPv4"
-          fi
 
       - name: Run tests
         run: pnpm test
