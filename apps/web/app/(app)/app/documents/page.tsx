@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@zarya/auth";
-import { db, uploadBrut } from "@zarya/db";
-import { desc, eq } from "drizzle-orm";
+import { db, propositionClassement, uploadBrut } from "@zarya/db";
+import { and, count, desc, eq } from "drizzle-orm";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DocumentsUploader } from "./documents-client";
 
@@ -64,20 +65,33 @@ export default async function DocumentsPage() {
   const role = (user?.app_metadata.role as string | undefined) ?? "lecteur";
   const peutUploader = role !== "lecteur";
 
-  const uploads = await db
-    .select({
-      id: uploadBrut.id,
-      nom: uploadBrut.nom_fichier_original,
-      taille: uploadBrut.taille_octets,
-      type_mime: uploadBrut.type_mime,
-      source: uploadBrut.source,
-      statut: uploadBrut.statut,
-      date_upload: uploadBrut.date_upload,
-    })
-    .from(uploadBrut)
-    .where(eq(uploadBrut.cabinet_id, cabinet_id))
-    .orderBy(desc(uploadBrut.date_upload))
-    .limit(100);
+  const [uploads, [aValider]] = await Promise.all([
+    db
+      .select({
+        id: uploadBrut.id,
+        nom: uploadBrut.nom_fichier_original,
+        taille: uploadBrut.taille_octets,
+        type_mime: uploadBrut.type_mime,
+        source: uploadBrut.source,
+        statut: uploadBrut.statut,
+        date_upload: uploadBrut.date_upload,
+      })
+      .from(uploadBrut)
+      .where(eq(uploadBrut.cabinet_id, cabinet_id))
+      .orderBy(desc(uploadBrut.date_upload))
+      .limit(100),
+    db
+      .select({ n: count() })
+      .from(propositionClassement)
+      .where(
+        and(
+          eq(propositionClassement.cabinet_id, cabinet_id),
+          eq(propositionClassement.statut, "a_valider"),
+        ),
+      ),
+  ]);
+
+  const nbAValider = aValider?.n ?? 0;
 
   return (
     <div className="px-4 py-8 sm:px-6 lg:px-8">
@@ -85,10 +99,22 @@ export default async function DocumentsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Documents</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Déposez vos documents : ZARYA les classera automatiquement (bientôt). Pour l'instant, ils
-          sont reçus et en attente de traitement.
+          Déposez vos documents : ZARYA propose un classement que vous validez en un clic.
         </p>
       </div>
+
+      {/* Action prioritaire : documents à valider (UX § 6) */}
+      {peutUploader && nbAValider > 0 && (
+        <Link
+          href="/app/documents/validation"
+          className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm transition-colors hover:bg-amber-100"
+        >
+          <span className="font-medium text-amber-800">
+            {nbAValider} document{nbAValider > 1 ? "s" : ""} à valider
+          </span>
+          <span className="font-medium text-amber-700">Valider →</span>
+        </Link>
+      )}
 
       {/* Zone d'upload */}
       {peutUploader ? (

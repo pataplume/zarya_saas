@@ -19,3 +19,9 @@ export {
   type ClassifyDocumentResult,
   classifyDocument,
 } from "./classify-document";
+export {
+  type ChampsProposition,
+  type ChampValidation,
+  diffValidation,
+  type ValidationDiff,
+} from "./validation";
