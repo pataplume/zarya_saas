@@ -13,12 +13,20 @@
     "typecheck": "pnpm -r run typecheck",
     "lint": "biome check .",
     "format": "biome format --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "dotenv": "^16.0.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.0.5"
+    "lint-staged": "^17.0.5",
+    "postgres": "^3.4.0",
+    "vitest": "^3.0.0"
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx,json}": [

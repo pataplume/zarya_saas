@@ -23,21 +23,21 @@ Pour les cabinets exigeant une résidence **physiquement en Suisse**, une option
 
 | Type de donnée | Stockage | Région | Provider |
 |---|---|---|---|
-| CRM (clients, contacts, services) | Postgres | Frankfurt | Supabase eu-central-1 |
-| Salaire (employés, périodes, éléments paie) | Postgres | Frankfurt | Supabase eu-central-1 |
-| Factures (extraites, anomalies) | Postgres | Frankfurt | Supabase eu-central-1 |
-| Échéances et relances | Postgres | Frankfurt | Supabase eu-central-1 |
-| Audit logs | Postgres + CloudWatch | Frankfurt | Supabase + AWS |
-| Comptes auth (clients, fiduciaires) | Supabase Auth | Frankfurt | Supabase eu-central-1 |
+| CRM (clients, contacts, services) | Postgres | Zurich | Supabase eu-central-2 |
+| Salaire (employés, périodes, éléments paie) | Postgres | Zurich | Supabase eu-central-2 |
+| Factures (extraites, anomalies) | Postgres | Zurich | Supabase eu-central-2 |
+| Échéances et relances | Postgres | Zurich | Supabase eu-central-2 |
+| Audit logs | Postgres + CloudWatch | Zurich / Frankfurt | Supabase + AWS |
+| Comptes auth (clients, fiduciaires) | Supabase Auth | Zurich | Supabase eu-central-2 |
 
 ### 2.2 Données non structurées (fichiers binaires)
 
 | Type | Stockage | Région | Provider |
 |---|---|---|---|
-| Documents uploadés (PDF, Excel, images) | Object storage | Frankfurt | Supabase Storage (sur S3 eu-central-1) |
-| Documents générés (exports CSV, fiches PDF) | Object storage | Frankfurt | Idem |
-| Fichiers sources d'onboarding | Object storage | Frankfurt | Idem |
-| Embeddings (Search) | pgvector | Frankfurt | Supabase eu-central-1 |
+| Documents uploadés (PDF, Excel, images) | Object storage | Zurich | Supabase Storage (sur S3 eu-central-2) |
+| Documents générés (exports CSV, fiches PDF) | Object storage | Zurich | Idem |
+| Fichiers sources d'onboarding | Object storage | Zurich | Idem |
+| Embeddings (Search) | pgvector | Zurich | Supabase eu-central-2 |
 
 ### 2.3 Traitements externes (LLM et OCR)
 

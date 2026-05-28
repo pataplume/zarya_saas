@@ -6,9 +6,20 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44.0",
+    "postgres": "^3.4.5"
   },
   "devDependencies": {
+    "@types/node": "^22",
+    "dotenv": "^16.5.0",
+    "drizzle-kit": "^0.31.0",
     "typescript": "*"
   }
 }

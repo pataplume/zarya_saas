@@ -10,7 +10,7 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 
 **Hébergement** : eu-central-1 (Frankfurt) exclusivement pour le MVP. Aucune donnée hors UE.
 
-**Documentation produit** : `/docs/` contient 63 fichiers spécifiant tous les modules, schémas DB, intégrations, ADR, et conformité. À consulter avant tout code.
+**Documentation produit** : `/docs/` contient 64 fichiers spécifiant tous les modules, schémas DB, intégrations, ADR, et conformité. À consulter avant tout code.
 
 ## Règles non-négociables
 
@@ -20,13 +20,14 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 - TOUTE table a des RLS policies filtrant par `current_cabinet_id()`
 - Tests d'isolation multi-tenant OBLIGATOIRES en CI (bloquants pour merge)
 - Aucune feature, optimisation, ou refactor ne peut compromettre cette règle
+- **Exception documentée** : `crm.zefix_recherche_cabinet` autorise `cabinet_id NULL` pendant l'étape A de l'onboarding fiduciaire (cabinet pas encore créé), avec backfill obligatoire. Voir ADR 0009.
 - Référence : `/docs/architecture/multi-tenant.md` et `ADR 0005`
 
 ### 2. Sécurité
 - Validation Zod systématique sur TOUS les inputs externes (API, formulaires, webhooks)
 - Aucun secret committé (vérifier `.gitignore`)
-- Aucun log de PII (utiliser `pino` avec redact)
-- Champs ultra-sensibles chiffrés via Supabase Vault (IBAN, numéro AVS, tokens OAuth)
+- Aucun log de PII (utiliser `pino` avec redact ; redact obligatoire sur `authorization`, `cookie`, `ZEFIX_PASSWORD`, `*_token`, `*_secret`)
+- Champs ultra-sensibles chiffrés via Supabase Vault (IBAN, numéro AVS, tokens OAuth, credentials Zefix en prod)
 - Référence : `/docs/architecture/security-and-audit.md`
 
 ### 3. TypeScript strict
@@ -44,7 +45,7 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 ### 5. Audit log
 - Toutes les actions sensibles loggées dans `audit.*` (append-only)
 - Pas de DELETE/UPDATE sur les tables d'audit
-- Conservation 6 ans minimum
+- Conservation 6 ans minimum (5 ans pour les logs Zefix, cf. `zefix-integration.md` § 4.3)
 - Référence : `/docs/architecture/security-and-audit.md` § 8
 
 ### 6. Stratégie LLM
@@ -52,6 +53,12 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 - Wrapper unique dans `packages/integrations/bedrock/`
 - Tracé dans `extraction.invocation` pour audit et facturation
 - Référence : `/docs/architecture/llm-strategy.md` et `ADR 0003`
+
+### 7. Intégrations tierces — secrets côté serveur uniquement
+- Tout credential d'API tierce (Zefix, Microsoft Graph, Bexio, NAS) est **interdit côté client navigateur**
+- Stocké en variables d'environnement (dev) ou Supabase Vault (prod)
+- Pino `redact` configuré pour masquer ces valeurs dans tous les logs
+- Pour Zefix spécifiquement : HTTP Basic Auth, l'API ne supporte pas CORS, accès **uniquement via route handlers** `/api/zefix/*`. Voir `ADR 0009` et `/docs/architecture/zefix-integration.md`.
 
 ## Process de travail
 
@@ -103,12 +110,14 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 
 ### Server actions vs Route handlers
 - Server Actions par défaut pour les mutations
-- Route Handlers seulement pour : webhooks entrants, file uploads, intégrations tierces avec retour spécifique
+- Route Handlers seulement pour : webhooks entrants, file uploads, intégrations tierces avec retour spécifique (Zefix, Microsoft Graph, etc.)
+- **Cas Zefix** : l'API ne supporte pas CORS, donc tous les appels Zefix passent par `/api/zefix/*` (route handlers). Jamais d'appel direct depuis le navigateur. Voir ADR 0009.
 
 ### Errors
-- Classes d'erreur typées (`ExtractionError`, `ValidationError`, etc.)
+- Classes d'erreur typées (`ExtractionError`, `ValidationError`, `ZefixAuthError`, `ZefixRateLimitError`, etc.)
 - Catch ciblé, pas de catch global qui swallow tout
 - Erreurs loggées avec contexte (cabinet_id, user_id quand applicable)
+- 401/403 sur API tierce → alerte ops critique (credentials cassés)
 
 ## Ce que tu NE fais PAS sans demander
 
@@ -117,10 +126,12 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 - Désactiver une RLS policy
 - Coder un module non prioritaire selon la phase actuelle
 - Refactor majeur non demandé
-- Toucher aux secrets/credentials
+- Toucher aux secrets/credentials (Zefix, Bedrock, Microsoft, Supabase service role)
 - Optimiser prématurément
 - Introduire un nouveau pattern architectural transverse
 - Modifier les CLAUDE.md sans validation explicite
+- Exposer un credential d'API tierce côté client (jamais, sans exception)
+- Faire un appel HTTP direct à une API tierce depuis du code client (`use client`)
 
 ## Mode de travail recommandé
 
@@ -137,12 +148,13 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 | `/docs/architecture/multi-tenant.md` | Avant toute feature qui touche à la DB |
 | `/docs/architecture/security-and-audit.md` | Avant toute feature sensible |
 | `/docs/architecture/dev-environment.md` | Pour les conventions et le setup |
+| `/docs/architecture/zefix-integration.md` | Avant de toucher à Zefix (onboarding cabinet/client, recherche entreprise) |
 | `/docs/architecture/decisions/` | Pour comprendre les choix architecturaux |
 | `/docs/modules/[module].md` | Avant d'implémenter un module |
 | `/docs/data-model/[schema].md` | Avant de créer/modifier des tables |
 | `/docs/flows/[flow].md` | Pour comprendre un parcours utilisateur |
 
-## Référence des ADR (8 décisions actées)
+## Référence des ADR (9 décisions actées)
 
 - **ADR 0001** : Résidence des données en UE (Frankfurt)
 - **ADR 0002** : Stack Next.js + TypeScript end-to-end
@@ -152,18 +164,38 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 - **ADR 0006** : Onboarding fiduciaire self-service
 - **ADR 0007** : Validation granulaire champ par champ pour employés
 - **ADR 0008** : Mini-dashboard client dédié
+- **ADR 0009** : Intégration Zefix via route handler serveur avec HTTP Basic Auth
 
 ## Phase actuelle du projet
 
-[À METTRE À JOUR à chaque transition de phase]
+**Phase courante** : Phase 2c — Paramètres & profil utilisateur
 
-**Phase courante** : Phase 0 — Bootstrap
+**Historique des phases :**
+- ~~Phase 0 Bootstrap~~ ✅ terminée
+- ~~Phase 1 Multi-tenant + Auth~~ ✅ terminée
+- ~~Phase 2a Onboarding fiduciaire~~ ✅ terminée
+- ~~Phase 2b Hardening~~ ✅ terminée (tests isolation multi-tenant, CI, dashboard, bug fixes, Biome cleanup, email redirect Supabase)
+- **Phase 2c Paramètres & dashboard** ← en cours
+  - ~~Sprint 2c.1 — Page équipe~~ ✅ (`/app/parametres/equipe` — liste, inviter, rôles, révoquer)
+  - ~~Sprint 2c.2 — Page cabinet~~ ✅ (`/app/parametres/cabinet` — identité, adresse, préférences)
+  - ~~Sprint 2c.3 — Page profil~~ ✅ (`/app/parametres/profil` — prénom/nom, mot de passe)
+- Phase 3 : Module Doc complet (inbox documentaire + extraction IA)
+- Phase 4 : Module Calendar / CRM / Facture / Search / Salaires
 
-**Modules en cours** : aucun
+**Modules en cours** :
+- `apps/web/app/(app)/app/` — dashboard fiduciaire + section paramètres complète
 
-**Modules autorisés à coder** : aucun avant Phase 1
+**Modules autorisés à toucher** :
+- `apps/web/app/(app)/` — dashboard, paramètres, composants layout
+- `tests/` — nouveaux tests d'isolation si nouvelle table métier
+- `packages/auth`, `packages/db` — cleanup et extensions légères
 
-**Modules interdits** : tous les modules métier tant que le bootstrap n'est pas terminé
+**Modules INTERDITS (Phase 3+)** :
+- `packages/integrations/bedrock` — Phase 3
+- `packages/integrations/microsoft` — Phase 3
+- `packages/integrations/mistral` — Phase 3
+- Tous les modules métier non démarrés : CRM, Doc, Calendar, Facture, Salaire, Search
+- Nouveau schéma DB sans tests d'isolation multi-tenant associés
 
 ## Tests obligatoires en CI
 

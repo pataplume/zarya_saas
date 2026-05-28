@@ -8,6 +8,13 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0",
+    "@supabase/ssr": "^0.6.0"
+  },
+  "peerDependencies": {
+    "next": "^15.0.0"
+  },
   "devDependencies": {
     "typescript": "*"
   }
