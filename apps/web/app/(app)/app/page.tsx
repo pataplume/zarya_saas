@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@zarya/auth";
 import { cabinet, cabinetMembre, db } from "@zarya/db";
 import { count, eq } from "drizzle-orm";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -149,12 +150,14 @@ export default async function AppHomePage() {
 
           {/* Stats rapides */}
           <div className="mt-5 flex gap-6 border-t border-slate-100 pt-4">
-            <div>
-              <p className="text-2xl font-bold text-slate-900">{nbMembres}</p>
-              <p className="text-xs text-slate-500">
-                {nbMembres <= 1 ? "Membre" : "Membres"} d'équipe
+            <Link href="/app/parametres/equipe" className="group">
+              <p className="text-2xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                {nbMembres}
               </p>
-            </div>
+              <p className="text-xs text-slate-500 group-hover:text-blue-500 transition-colors">
+                {nbMembres <= 1 ? "Membre" : "Membres"} d'équipe →
+              </p>
+            </Link>
             <div>
               <p className="text-2xl font-bold text-slate-300">—</p>
               <p className="text-xs text-slate-400">Clients actifs</p>

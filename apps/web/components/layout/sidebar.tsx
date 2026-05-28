@@ -264,7 +264,7 @@ const NAV_MAIN: NavItem[] = [
 ];
 
 const NAV_BOTTOM: NavItem[] = [
-  { href: "/app/parametres", label: "Paramètres", icon: <IconSettings />, locked: true },
+  { href: "/app/parametres", label: "Paramètres", icon: <IconSettings /> },
 ];
 
 // ─── Composant principal ──────────────────────────────────────────────────────
@@ -273,7 +273,8 @@ export function Sidebar({ cabinetName, userEmail, userRole }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  const isActive = (href: string) => pathname === href;
+  const isActive = (href: string) =>
+    href === "/app" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
   const roleLabel: Record<string, string> = {
     responsable: "Responsable",
@@ -335,11 +336,26 @@ export function Sidebar({ cabinetName, userEmail, userRole }: SidebarProps) {
         <ul className="space-y-0.5">
           {NAV_BOTTOM.map((item) => (
             <li key={item.href}>
-              <span className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-500">
-                <span className="text-slate-600">{item.icon}</span>
-                <span className="flex-1">{item.label}</span>
-                <IconLock />
-              </span>
+              {item.locked ? (
+                <span className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-500">
+                  <span className="text-slate-600">{item.icon}</span>
+                  <span className="flex-1">{item.label}</span>
+                  <IconLock />
+                </span>
+              ) : (
+                <Link
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                    isActive(item.href)
+                      ? "bg-slate-700 font-medium text-white"
+                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  }`}
+                >
+                  <span>{item.icon}</span>
+                  <span className="flex-1">{item.label}</span>
+                </Link>
+              )}
             </li>
           ))}
         </ul>
