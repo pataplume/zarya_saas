@@ -12,7 +12,9 @@ export default async function EquipePage() {
   const userRole = (user?.app_metadata.role as string | undefined) ?? "collaborateur";
   const isResponsable = userRole === "responsable";
 
-  // Membres actifs avec email via la jointure invitation_membre
+  // Membres actifs avec email via la jointure invitation_membre (acceptée uniquement)
+  // On filtre sur statut='acceptee' pour éviter les doublons si un membre
+  // a plusieurs invitations en historique (re-invitation, etc.)
   const membresRaw = await db
     .select({
       id: cabinetMembre.id,
@@ -24,7 +26,13 @@ export default async function EquipePage() {
       created_at: cabinetMembre.created_at,
     })
     .from(cabinetMembre)
-    .leftJoin(invitationMembre, eq(invitationMembre.cabinet_membre_id, cabinetMembre.id))
+    .leftJoin(
+      invitationMembre,
+      and(
+        eq(invitationMembre.cabinet_membre_id, cabinetMembre.id),
+        eq(invitationMembre.statut, "acceptee"),
+      ),
+    )
     .where(
       and(
         eq(cabinetMembre.cabinet_id, cabinet_id),
