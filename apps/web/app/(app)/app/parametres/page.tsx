@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// Paramètres n'a pas encore de page racine — redirection vers équipe pour l'instant
+// Paramètres redirige vers le premier onglet
 export default function ParametresPage() {
-  redirect("/app/parametres/equipe");
+  redirect("/app/parametres/cabinet");
 }
