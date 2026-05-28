@@ -18,6 +18,33 @@ export interface TestZefixRecherche {
   cabinet_id: string;
 }
 
+export interface TestClient {
+  id: string;
+  cabinet_id: string;
+}
+
+export interface TestFichierPhysique {
+  id: string;
+  cabinet_id: string;
+}
+
+export interface TestInvocation {
+  id: string;
+  cabinet_id: string;
+}
+
+export interface TestProposition {
+  id: string;
+  cabinet_id: string;
+  fichier_physique_id: string;
+}
+
+export interface TestDocument {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+
 export interface TestCabinet {
   id: string;
   raison_sociale: string;
@@ -121,6 +148,80 @@ export async function seedZefixRecherche(
   return { id, cabinet_id };
 }
 
+/** Crée un crm.client de test pour un cabinet donné (service role). */
+export async function seedClient(sql: postgres.Sql, cabinet_id: string): Promise<TestClient> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.client (id, cabinet_id, raison_sociale, statut)
+    VALUES (${id}, ${cabinet_id}, ${`Test Client ${id.slice(0, 8)} SA`}, 'actif')
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée un extraction.invocation de test (mode stub) pour un cabinet donné. */
+export async function seedInvocation(
+  sql: postgres.Sql,
+  cabinet_id: string,
+): Promise<TestInvocation> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO extraction.invocation
+      (id, cabinet_id, context, invoked_by_module, input_type, model_used, prompt_version, status)
+    VALUES (${id}, ${cabinet_id}, 'classification_doc', 'doc', 'document_id', 'stub', 'stub', 'success')
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée un doc.fichier_physique de test pour un cabinet donné (hash unique). */
+export async function seedFichierPhysique(
+  sql: postgres.Sql,
+  cabinet_id: string,
+): Promise<TestFichierPhysique> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO doc.fichier_physique
+      (id, cabinet_id, hash_contenu, taille_octets, type_mime, storage_path, source)
+    VALUES (
+      ${id}, ${cabinet_id}, ${`sha256-${id}`}, 1024, 'application/pdf',
+      ${`cabinet/${cabinet_id}/${id}.pdf`}, 'upload_fiduciaire'
+    )
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée une doc.proposition_classement de test (statut a_valider). */
+export async function seedProposition(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  fichier_physique_id: string,
+): Promise<TestProposition> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO doc.proposition_classement (id, cabinet_id, fichier_physique_id)
+    VALUES (${id}, ${cabinet_id}, ${fichier_physique_id})
+  `;
+  return { id, cabinet_id, fichier_physique_id };
+}
+
+/** Crée un doc.document validé de test (statut_classement manuel). */
+export async function seedDocument(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  fichier_physique_id: string,
+): Promise<TestDocument> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO doc.document
+      (id, cabinet_id, client_id, fichier_physique_id, type, categorie, libelle, statut_classement)
+    VALUES (
+      ${id}, ${cabinet_id}, ${client_id}, ${fichier_physique_id},
+      'releve_bancaire', 'bancaire', ${`Relevé test ${id.slice(0, 8)}`}, 'manuel'
+    )
+  `;
+  return { id, cabinet_id, client_id };
+}
+
 /**
  * Supprime toutes les données de test liées aux cabinet_ids fournis.
  * Ordre FK strict : tables enfants avant tables parents.
@@ -130,9 +231,18 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
 
   // Tables enfants d'abord (contraintes FK sur cabinet_id)
   // Note : sql.array(ids) produit un text[] — cast explicite en uuid[] pour la comparaison
-  await sql`DELETE FROM crm.zefix_recherche_cabinet WHERE cabinet_id = ANY(${sql.array(ids)}::uuid[])`;
-  await sql`DELETE FROM crm.invitation_membre       WHERE cabinet_id = ANY(${sql.array(ids)}::uuid[])`;
-  await sql`DELETE FROM crm.session_onboarding_fiduciaire WHERE cabinet_id = ANY(${sql.array(ids)}::uuid[])`;
-  await sql`DELETE FROM crm.cabinet_membre          WHERE cabinet_id = ANY(${sql.array(ids)}::uuid[])`;
-  await sql`DELETE FROM crm.cabinet                 WHERE id         = ANY(${sql.array(ids)}::uuid[])`;
+  const arr = sql.array(ids);
+  // Module Doc (ordre FK : document → proposition → fichier_physique → upload_brut → invocation)
+  await sql`DELETE FROM doc.document                WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM doc.proposition_classement  WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM doc.fichier_physique        WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM doc.upload_brut             WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM extraction.invocation       WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM crm.client                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // CRM existant
+  await sql`DELETE FROM crm.zefix_recherche_cabinet WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM crm.invitation_membre       WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM crm.session_onboarding_fiduciaire WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM crm.cabinet_membre          WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM crm.cabinet                 WHERE id         = ANY(${arr}::uuid[])`;
 }
