@@ -168,28 +168,29 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 
 ## Phase actuelle du projet
 
-**Phase courante** : Phase 2b — Hardening (tests + dashboard + cleanup)
+**Phase courante** : Phase 2c — Paramètres & profil utilisateur
 
 **Historique des phases :**
 - ~~Phase 0 Bootstrap~~ ✅ terminée
 - ~~Phase 1 Multi-tenant + Auth~~ ✅ terminée
-- ~~Phase 2a Onboarding fiduciaire~~ ✅ terminée (85%)
-- **Phase 2b Hardening** ← en cours
-- Phase 2c : Onboarding finalisation + dashboard fiduciaire complet
-- Phase 3 : Module Doc complet
-- Phase 4 : Module Calendar / CRM / Facture
+- ~~Phase 2a Onboarding fiduciaire~~ ✅ terminée
+- ~~Phase 2b Hardening~~ ✅ terminée (tests isolation multi-tenant, CI, dashboard, bug fixes, Biome cleanup, email redirect Supabase)
+- **Phase 2c Paramètres & dashboard** ← en cours
+  - ~~Sprint 2c.1 — Page équipe~~ ✅ (`/app/parametres/equipe` — liste, inviter, rôles, révoquer)
+  - ~~Sprint 2c.2 — Page cabinet~~ ✅ (`/app/parametres/cabinet` — identité, adresse, préférences)
+  - ~~Sprint 2c.3 — Page profil~~ ✅ (`/app/parametres/profil` — prénom/nom, mot de passe)
+- Phase 3 : Module Doc complet (inbox documentaire + extraction IA)
+- Phase 4 : Module Calendar / CRM / Facture / Search / Salaires
 
 **Modules en cours** :
-- `tests/` (création de la suite de tests d'isolation multi-tenant)
-- `.github/workflows/` (CI bloquante)
-- `apps/web/app/(app)/` (dashboard post-onboarding minimal)
-- Cleanup tech debt documenté dans `docs/retro-sessions-claude.md`
+- `apps/web/app/(app)/app/` — dashboard fiduciaire + section paramètres complète
 
 **Modules autorisés à toucher** :
-- `tests/`, `.github/workflows/`, `apps/web/app/(app)/`
-- Cleanup tech debt des packages existants (`packages/auth`, `packages/db`, `packages/integrations`)
+- `apps/web/app/(app)/` — dashboard, paramètres, composants layout
+- `tests/` — nouveaux tests d'isolation si nouvelle table métier
+- `packages/auth`, `packages/db` — cleanup et extensions légères
 
-**Modules INTERDITS pendant Phase 2b** :
+**Modules INTERDITS (Phase 3+)** :
 - `packages/integrations/bedrock` — Phase 3
 - `packages/integrations/microsoft` — Phase 3
 - `packages/integrations/mistral` — Phase 3
