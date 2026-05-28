@@ -28,6 +28,11 @@ export interface TestFichierPhysique {
   cabinet_id: string;
 }
 
+export interface TestUploadBrut {
+  id: string;
+  cabinet_id: string;
+}
+
 export interface TestInvocation {
   id: string;
   cabinet_id: string;
@@ -168,6 +173,29 @@ export async function seedInvocation(
     INSERT INTO extraction.invocation
       (id, cabinet_id, context, invoked_by_module, input_type, model_used, prompt_version, status)
     VALUES (${id}, ${cabinet_id}, 'classification_doc', 'doc', 'document_id', 'stub', 'stub', 'success')
+  `;
+  return { id, cabinet_id };
+}
+
+/**
+ * Crée un doc.upload_brut de test pour un cabinet donné.
+ * uploaded_par référence un auth.users (pas de FK) — on passe le user_id du cabinet.
+ */
+export async function seedUploadBrut(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  uploaded_par: string,
+): Promise<TestUploadBrut> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO doc.upload_brut
+      (id, cabinet_id, source, uploaded_par, nom_fichier_original,
+       taille_octets, type_mime, hash_contenu)
+    VALUES (
+      ${id}, ${cabinet_id}, 'upload_fiduciaire', ${uploaded_par},
+      ${`upload-${id.slice(0, 8)}.pdf`}, 2048, 'application/pdf',
+      ${`sha256-upload-${id}`}
+    )
   `;
   return { id, cabinet_id };
 }

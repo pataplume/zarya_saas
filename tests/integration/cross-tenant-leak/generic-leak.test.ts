@@ -1,0 +1,305 @@
+/**
+ * Test générique anti-fuite cross-tenant — CHEMIN APPLICATIF (bloquant CI).
+ *
+ * Contexte (cf. ADR 0005 addendum 28 mai 2026) : le `db` exporté par `@zarya/db`
+ * se connecte en service role et CONTOURNE la RLS sur le chemin app. La sécurité
+ * multi-tenant repose donc sur le filtre `cabinet_id` discipliné dans chaque query.
+ *
+ * Ce test vérifie, pour CHAQUE table métier, que le contrat est tenu :
+ *   1. un SELECT scopé cabinet A ne retourne jamais une ligne de cabinet B ;
+ *   2. un UPDATE scopé cabinet A ciblant une ligne de cabinet B n'affecte rien ;
+ *   3. un DELETE scopé cabinet A ciblant une ligne de cabinet B n'affecte rien.
+ *
+ * Il inclut aussi :
+ *   - un test « d'honnêteté du modèle » : un SELECT SANS filtre voit les 2 cabinets
+ *     (preuve que la RLS est bien contournée sur le chemin app — ce n'est pas un bug,
+ *     c'est l'état documenté Phase 1 → 3) ;
+ *   - un test structurel : la RLS reste ACTIVÉE en DB (défense en profondeur).
+ *
+ * À la création de toute nouvelle table métier : ajouter une entrée dans METIER_TABLES
+ * + dans RLS_TABLES. C'est non négociable (cf. ADR 0005 addendum).
+ */
+import {
+  and,
+  cabinet,
+  cabinetMembre,
+  client,
+  db,
+  document,
+  eq,
+  fichierPhysique,
+  invitationMembre,
+  invocation,
+  propositionClassement,
+  sessionOnboardingFiduciaire,
+  uploadBrut,
+  zefixRechercheCabinet,
+} from "@zarya/db";
+import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
+import type postgres from "postgres";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { createServiceClient } from "../helpers/rls";
+import {
+  cleanupCabinets,
+  getSessionId,
+  seedClient,
+  seedDocument,
+  seedFichierPhysique,
+  seedInvitation,
+  seedInvocation,
+  seedProposition,
+  seedTwoCabinets,
+  seedUploadBrut,
+  seedZefixRecherche,
+  type TestCabinet,
+} from "../helpers/seed";
+
+// Le SET d'un UPDATE no-op n'est jamais appliqué (0 ligne ne matche le WHERE),
+// sa valeur est donc sans importance — on met une valeur sentinelle inoffensive.
+const NIL_UUID = "00000000-0000-0000-0000-000000000000";
+
+interface MetierTableSpec {
+  /** Nom qualifié schema.table — clé de lookup dans idsA / idsB. */
+  name: string;
+  table: PgTable;
+  /** Colonne servant de filtre tenant : `cabinet_id` (ou `id` pour crm.cabinet). */
+  scopeCol: PgColumn;
+  /** Colonne PK de la ligne. */
+  idCol: PgColumn;
+  /** SET inoffensif pour le test UPDATE no-op (jamais réellement appliqué). */
+  noopSet: Record<string, unknown>;
+}
+
+// Registre central : toute table métier DOIT y figurer.
+// crm.cabinet est la racine du tenant → son filtre est `id` (pas de `cabinet_id`).
+const METIER_TABLES: MetierTableSpec[] = [
+  {
+    name: "crm.cabinet",
+    table: cabinet,
+    scopeCol: cabinet.id,
+    idCol: cabinet.id,
+    noopSet: { raison_sociale: "noop-cross-tenant-guard" },
+  },
+  {
+    name: "crm.cabinet_membre",
+    table: cabinetMembre,
+    scopeCol: cabinetMembre.cabinet_id,
+    idCol: cabinetMembre.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "crm.client",
+    table: client,
+    scopeCol: client.cabinet_id,
+    idCol: client.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "crm.invitation_membre",
+    table: invitationMembre,
+    scopeCol: invitationMembre.cabinet_id,
+    idCol: invitationMembre.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "crm.zefix_recherche_cabinet",
+    table: zefixRechercheCabinet,
+    scopeCol: zefixRechercheCabinet.cabinet_id,
+    idCol: zefixRechercheCabinet.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "crm.session_onboarding_fiduciaire",
+    table: sessionOnboardingFiduciaire,
+    scopeCol: sessionOnboardingFiduciaire.cabinet_id,
+    idCol: sessionOnboardingFiduciaire.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "extraction.invocation",
+    table: invocation,
+    scopeCol: invocation.cabinet_id,
+    idCol: invocation.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "doc.upload_brut",
+    table: uploadBrut,
+    scopeCol: uploadBrut.cabinet_id,
+    idCol: uploadBrut.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "doc.fichier_physique",
+    table: fichierPhysique,
+    scopeCol: fichierPhysique.cabinet_id,
+    idCol: fichierPhysique.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "doc.proposition_classement",
+    table: propositionClassement,
+    scopeCol: propositionClassement.cabinet_id,
+    idCol: propositionClassement.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "doc.document",
+    table: document,
+    scopeCol: document.cabinet_id,
+    idCol: document.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+];
+
+// Tables dont la RLS doit rester ACTIVÉE en DB (défense en profondeur).
+// crm.cabinet (racine du tenant) en est exclue volontairement : pas de cabinet_id,
+// isolation portée par les policies de crm.cabinet_membre (cf. doc/db CLAUDE.md § 1).
+const RLS_TABLES = [
+  ["crm", "cabinet_membre"],
+  ["crm", "client"],
+  ["crm", "invitation_membre"],
+  ["crm", "zefix_recherche_cabinet"],
+  ["crm", "session_onboarding_fiduciaire"],
+  ["extraction", "invocation"],
+  ["doc", "upload_brut"],
+  ["doc", "fichier_physique"],
+  ["doc", "proposition_classement"],
+  ["doc", "document"],
+] as const;
+
+let sql: postgres.Sql;
+let cabinetA: TestCabinet;
+let cabinetB: TestCabinet;
+// Lookup nom de table → id de la ligne semée pour ce cabinet.
+const idsA: Record<string, string> = {};
+const idsB: Record<string, string> = {};
+
+beforeAll(async () => {
+  sql = createServiceClient();
+
+  const seeded = await seedTwoCabinets(sql);
+  cabinetA = seeded.cabinetA;
+  cabinetB = seeded.cabinetB;
+
+  // Une ligne par table métier, dans les DEUX cabinets, en ordre FK.
+  const [clientA, clientB] = [
+    await seedClient(sql, cabinetA.id),
+    await seedClient(sql, cabinetB.id),
+  ];
+  const [invA, invB] = [
+    await seedInvitation(sql, cabinetA.id),
+    await seedInvitation(sql, cabinetB.id),
+  ];
+  const [zA, zB] = [
+    await seedZefixRecherche(sql, cabinetA.id),
+    await seedZefixRecherche(sql, cabinetB.id),
+  ];
+  // session_onboarding_fiduciaire : auto-créée par le trigger de provisioning.
+  const [sessA, sessB] = [
+    await getSessionId(sql, cabinetA.id),
+    await getSessionId(sql, cabinetB.id),
+  ];
+  const [invocA, invocB] = [
+    await seedInvocation(sql, cabinetA.id),
+    await seedInvocation(sql, cabinetB.id),
+  ];
+  const [upA, upB] = [
+    await seedUploadBrut(sql, cabinetA.id, cabinetA.user_id),
+    await seedUploadBrut(sql, cabinetB.id, cabinetB.user_id),
+  ];
+  const [fpA, fpB] = [
+    await seedFichierPhysique(sql, cabinetA.id),
+    await seedFichierPhysique(sql, cabinetB.id),
+  ];
+  const [propA, propB] = [
+    await seedProposition(sql, cabinetA.id, fpA.id),
+    await seedProposition(sql, cabinetB.id, fpB.id),
+  ];
+  const [docA, docB] = [
+    await seedDocument(sql, cabinetA.id, clientA.id, fpA.id),
+    await seedDocument(sql, cabinetB.id, clientB.id, fpB.id),
+  ];
+
+  Object.assign(idsA, {
+    "crm.cabinet": cabinetA.id,
+    "crm.cabinet_membre": cabinetA.membre_id,
+    "crm.client": clientA.id,
+    "crm.invitation_membre": invA.id,
+    "crm.zefix_recherche_cabinet": zA.id,
+    "crm.session_onboarding_fiduciaire": sessA,
+    "extraction.invocation": invocA.id,
+    "doc.upload_brut": upA.id,
+    "doc.fichier_physique": fpA.id,
+    "doc.proposition_classement": propA.id,
+    "doc.document": docA.id,
+  });
+  Object.assign(idsB, {
+    "crm.cabinet": cabinetB.id,
+    "crm.cabinet_membre": cabinetB.membre_id,
+    "crm.client": clientB.id,
+    "crm.invitation_membre": invB.id,
+    "crm.zefix_recherche_cabinet": zB.id,
+    "crm.session_onboarding_fiduciaire": sessB,
+    "extraction.invocation": invocB.id,
+    "doc.upload_brut": upB.id,
+    "doc.fichier_physique": fpB.id,
+    "doc.proposition_classement": propB.id,
+    "doc.document": docB.id,
+  });
+});
+
+afterAll(async () => {
+  if (cabinetA && cabinetB) await cleanupCabinets(sql, cabinetA.id, cabinetB.id);
+  await sql.end();
+});
+
+describe("Anti-fuite cross-tenant — chemin applicatif (db service role + filtre cabinet_id)", () => {
+  describe.each(METIER_TABLES)("$name", (spec) => {
+    test("SELECT scopé cabinet A ne retourne aucune ligne de cabinet B", async () => {
+      const rows = await db
+        .select({ id: spec.idCol })
+        .from(spec.table)
+        .where(eq(spec.scopeCol, cabinetA.id));
+      const ids = rows.map((r) => r.id as string);
+      expect(ids).toContain(idsA[spec.name]);
+      expect(ids).not.toContain(idsB[spec.name]);
+    });
+
+    test("UPDATE scopé cabinet A ciblant une ligne de cabinet B n'affecte aucune ligne", async () => {
+      const affected = await db
+        .update(spec.table)
+        .set(spec.noopSet)
+        .where(and(eq(spec.scopeCol, cabinetA.id), eq(spec.idCol, idsB[spec.name] as string)))
+        .returning({ id: spec.idCol });
+      expect(affected).toHaveLength(0);
+    });
+
+    test("DELETE scopé cabinet A ciblant une ligne de cabinet B n'affecte aucune ligne", async () => {
+      const affected = await db
+        .delete(spec.table)
+        .where(and(eq(spec.scopeCol, cabinetA.id), eq(spec.idCol, idsB[spec.name] as string)))
+        .returning({ id: spec.idCol });
+      expect(affected).toHaveLength(0);
+    });
+  });
+
+  test("honnêteté du modèle : un SELECT SANS filtre voit les 2 cabinets (RLS contournée sur le chemin app)", async () => {
+    const rows = await db.select({ cabinet_id: client.cabinet_id }).from(client);
+    const cabinetIds = rows.map((r) => r.cabinet_id);
+    expect(cabinetIds).toContain(cabinetA.id);
+    expect(cabinetIds).toContain(cabinetB.id);
+  });
+
+  test.each(
+    RLS_TABLES,
+  )("défense en profondeur : RLS activée en DB sur %s.%s", async (schema, table) => {
+    const [row] = await sql`
+        SELECT c.relrowsecurity
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ${schema} AND c.relname = ${table}
+      `;
+    expect(row?.relrowsecurity).toBe(true);
+  });
+});
