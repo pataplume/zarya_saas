@@ -30,14 +30,14 @@ describe("Multi-tenant isolation — crm.zefix_recherche_cabinet", () => {
   const sql = createServiceClient();
   let cabinetA: TestCabinet;
   let cabinetB: TestCabinet;
-  let rechercheA: TestZefixRecherche;
+  let _rechercheA: TestZefixRecherche;
   let rechercheB: TestZefixRecherche;
 
   beforeAll(async () => {
     const result = await seedTwoCabinets(sql);
     cabinetA = result.cabinetA;
     cabinetB = result.cabinetB;
-    rechercheA = await seedZefixRecherche(sql, cabinetA.id);
+    _rechercheA = await seedZefixRecherche(sql, cabinetA.id);
     rechercheB = await seedZefixRecherche(sql, cabinetB.id);
   });
 

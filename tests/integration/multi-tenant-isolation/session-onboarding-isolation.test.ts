@@ -22,7 +22,7 @@ describe("Multi-tenant isolation — crm.session_onboarding_fiduciaire", () => {
   const sql = createServiceClient();
   let cabinetA: TestCabinet;
   let cabinetB: TestCabinet;
-  let sessionAId: string;
+  let _sessionAId: string;
   let sessionBId: string;
 
   beforeAll(async () => {
@@ -30,7 +30,7 @@ describe("Multi-tenant isolation — crm.session_onboarding_fiduciaire", () => {
     cabinetA = result.cabinetA;
     cabinetB = result.cabinetB;
     // Sessions créées automatiquement par le trigger à l'INSERT des cabinets
-    sessionAId = await getSessionId(sql, cabinetA.id);
+    _sessionAId = await getSessionId(sql, cabinetA.id);
     sessionBId = await getSessionId(sql, cabinetB.id);
   });
 
