@@ -1,11 +1,11 @@
 ---
 status: vivant
 owner: claude
-last_updated: 2026-05-27
+last_updated: 2026-05-28
 type: retrospective
 ---
 
-# Retrospective technique — Sessions Claude Code (Phase 0 → Phase 2a)
+# Retrospective technique — Sessions Claude Code (Phase 0 → Phase 3)
 
 > Document de mémoire opérationnelle. Ce qu'a fait Claude, ce qui a bloqué, comment c'est passé, où on en est, ce qu'il faut pour continuer. Sans filtre.
 
@@ -369,3 +369,199 @@ Pour les prochaines sessions :
 ---
 
 *Document généré le 27 mai 2026. À réviser à chaque transition de phase.*
+
+---
+---
+
+# Addendum — Phase 3 : Module Doc (28 mai 2026)
+
+> Suite directe de la retro Phase 0 → 2a. Même règle : sans filtre. Cette phase a livré l'inbox documentaire et le squelette complet du flux IA, mais en **stub** plutôt qu'avec les vrais providers (Bedrock/Mistral bloqués sur crédits). C'est la décision structurante de la phase, et tout en découle.
+
+## 6. Timeline Phase 3
+
+Plan initial (CLAUDE.md) : 4 sprints.
+
+| Sprint | Plan initial | Livré | Commit |
+|--------|--------------|-------|--------|
+| 3.1 | Schéma DB + migrations `doc.*` | ✅ conforme | `219ef72` |
+| 3.2 | Inbox (upload, liste, statut) | ✅ conforme | `746a460` |
+| 3.3 | Pipeline **Mistral OCR + Bedrock** + proposition | ⚠️ **stub** à la place des providers réels | `8277647` |
+| 3.4 | Validation humaine + entité finale | ✅ conforme (avec une réserve client_id) | `1ab64a4` + test `bb4b23e` |
+
+### Sprint 3.1 — Schéma DB module Doc
+
+- Migration `0004_doc_module.sql` : schéma `doc` (`upload_brut`, `fichier_physique`, `proposition_classement`, `document`) + schéma `extraction` (`invocation`), enums (`source_ingestion`, `statut_traitement`, `categorie_document`, `statut_classement`, `extraction_context`/`input_type`/`status`).
+- RLS sur toutes les tables, trigger `fn_check_client_cabinet` (cohérence cabinet/client sur `doc.document`).
+- Tests d'isolation multi-tenant ajoutés (règle absolue CLAUDE.md).
+- Exposition des schémas depuis `@zarya/db`.
+
+### Sprint 3.2 — Inbox documentaire
+
+- Route handler `POST /api/documents/upload` (upload fichier → Storage + `upload_brut` + `fichier_physique`).
+- Page `/app/documents` (zone d'upload + table des reçus avec badges de statut), composant client `documents-client.tsx`.
+- Garde-fou rôle `lecteur` (lecture seule).
+
+### Sprint 3.3 — Pipeline de classification (livré en **stub**)
+
+- `packages/extraction` : interface `Classifier` + `StubClassifier` (classification déterministe par regex sur le nom de fichier) + `getClassifier()` piloté par `EXTRACTION_MODE=stub|live`.
+- `classifyDocument()` : appelle le classifier, trace dans `extraction.invocation`, écrit `doc.proposition_classement` (statut `a_valider`).
+- Branché dans le route handler d'upload (le doc passe `recu` → `a_valider` après classification).
+- **Ni Mistral OCR ni Bedrock ne sont câblés** — le mode `live` throw explicitement à l'usage.
+
+### Sprint 3.4 — Validation humaine → `doc.document`
+
+- Helper pur `diffValidation()` (compare proposition vs champs retenus, journalise les corrections) + tests unitaires.
+- Server actions `validerPropositionAction` / `rejeterPropositionAction` (Zod, RBAC, scope cabinet).
+- Page queue `/app/documents/validation` + carte de proposition éditable, bannière "à valider" sur l'inbox.
+- L'entité finale `doc.document` est créée **en code applicatif** (pas par trigger), conformément à `extraction-ia.md § 8`.
+- Test d'intégration du flux complet (`tests/integration/doc-validation/`).
+
+---
+
+## 7. Différences avec le plan initial — et pourquoi
+
+C'est la partie qui compte. Quatre divergences, par ordre d'importance.
+
+### 7.1 — Pipeline IA livré en stub, pas avec Bedrock/Mistral *(divergence majeure)*
+
+**Plan** : Sprint 3.3 = "Pipeline extraction IA (Mistral OCR + Bedrock + proposition)".
+
+**Réalité** : aucun appel LLM ni OCR réel. Un `StubClassifier` déterministe classe les documents par mots-clés dans le nom de fichier.
+
+**Pourquoi** :
+- **Les crédits AWS Bedrock sont bloqués** — impossible d'appeler le LLM. Mistral OCR dépend du même flux aval.
+- Plutôt que d'attendre, on a figé un **contrat** (`interface Classifier`) et une bascule `EXTRACTION_MODE`. Le stub remplit le contrat ; le jour où Bedrock est débloqué, on écrit un `BedrockClassifier` qui implémente la même interface, sans toucher au reste (route handler, proposition, validation).
+- **Conséquence positive** : tout le flux en aval de l'IA (proposition → validation → `doc.document`) est **réel et testé**. Seule la "boîte noire" de classification est simulée. C'est la bonne couche où mettre le stub.
+- **Respect des règles** : `classify-document.ts` trace quand même dans `extraction.invocation` (règle ADR 0003 / CLAUDE.md § 6), avec `model_used="stub"` — la traçabilité est honnête sur le fait que c'est un stub.
+
+### 7.2 — `doc.document` créé en code applicatif, pas par trigger DB
+
+**Plan / CLAUDE.md § 4** : "Création de l'entité finale **via trigger** à la validation."
+
+**Réalité** : la server action écrit `doc.document` elle-même, dans la même transaction logique que le passage de la proposition à `valide`.
+
+**Pourquoi** :
+- `extraction-ia.md § 8` précise que la création se fait en code applicatif pour le module Doc (le trigger générique de la règle § 4 vise les cas champ-par-champ type salaire). Les deux docs étaient en tension ; j'ai suivi la doc module, plus spécifique.
+- Un trigger aurait dupliqué la logique de `diffValidation` (statut `valide_humain` vs `corrige_humain`) en PL/pgSQL, plus dur à tester que du TypeScript pur.
+- Le trigger DB conservé est uniquement `fn_check_client_cabinet` (garde-fou d'intégrité cross-tenant), pas la création d'entité.
+
+### 7.3 — `doc.document.client_id` est NOT NULL → le flux ne tourne pas bout-à-bout
+
+**Pas une divergence de code, mais une dépendance inter-phase qui bloque la démo.**
+
+- Le schéma impose `client_id NOT NULL` sur `doc.document` : valider un document **exige** de lui attribuer un client.
+- Or le `StubClassifier` ne propose jamais de client, et **la création de clients (module CRM) est Phase 4 — INTERDITE** actuellement.
+- **Conséquence** : un cabinet sans client ne peut rien valider. La page de validation affiche un bandeau explicite ("créez d'abord un client") plutôt que de planter.
+- C'est honnête mais ça veut dire que **le flux Doc n'est pas démontrable end-to-end aujourd'hui** sans bidouiller un client en DB. À assumer.
+
+### 7.4 — Le `db` applicatif bypasse la RLS (sécurité par filtre `cabinet_id` + trigger)
+
+**Découverte en cours d'implémentation, pas une décision de cette phase**, mais ça change la façon de tester.
+
+- Le `db` exporté par `@zarya/db` se connecte en direct (postgres-js, service role) et **contourne la RLS**. La sécurité multi-tenant des queries app repose donc sur le **filtre `eq(table.cabinet_id, cabinet_id)` explicite** dans chaque WHERE + le trigger de cohérence — pas sur la RLS.
+- `getDbForCabinet()` est un stub non utilisé (propagation JWT prévue "Phase 2" dans le code, jamais faite).
+- **Conséquence sur les tests** : le test d'intégration de validation **rejoue les écritures de la server action en service role** (mêmes requêtes, même helper `diffValidation`) plutôt que d'importer l'action (liée à l'auth Supabase, non importable). C'est fidèle au vrai modèle de sécurité, mais ça veut dire que le test vérifie le *contrat de requêtes*, pas le *câblage de l'action elle-même*.
+
+---
+
+## 8. Galères Phase 3
+
+**8.1 — Regex stub : "décompte" classé en relevé bancaire.** L'alternative `compte` du motif relevé bancaire matchait la sous-chaîne dans "dé**compte**_salaire". Corrigé en ancrant les frontières de mot : `\bcs\b|\bcompte`.
+
+**8.2 — `@zarya/extraction` non résolu par le runner de test racine.** Les packages workspace exposent leur source TS directement (`exports "." → src/index.ts`), mais le runner racine n'a pas de symlink `node_modules/@zarya/*`. Ajout d'alias `resolve` dans `vitest.config.ts` (`@zarya/extraction`, `@zarya/db`). Importer l'index d'extraction tire transitivement `@zarya/db`, mais le client postgres-js est lazy (pas de connexion tant qu'aucune query) → pas de fuite.
+
+**8.3 — Drizzle et les numériques.** `numeric(3,2)`/`numeric(10,6)` attendent des **strings** (`confiance_globale.toFixed(2)`, `cost_usd: "0"`), pas des numbers. Piège silencieux.
+
+**8.4 — Test "validation conforme" qui sortait `corrige_humain`.** La proposition seedée n'avait pas de `client_id_propose` ; assigner un client à la validation comptait comme correction. Corrigé en seedant le client déjà proposé pour le cas conforme — ce qui reflète exactement le comportement réel du stub (qui ne propose jamais de client → toute validation est techniquement une "correction").
+
+---
+
+## 9. État actuel après Phase 3 (28 mai 2026)
+
+### Ce qui tourne (code, testé)
+
+```
+✓ Schéma DB doc.* + extraction.invocation (migration 0004) + RLS + isolation testée
+✓ Upload de documents (route handler → Storage + upload_brut + fichier_physique)
+✓ Inbox /app/documents (liste, statuts, bannière à-valider)
+✓ Classification STUB → doc.proposition_classement + trace extraction.invocation
+✓ Validation humaine → doc.document (valide_humain / corrige_humain), rejet
+✓ Helper diffValidation + tests unitaires
+✓ Test d'intégration du flux de validation (5 cas)
+✓ 67 tests verts (unit + intégration)
+```
+
+### Ce qui n'existe pas / ne tourne pas bout-à-bout
+
+```
+✗ Classification réelle (Bedrock bloqué crédits — stub uniquement)
+✗ OCR réel (Mistral non câblé)
+✗ Flux Doc démontrable end-to-end (client_id NOT NULL + CRM Phase 4)
+✗ Détection de doublon (statut 'doublon' existe, logique absente)
+✗ Détection d'anomalies réelle (le stub pose une anomalie générique sur l'inconnu)
+✗ Test E2E Playwright du flux (Flow A : email → classification → validation)
+✗ Aucun test authentifié de la server action elle-même (rejouée en service role)
+```
+
+### Dette technique nouvelle ou persistante
+
+1. **Le stub est un faux-ami.** Tout est vert, la démo "marche", mais zéro intelligence réelle. Le risque : croire le module Doc terminé alors que sa valeur (l'IA) n'est pas branchée. À garder très visible.
+2. **`client_id NOT NULL` couple Doc et CRM.** Tant que CRM (Phase 4) n'existe pas, Doc est en cul-de-sac fonctionnel. Décision produit à prendre (cf. § 10).
+3. **La server action n'est pas testée directement** — seulement son contrat de requêtes rejoué. Un bug dans le wiring auth/Zod de l'action passerait inaperçu.
+4. **`getDbForCabinet()` toujours un stub** — la RLS n'est pas le rempart réel des queries app ; tout repose sur la discipline du filtre `cabinet_id`. Un oubli de WHERE = fuite cross-tenant silencieuse. Pas de garde-fou automatique.
+
+---
+
+## 10. Recommandations pour la suite (peut diverger du plan)
+
+Le plan initial enchaîne Phase 4 = CRM / Calendar / Facture / Search / Salaires. Je recommande de **ne pas attaquer ces modules tout de suite** et de refermer d'abord les boucles ouvertes par Phase 3.
+
+### Reco 1 — Débloquer un mini-CRM *avant* tout le reste de Phase 4 *(divergence d'ordre)*
+
+`doc.document.client_id NOT NULL` rend Doc inutilisable sans clients. Plutôt que tout le module CRM, livrer un **CRUD client minimal** (`crm.client` existe déjà : raison sociale, IDE, archive). Ça débloque la démo end-to-end de Doc immédiatement, pour une fraction du coût du module CRM complet. **C'est le plus haut ROI disponible.**
+
+### Reco 2 — Écrire le `BedrockClassifier` dès le déblocage des crédits, sans rien changer d'autre
+
+Le contrat `Classifier` est prêt. Le jour où Bedrock répond : un fichier, une bascule `EXTRACTION_MODE=live`, et le flux réel tourne. Prévoir dans la foulée un **vrai jeu de fixtures** (PDFs Swiss : QR-facture, décompte salaire, déclaration TVA) pour valider la classification réelle — le stub par nom de fichier ne dit rien de la qualité LLM.
+
+### Reco 3 — Tester la server action pour de vrai (pas seulement son contrat rejoué)
+
+Mettre en place un utilisateur de test authentifié (via `supabase.auth.admin.createUser()`, **pas** en SQL brut — leçon § 2.7) pour exercer `validerPropositionAction` de bout en bout (Zod + RBAC + écritures). Sinon le wiring de l'action reste un angle mort.
+
+### Reco 4 — Garde-fou anti-fuite cross-tenant au niveau requête
+
+Tant que `getDbForCabinet()` n'applique pas la RLS, un WHERE oublié = fuite. Deux options : (a) implémenter la propagation JWT + `SET LOCAL` pour activer enfin la RLS sur le chemin app, ou (b) un test d'intégration générique qui, pour chaque table métier, tente une lecture cross-tenant et exige 0 ligne. **Je recommande (b)** d'abord (rapide, attrape les régressions) et (a) comme objectif de fond.
+
+### Reco 5 — Ne pas marquer "Module Doc ✅" tant que l'IA est en stub
+
+Mettre à jour le CLAUDE.md pour refléter l'état réel : Doc = "squelette complet, IA en stub, en attente crédits Bedrock + mini-CRM". Éviter que la prochaine session croie Doc terminé.
+
+### Ce dont j'ai besoin de toi avant la prochaine session
+
+| Besoin | Pourquoi |
+|--------|----------|
+| Décision ordre : mini-CRM avant Phase 4 ? (Reco 1) | Débloque la démo Doc end-to-end |
+| Statut des crédits AWS Bedrock | Conditionne le passage stub → live |
+| Autorisation de toucher `crm.client` (actuellement Phase 4) | Pour le mini-CRM de la Reco 1 |
+| Fixtures PDF suisses réalistes (anonymisées) | Pour valider la classification réelle, pas le stub |
+
+---
+
+## 11. Chiffres Phase 3
+
+| Sprint | Commit | Fichiers | Lignes + | Lignes − |
+|--------|--------|----------|----------|----------|
+| 3.1 | `219ef72` | 7 | 1 106 | 5 |
+| 3.2 | `746a460` | 6 | 546 | 2 |
+| 3.3 | `8277647` | 8 | 387 | 3 |
+| 3.4 (feat) | `1ab64a4` | 8 | 703 | 18 |
+| 3.4 (test) | `bb4b23e` | 2 | 294 | 0 |
+| **Total Phase 3** | **5 commits** | **~28** | **~3 015** | **~28** |
+
+Comparé aux phases précédentes (~6 600 lignes pour 0→2a), Phase 3 ajoute ~3 000 lignes en 5 commits — dont un schéma DB conséquent, un package extraction, et **les premiers tests d'intégration métier du repo** (la dette "zéro test" du § 3 commence à se résorber).
+
+**Le point dur de cette phase n'a pas été technique mais stratégique** : livrer de la valeur quand la brique centrale (l'IA) est inaccessible. Le pari du stub-derrière-contrat a permis d'avancer sans se mentir — à condition de ne jamais oublier que l'intelligence n'est pas encore là.
+
+---
+
+*Addendum généré le 28 mai 2026.*

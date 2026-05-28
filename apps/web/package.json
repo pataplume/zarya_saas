@@ -11,7 +11,9 @@
   "dependencies": {
     "@zarya/auth": "workspace:*",
     "@zarya/db": "workspace:*",
+    "@zarya/extraction": "workspace:*",
     "@zarya/integrations": "workspace:*",
+    "@zarya/schemas": "workspace:*",
     "drizzle-orm": "^0.44.0",
     "next": "^15.3.2",
     "react": "^19.0.0",
