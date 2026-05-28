@@ -168,33 +168,41 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 
 ## Phase actuelle du projet
 
-**Phase courante** : Phase 2c — Paramètres & profil utilisateur
+**Phase courante** : Phase 3 — Module Doc (inbox documentaire + extraction IA)
 
 **Historique des phases :**
 - ~~Phase 0 Bootstrap~~ ✅ terminée
 - ~~Phase 1 Multi-tenant + Auth~~ ✅ terminée
 - ~~Phase 2a Onboarding fiduciaire~~ ✅ terminée
 - ~~Phase 2b Hardening~~ ✅ terminée (tests isolation multi-tenant, CI, dashboard, bug fixes, Biome cleanup, email redirect Supabase)
-- **Phase 2c Paramètres & dashboard** ← en cours
+- ~~Phase 2c Paramètres & dashboard~~ ✅ terminée
   - ~~Sprint 2c.1 — Page équipe~~ ✅ (`/app/parametres/equipe` — liste, inviter, rôles, révoquer)
   - ~~Sprint 2c.2 — Page cabinet~~ ✅ (`/app/parametres/cabinet` — identité, adresse, préférences)
   - ~~Sprint 2c.3 — Page profil~~ ✅ (`/app/parametres/profil` — prénom/nom, mot de passe)
-- Phase 3 : Module Doc complet (inbox documentaire + extraction IA)
+- **Phase 3 : Module Doc complet** ← en cours
+  - Sprint 3.1 — Schéma DB + migrations (tables `doc.*`)
+  - Sprint 3.2 — Inbox documentaire (`/app/documents` — upload, liste, statut)
+  - Sprint 3.3 — Pipeline extraction IA (Mistral OCR + Bedrock + proposition)
+  - Sprint 3.4 — Validation humaine + entité finale
 - Phase 4 : Module Calendar / CRM / Facture / Search / Salaires
 
 **Modules en cours** :
-- `apps/web/app/(app)/app/` — dashboard fiduciaire + section paramètres complète
+- `apps/web/app/(app)/app/documents/` — inbox documentaire
+- `packages/integrations/bedrock/` — wrapper LLM Bedrock eu-central-1
+- `packages/integrations/mistral/` — wrapper OCR Mistral
+- `packages/extraction/` — pipeline extraction IA générique
 
 **Modules autorisés à toucher** :
-- `apps/web/app/(app)/` — dashboard, paramètres, composants layout
-- `tests/` — nouveaux tests d'isolation si nouvelle table métier
-- `packages/auth`, `packages/db` — cleanup et extensions légères
+- `apps/web/app/(app)/` — dashboard, documents, composants layout
+- `packages/integrations/bedrock/` — maintenant autorisé (Phase 3)
+- `packages/integrations/mistral/` — maintenant autorisé (Phase 3)
+- `packages/extraction/` — pipeline IA
+- `packages/db` — nouvelles tables `doc.*` avec migrations
+- `tests/` — tests d'isolation obligatoires pour toute nouvelle table métier
 
-**Modules INTERDITS (Phase 3+)** :
-- `packages/integrations/bedrock` — Phase 3
-- `packages/integrations/microsoft` — Phase 3
-- `packages/integrations/mistral` — Phase 3
-- Tous les modules métier non démarrés : CRM, Doc, Calendar, Facture, Salaire, Search
+**Modules INTERDITS (Phase 4+)** :
+- `packages/integrations/microsoft` — Phase 4
+- Modules métier non démarrés : CRM, Calendar, Facture, Salaire, Search
 - Nouveau schéma DB sans tests d'isolation multi-tenant associés
 
 ## Tests obligatoires en CI
