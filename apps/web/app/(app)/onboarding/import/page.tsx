@@ -6,16 +6,12 @@ import { redirect } from "next/navigation";
 // Action serveur : marquer onboarding comme actif (skip import)
 async function activerCabinetAction() {
   "use server";
-  const { requireAuth: ra } = await import("@zarya/auth");
-  const user = await ra();
+  const user = await requireAuth();
   const cabinet_id = user.app_metadata.cabinet_id as string | undefined;
   if (!cabinet_id) redirect("/login");
 
-  const { db: database, sessionOnboardingFiduciaire: sof } = await import("@zarya/db");
-  const { eq: eqOp } = await import("drizzle-orm");
-
-  await database
-    .update(sof)
+  await db
+    .update(sessionOnboardingFiduciaire)
     .set({
       statut: "actif",
       etape_f_differee_at: new Date(),
@@ -23,7 +19,7 @@ async function activerCabinetAction() {
       date_derniere_activite: new Date(),
       updated_at: new Date(),
     })
-    .where(eqOp(sof.cabinet_id, cabinet_id));
+    .where(eq(sessionOnboardingFiduciaire.cabinet_id, cabinet_id));
 
   redirect("/app");
 }
