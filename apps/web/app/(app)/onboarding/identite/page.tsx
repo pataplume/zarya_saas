@@ -66,11 +66,32 @@ export default function IdentitePage() {
 
   // Pré-remplissage depuis un résultat Zefix sélectionné
   const [selectionne, setSelectionne] = useState<ZefixResultat | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [langues, setLangues] = useState<string[]>(["fr"]);
 
-  function selectionnerResultat(r: ZefixResultat) {
-    setSelectionne(r);
-    document.getElementById("form-identite")?.scrollIntoView({ behavior: "smooth" });
+  // On sélectionne un résultat depuis la liste : on recharge le détail complet par IDE
+  // pour obtenir l'adresse postale complète (la recherche par nom retourne des summaries partiels).
+  async function selectionnerResultat(r: ZefixResultat) {
+    setIsLoadingDetail(true);
+    try {
+      const response = await fetch("/api/zefix/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Le consentement a déjà été donné pour cette session de recherche
+        body: JSON.stringify({ requete: r.ide, consentement: true }),
+      });
+      if (response.ok) {
+        const data = (await response.json()) as { resultats?: ZefixResultat[]; error?: string };
+        setSelectionne(data.resultats?.[0] ?? r);
+      } else {
+        setSelectionne(r);
+      }
+    } catch {
+      setSelectionne(r); // Fallback gracieux sur le résumé
+    } finally {
+      setIsLoadingDetail(false);
+      document.getElementById("form-identite")?.scrollIntoView({ behavior: "smooth" });
+    }
   }
 
   function toggleLangue(code: string) {
@@ -147,10 +168,11 @@ export default function IdentitePage() {
               <button
                 key={r.ehraid}
                 type="button"
+                disabled={isLoadingDetail}
                 onClick={() => {
-                  selectionnerResultat(r);
+                  void selectionnerResultat(r);
                 }}
-                className="w-full px-4 py-3 text-left hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                className={`w-full px-4 py-3 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 ${isLoadingDetail ? "cursor-wait opacity-60" : "hover:bg-blue-50"}`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
