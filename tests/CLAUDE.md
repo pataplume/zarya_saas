@@ -51,6 +51,29 @@ describe('Cross-tenant isolation', () => {
 });
 ```
 
+### 1bis. Anti-fuite cross-tenant — CHEMIN APPLICATIF (bloquant CI)
+
+Fichier : `tests/integration/cross-tenant-leak/generic-leak.test.ts`.
+
+Pourquoi ce test existe en plus de `multi-tenant-isolation/` : le `db` exporté par
+`@zarya/db` se connecte en **service role et contourne la RLS** sur le chemin app
+(cf. ADR 0005 addendum 28 mai 2026). Les tests `multi-tenant-isolation/` valident la
+RLS Postgres directement (chemin DB), mais **pas** le chemin applicatif réel. Ce test
+couvre cette lacune : il rejoue le contrat de sécurité réel (filtre `cabinet_id`
+discipliné) via le vrai `db`.
+
+Pour CHAQUE table métier, via un registre central `METIER_TABLES` :
+- SELECT scopé cabinet A ne retourne jamais une ligne de cabinet B ;
+- UPDATE scopé A ciblant une ligne de B n'affecte 0 ligne ;
+- DELETE scopé A ciblant une ligne de B n'affecte 0 ligne.
+
+Plus : un test « d'honnêteté du modèle » (SELECT sans filtre voit les 2 cabinets =
+preuve que la RLS est contournée sur le chemin app) et un test structurel (RLS reste
+activée en DB, défense en profondeur — `crm.cabinet` exclu, c'est la racine du tenant).
+
+**RÈGLE NON NÉGOCIABLE** : toute nouvelle table métier DOIT être ajoutée à
+`METIER_TABLES` (+ `RLS_TABLES` si RLS activée). Cf. ADR 0005 addendum.
+
 ### 2. Auth et autorisation
 ```typescript
 describe('Auth & RBAC', () => {

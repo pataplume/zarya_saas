@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: tristan
-last_updated: 2026-05-26
+last_updated: 2026-05-28
 priority: P0
 domain: architecture
 depends_on: []
@@ -169,6 +169,22 @@ Tests automatisés obligatoires :
 - Les jobs cron qui traitent plusieurs cabinets ne fuitent pas de données
 
 Ces tests font partie de la CI et bloquent la merge en cas d'échec.
+
+### 5.6 Implémentation actuelle (Phase 1 → 3) — la RLS n'est pas le rempart du chemin app
+
+⚠️ **L'implémentation réelle diverge de ce qui précède.** Le `db` exporté par `@zarya/db` se connecte en **service role** (postgres-js, connexion directe) et **contourne la RLS** sur le chemin applicatif. La RLS reste activée en DB comme défense en profondeur, mais ce n'est **pas** le rempart principal des queries app.
+
+La sécurité multi-tenant du chemin app repose donc sur :
+
+1. **Filtre `cabinet_id` discipliné** dans chaque WHERE applicatif (`eq(table.cabinet_id, currentCabinetId)`)
+2. **Trigger `fn_check_client_cabinet`** pour la cohérence cross-table
+3. **Test générique anti-fuite cross-tenant** (Phase 3.5, bloquant CI) qui vérifie le chemin app réel
+
+`getDbForCabinet()` existe en stub mais n'est pas utilisé ; la propagation JWT + `SET LOCAL app.current_cabinet_id` est différée à Phase 4+.
+
+**Conséquence non négociable** : toute query app DOIT filtrer explicitement par `cabinet_id` — un oubli de WHERE est une fuite cross-tenant **silencieuse**, non bloquée par la RLS.
+
+Détail complet et objectif moyen terme : voir l'[addendum 28 mai 2026 de l'ADR 0005](./decisions/0005-multi-tenant-natif-mvp.md#addendum-28-mai-2026--implémentation-réelle).
 
 ## 6. Authentification multi-tenant
 

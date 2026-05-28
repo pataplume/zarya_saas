@@ -168,34 +168,56 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 
 ## Phase actuelle du projet
 
-**Phase courante** : Phase 2c — Paramètres & profil utilisateur
+**Phase courante** : Phase 3.6 — Tests server action authentifiée (`createTestUser()`)
+
+> Source de vérité opérationnelle : `HANDOFF_V2.md` (founder, 28 mai 2026). Lire en début de session pendant les Phases 3.5 / 3.6 / 4.0.
 
 **Historique des phases :**
 - ~~Phase 0 Bootstrap~~ ✅ terminée
 - ~~Phase 1 Multi-tenant + Auth~~ ✅ terminée
 - ~~Phase 2a Onboarding fiduciaire~~ ✅ terminée
 - ~~Phase 2b Hardening~~ ✅ terminée (tests isolation multi-tenant, CI, dashboard, bug fixes, Biome cleanup, email redirect Supabase)
-- **Phase 2c Paramètres & dashboard** ← en cours
+- ~~Phase 2c Paramètres & dashboard~~ ✅ terminée
   - ~~Sprint 2c.1 — Page équipe~~ ✅ (`/app/parametres/equipe` — liste, inviter, rôles, révoquer)
   - ~~Sprint 2c.2 — Page cabinet~~ ✅ (`/app/parametres/cabinet` — identité, adresse, préférences)
   - ~~Sprint 2c.3 — Page profil~~ ✅ (`/app/parametres/profil` — prénom/nom, mot de passe)
-- Phase 3 : Module Doc complet (inbox documentaire + extraction IA)
-- Phase 4 : Module Calendar / CRM / Facture / Search / Salaires
+- ~~Phase 3 : Module Doc~~ ✅ **squelette livré, IA en STUB** (cf. ci-dessous)
+  - ~~Sprint 3.1 — Schéma DB + migrations (tables `doc.*`)~~ ✅
+  - ~~Sprint 3.2 — Inbox documentaire (`/app/documents` — upload, liste, statut)~~ ✅
+  - ~~Sprint 3.3 — Pipeline classification~~ ✅ **livré en STUB** (Mistral OCR + Bedrock NON câblés — crédits AWS bloqués)
+  - ~~Sprint 3.4 — Validation humaine + entité finale~~ ✅
+- ~~Phase 3.5 : Sécurité cross-tenant + Mini-CRM~~ ✅ terminée
+  - ~~Sprint 3.5.1 — Aligner doc ↔ implémentation (CLAUDE.md + ADR 0005 + multi-tenant.md)~~ ✅
+  - ~~Sprint 3.5.2 — Test générique anti-fuite cross-tenant (chemin app, bloquant CI)~~ ✅
+  - ~~Sprint 3.5.3 — Mini-CRM `crm.client` (CRUD minimal, débloque la démo Doc end-to-end)~~ ✅
+  - ~~Sprint 3.5.4 — Vérification + démo end-to-end (avec stub IA)~~ ✅
+- **Phase 3.6 : Tests server action authentifiée (`createTestUser()`)** ← en cours
+- Phase 4.0 : Branchement Bedrock (dès crédits AWS débloqués) — `BedrockClassifier`
+- Phase 4.1+ : Calendar / Facture / Search / Salaire
 
-**Modules en cours** :
-- `apps/web/app/(app)/app/` — dashboard fiduciaire + section paramètres complète
+**État des modules** :
+- ✅ Bootstrap, Multi-tenant + Auth, Onboarding fiduciaire, Hardening + dashboard
+- ⚠️ **Module Doc : squelette OK, IA en STUB, en attente crédits Bedrock** — ne PAS le présenter comme « IA fonctionnelle »
+- ✅ Sécurité cross-tenant + Mini-CRM (Phase 3.5 terminée)
+- 🚧 Tests server action authentifiée (Phase 3.6 en cours)
 
-**Modules autorisés à toucher** :
-- `apps/web/app/(app)/` — dashboard, paramètres, composants layout
-- `tests/` — nouveaux tests d'isolation si nouvelle table métier
-- `packages/auth`, `packages/db` — cleanup et extensions légères
+**Modules autorisés à toucher (Phase 3.6)** :
+- `tests/integration/` — helper `createTestUser()` + tests de server actions authentifiées
+- `tests/` — fixtures et helpers de test
+- `docs/` — mise à jour si besoin (stratégie tests)
 
-**Modules INTERDITS (Phase 3+)** :
-- `packages/integrations/bedrock` — Phase 3
-- `packages/integrations/microsoft` — Phase 3
-- `packages/integrations/mistral` — Phase 3
-- Tous les modules métier non démarrés : CRM, Doc, Calendar, Facture, Salaire, Search
-- Nouveau schéma DB sans tests d'isolation multi-tenant associés
+**Modules INTERDITS** :
+- `packages/integrations/bedrock` — Phase 4.0, attend AWS
+- `packages/integrations/microsoft`, `mistral`, `bexio` — Phase 4+
+- Modules métier non démarrés : Calendar, Facture, Search, Salaire
+- Extension CRM au-delà de `crm.client` minimal (pas de contacts, dossiers, tags…)
+- Toute modification du `StubClassifier` (il fait son job)
+- Nouveau schéma DB sans tests d'isolation + anti-fuite associés
+
+**⚠️ Risques connus** :
+- Le `db` applicatif (service role, postgres-js) **bypasse la RLS** — la sécurité multi-tenant du chemin app repose sur le filtre `cabinet_id` discipliné dans chaque WHERE + le trigger `fn_check_client_cabinet`, **pas** sur la RLS. Voir addendum ADR 0005.
+- `getDbForCabinet()` est un stub : la propagation JWT + `SET LOCAL` n'est pas implémentée (différé Phase 4+).
+- Le module Doc en stub ne peut pas être présenté comme « classification IA fonctionnelle » (regex sur nom de fichier).
 
 ## Tests obligatoires en CI
 
