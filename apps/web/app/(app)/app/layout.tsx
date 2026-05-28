@@ -1,10 +1,15 @@
 import { getCurrentUser } from "@zarya/auth";
-import { db, sessionOnboardingFiduciaire } from "@zarya/db";
+import { cabinet, db, sessionOnboardingFiduciaire } from "@zarya/db";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { Sidebar } from "@/components/layout/sidebar";
 
-// Layout du dashboard principal — exige que l'onboarding soit terminé.
-// Le parent (app)/layout.tsx a déjà vérifié l'authentification.
+/**
+ * Layout du dashboard principal — exige que l'onboarding soit terminé.
+ * Le parent (app)/layout.tsx a déjà vérifié l'authentification.
+ *
+ * Récupère les données cabinet pour alimenter la sidebar.
+ */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 
@@ -13,16 +18,40 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect("/onboarding");
   }
 
-  // Vérifie le statut onboarding depuis la DB
-  const [session] = await db
-    .select({ statut: sessionOnboardingFiduciaire.statut })
-    .from(sessionOnboardingFiduciaire)
-    .where(eq(sessionOnboardingFiduciaire.cabinet_id, cabinet_id))
-    .limit(1);
+  // Vérification onboarding + données cabinet en parallèle
+  const [sessionResult, cabinetResult] = await Promise.all([
+    db
+      .select({ statut: sessionOnboardingFiduciaire.statut })
+      .from(sessionOnboardingFiduciaire)
+      .where(eq(sessionOnboardingFiduciaire.cabinet_id, cabinet_id))
+      .limit(1),
+    db
+      .select({ raison_sociale: cabinet.raison_sociale })
+      .from(cabinet)
+      .where(eq(cabinet.id, cabinet_id))
+      .limit(1),
+  ]);
 
+  const [session] = sessionResult;
   if (!session || session.statut !== "actif") {
     redirect("/onboarding");
   }
 
-  return <>{children}</>;
+  const [cabinetData] = cabinetResult;
+  const cabinetName = cabinetData?.raison_sociale ?? "Mon cabinet";
+  const userEmail = user?.email ?? "";
+  const userRole = (user?.app_metadata.role as string | undefined) ?? "collaborateur";
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Sidebar cabinetName={cabinetName} userEmail={userEmail} userRole={userRole} />
+
+      {/* Main content — offset de la sidebar sur desktop */}
+      <main className="lg:pl-64">
+        {/* Espace pour la topbar mobile */}
+        <div className="h-14 lg:hidden" />
+        {children}
+      </main>
+    </div>
+  );
 }
