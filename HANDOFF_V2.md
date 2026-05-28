@@ -98,8 +98,8 @@ Ces 2 problèmes deviennent la **priorité absolue** avant toute nouvelle featur
 3. ~~Phase 2a Onboarding fiduciaire (squelette)~~ ✅
 4. ~~Phase 2b Hardening (tests + dashboard)~~ ✅
 5. ~~Phase 3 Module Doc (stub IA)~~ ✅
-6. **Phase 3.5 Sécurité cross-tenant + Mini-CRM** ← **PROCHAINE PHASE**
-7. Phase 3.6 Tests server action authentifiée
+6. ~~Phase 3.5 Sécurité cross-tenant + Mini-CRM~~ ✅
+7. **Phase 3.6 Tests server action authentifiée** ← **PROCHAINE PHASE**
 8. Phase 4.0 Branchement Bedrock (dès crédits débloqués)
 9. Phase 4.1 Module Calendar (échéances fiscales)
 10. Phase 4.2 Module Facture (extraction)
@@ -124,7 +124,10 @@ Tes 5 recommandations sont validées, mais l'ordre est révisé :
 
 ---
 
-## 3. Phase actuelle : Phase 3.5 — Sécurité cross-tenant + Mini-CRM
+## 3. Phase 3.5 — Sécurité cross-tenant + Mini-CRM ✅ TERMINÉE (2026-05-28)
+
+> Phase clôturée : les 4 sprints (3.5.1 → 3.5.4) sont livrés et mergés sur `develop`.
+> Phase courante désormais : **Phase 3.6** (§ 5). Section conservée pour l'historique.
 
 ### 3.1 — Modules autorisés
 
@@ -379,7 +382,7 @@ Tes 5 recommandations sont validées, mais l'ordre est révisé :
 
 ---
 
-### Sprint 3.5.4 — Vérification finale + démo end-to-end (1 session, 1h)
+### Sprint 3.5.4 — Vérification finale + démo end-to-end (1 session, 1h) ✅
 
 **Objectif** : valider que tout le flux Phase 3 est démontrable bout-en-bout (avec stub IA).
 
