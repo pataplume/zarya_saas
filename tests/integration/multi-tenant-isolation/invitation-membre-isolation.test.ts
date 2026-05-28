@@ -22,14 +22,14 @@ describe("Multi-tenant isolation — crm.invitation_membre", () => {
   const sql = createServiceClient();
   let cabinetA: TestCabinet;
   let cabinetB: TestCabinet;
-  let invitationA: TestInvitation;
+  let _invitationA: TestInvitation;
   let invitationB: TestInvitation;
 
   beforeAll(async () => {
     const result = await seedTwoCabinets(sql);
     cabinetA = result.cabinetA;
     cabinetB = result.cabinetB;
-    invitationA = await seedInvitation(sql, cabinetA.id);
+    _invitationA = await seedInvitation(sql, cabinetA.id);
     invitationB = await seedInvitation(sql, cabinetB.id);
   });
 

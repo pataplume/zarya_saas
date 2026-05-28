@@ -39,8 +39,8 @@ export async function seedTwoCabinets(sql: postgres.Sql): Promise<{
   await sql`
     INSERT INTO crm.cabinet (id, raison_sociale, statut, plan_tarifaire)
     VALUES
-      (${idA}, ${"Test Cabinet A — isolation " + idA.slice(0, 8)}, 'actif', 'starter'),
-      (${idB}, ${"Test Cabinet B — isolation " + idB.slice(0, 8)}, 'actif', 'starter')
+      (${idA}, ${`Test Cabinet A — isolation ${idA.slice(0, 8)}`}, 'actif', 'starter'),
+      (${idB}, ${`Test Cabinet B — isolation ${idB.slice(0, 8)}`}, 'actif', 'starter')
   `;
 
   const membreIdA = randomUUID();
@@ -97,7 +97,7 @@ export async function seedInvitation(
     VALUES (
       ${id},
       ${cabinet_id},
-      ${"test-invite-" + id.slice(0, 8) + "@zarya-ci.invalid"},
+      ${`test-invite-${id.slice(0, 8)}@zarya-ci.invalid`},
       'collaborateur',
       now() + interval '7 days'
     )
@@ -116,7 +116,7 @@ export async function seedZefixRecherche(
   const id = randomUUID();
   await sql`
     INSERT INTO crm.zefix_recherche_cabinet (id, cabinet_id, requete, consentement_donne)
-    VALUES (${id}, ${cabinet_id}, ${"Test CI " + id.slice(0, 8)}, true)
+    VALUES (${id}, ${cabinet_id}, ${`Test CI ${id.slice(0, 8)}`}, true)
   `;
   return { id, cabinet_id };
 }
