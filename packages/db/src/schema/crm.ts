@@ -51,6 +51,13 @@ export const statutInvitationMembreEnum = crmSchema.enum("statut_invitation_memb
   "annulee",
 ]);
 
+export const statutClientEnum = crmSchema.enum("statut_client", [
+  "prospect",
+  "actif",
+  "inactif",
+  "archive",
+]);
+
 // ─── crm.cabinet — Racine du tenant (pas de cabinet_id) ──────────────────────
 
 export const cabinet = crmSchema.table(
@@ -121,6 +128,31 @@ export const cabinetMembre = crmSchema.table(
     index("idx_cabinet_membre_cabinet").on(t.cabinet_id),
     index("idx_cabinet_membre_user").on(t.user_id),
     unique("uniq_user_cabinet").on(t.user_id, t.cabinet_id),
+  ],
+);
+
+// ─── crm.client — Clients (PME) gérés par le cabinet ─────────────────────────
+// Version minimale (Phase 3) : juste assez pour rattacher des documents.
+// Sera enrichie en Phase 4 (CRM complet : contacts, risque, échéances, etc.).
+
+export const client = crmSchema.table(
+  "client",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    raison_sociale: text("raison_sociale").notNull(),
+    ide: text("ide"), // CHE-XXX.XXX.XXX
+    statut: statutClientEnum("statut").notNull().default("actif"),
+    email_contact: text("email_contact"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_client_cabinet").on(t.cabinet_id, t.archived_at),
+    unique("uniq_client_ide_per_cabinet").on(t.cabinet_id, t.ide),
   ],
 );
 

@@ -110,3 +110,43 @@ Voir [`/docs/architecture/multi-tenant.md`](../multi-tenant.md) pour la mise en 
 - Policies génériques par table
 - Provisioning d'un nouveau cabinet
 - Tests d'isolation requis
+
+---
+
+## Addendum 28 mai 2026 — Implémentation réelle
+
+La décision initiale prévoyait la RLS Postgres comme rempart unique d'isolation multi-tenant via `current_cabinet_id()` lu du JWT. L'implémentation Phase 1 → 3 diverge sur le chemin applicatif — ce qui suit décrit l'état réel.
+
+### Implémentation Phase 1 → 3
+
+Le `db` exporté par `@zarya/db` se connecte en service role (postgres-js, connexion directe) et **contourne la RLS** sur le chemin applicatif.
+
+La sécurité multi-tenant repose donc actuellement sur :
+
+1. **Filtre `cabinet_id` discipliné** dans toutes les queries app (`eq(table.cabinet_id, currentCabinetId)`)
+2. **Trigger `fn_check_client_cabinet`** pour la cohérence cross-table (ex. `doc.document.cabinet_id` = `crm.client.cabinet_id`)
+3. **Test générique anti-fuite cross-tenant** (Phase 3.5, bloquant CI)
+
+`getDbForCabinet()` existe en stub mais n'est pas utilisé. La propagation JWT + `SET LOCAL app.current_cabinet_id` pour activer la RLS sur le chemin app est différée à Phase 4+.
+
+### Tests d'isolation actuels
+
+Les tests d'isolation Phase 2b valident la RLS Postgres directement (en se connectant comme un user du cabinet A et en tentant de lire les données du cabinet B). Ils sont valides mais **ne reflètent pas le chemin applicatif réel** (qui passe par service role et contourne la RLS).
+
+Le test générique anti-fuite (Phase 3.5) couvre cette lacune en testant le chemin app : pour chaque table métier, il insère une ligne dans le cabinet B, interroge avec le filtre `cabinet_id` du cabinet A et vérifie qu'aucune fuite n'est possible (SELECT/UPDATE/DELETE).
+
+### Conséquences pour les futurs développeurs
+
+- **Toute query app DOIT inclure `WHERE cabinet_id = X`** explicitement
+- **Toute nouvelle table métier DOIT avoir son test générique anti-fuite**
+- **La RLS reste activée en DB** comme défense en profondeur, mais n'est pas le rempart principal du chemin app
+
+### Objectif moyen terme
+
+Implémenter le vrai `getDbForCabinet()` avec :
+- Récupération du JWT côté serveur
+- `SET LOCAL app.current_cabinet_id = <uuid>` au début de chaque transaction
+- RLS effectivement appliquée sur le chemin app
+- Suppression du service role par défaut (sauf cas bootstrap explicites)
+
+Cf. Sprint 4+ (à planifier).
