@@ -200,18 +200,23 @@ export async function seedUploadBrut(
   return { id, cabinet_id };
 }
 
-/** Crée un doc.fichier_physique de test pour un cabinet donné (hash unique). */
+/**
+ * Crée un doc.fichier_physique de test pour un cabinet donné (hash unique).
+ * `upload_brut_id` optionnel : à lier pour tester la répercussion du statut
+ * sur l'inbox (doc.upload_brut) à la validation/rejet.
+ */
 export async function seedFichierPhysique(
   sql: postgres.Sql,
   cabinet_id: string,
+  upload_brut_id?: string,
 ): Promise<TestFichierPhysique> {
   const id = randomUUID();
   await sql`
     INSERT INTO doc.fichier_physique
-      (id, cabinet_id, hash_contenu, taille_octets, type_mime, storage_path, source)
+      (id, cabinet_id, hash_contenu, taille_octets, type_mime, storage_path, source, upload_brut_id)
     VALUES (
       ${id}, ${cabinet_id}, ${`sha256-${id}`}, 1024, 'application/pdf',
-      ${`cabinet/${cabinet_id}/${id}.pdf`}, 'upload_fiduciaire'
+      ${`cabinet/${cabinet_id}/${id}.pdf`}, 'upload_fiduciaire', ${upload_brut_id ?? null}
     )
   `;
   return { id, cabinet_id };

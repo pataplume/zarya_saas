@@ -10,6 +10,19 @@ export default defineConfig({
         new URL("./packages/extraction/src/index.ts", import.meta.url),
       ),
       "@zarya/db": fileURLToPath(new URL("./packages/db/src/index.ts", import.meta.url)),
+      // Sous-chemin admin (helper createTestUser) : à déclarer AVANT "@zarya/auth"
+      // car Vite matche les alias string par préfixe. admin.ts ne tire pas next/headers.
+      "@zarya/auth/admin": fileURLToPath(new URL("./packages/auth/src/admin.ts", import.meta.url)),
+      // @zarya/auth/index tire next/headers (incompatible env node). On l'aliase quand
+      // même pour que `vi.mock("@zarya/auth")` cible le même id que l'import des server
+      // actions ; le mock remplace le module, donc index.ts n'est jamais évalué.
+      "@zarya/auth": fileURLToPath(new URL("./packages/auth/src/index.ts", import.meta.url)),
+      // next/cache (revalidatePath) exige un scope de requête, absent sous Vitest.
+      // On l'aliase vers un stub no-op pour que l'import des server actions résolve
+      // le même id quel que soit le contexte pnpm (cf. même logique que @zarya/auth).
+      "next/cache": fileURLToPath(
+        new URL("./tests/integration/helpers/next-cache-stub.ts", import.meta.url),
+      ),
     },
   },
   test: {
