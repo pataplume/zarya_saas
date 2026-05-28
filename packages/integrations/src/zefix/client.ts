@@ -68,7 +68,9 @@ function normaliser(raw: ZefixCompanySummary | ZefixCompanyDetail): ZefixResulta
     result.adresse_rue = [raw.address.street, raw.address.houseNumber].filter(Boolean).join(" ");
   }
   if (raw.address?.swissZipCode) result.adresse_npa = raw.address.swissZipCode;
+  // Priorité : address.town (donnée postale) > legalSeat (siège légal) — toujours présent
   if (raw.address?.town) result.adresse_ville = raw.address.town;
+  else if (raw.legalSeat) result.adresse_ville = raw.legalSeat;
   const canton = raw.cantons?.[0];
   if (canton) result.adresse_canton = canton;
   if (raw.registrationDate) result.date_inscription_rc = raw.registrationDate;
