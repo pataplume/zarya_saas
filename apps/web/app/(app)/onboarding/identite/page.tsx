@@ -182,10 +182,17 @@ export default function IdentitePage() {
         )}
       </div>
 
-      {/* Formulaire identité */}
-      <form id="form-identite" action={sauvegarderAction} className="space-y-6">
+      {/* Formulaire identité — key force un remontage quand la sélection Zefix change,
+          ce qui permet aux defaultValue de prendre la nouvelle valeur */}
+      <form
+        key={selectionne?.ehraid ?? ""}
+        id="form-identite"
+        action={sauvegarderAction}
+        className="space-y-6"
+      >
         {/* Champs cachés Zefix */}
         <input type="hidden" name="zefix_ehraid" value={selectionne?.ehraid ?? ""} />
+        <input type="hidden" name="adresse_canton" value={selectionne?.adresse_canton ?? ""} />
 
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="text-base font-semibold text-gray-900">Informations du cabinet</h2>
