@@ -168,7 +168,7 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 
 ## Phase actuelle du projet
 
-**Phase courante** : Phase 3.5 — Sécurité cross-tenant + Mini-CRM
+**Phase courante** : Phase 3.6 — Tests server action authentifiée (`createTestUser()`)
 
 > Source de vérité opérationnelle : `HANDOFF_V2.md` (founder, 28 mai 2026). Lire en début de session pendant les Phases 3.5 / 3.6 / 4.0.
 
@@ -186,26 +186,25 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
   - ~~Sprint 3.2 — Inbox documentaire (`/app/documents` — upload, liste, statut)~~ ✅
   - ~~Sprint 3.3 — Pipeline classification~~ ✅ **livré en STUB** (Mistral OCR + Bedrock NON câblés — crédits AWS bloqués)
   - ~~Sprint 3.4 — Validation humaine + entité finale~~ ✅
-- **Phase 3.5 : Sécurité cross-tenant + Mini-CRM** ← en cours
-  - Sprint 3.5.1 — Aligner doc ↔ implémentation (CLAUDE.md + ADR 0005 + multi-tenant.md)
-  - Sprint 3.5.2 — Test générique anti-fuite cross-tenant (chemin app, bloquant CI)
-  - Sprint 3.5.3 — Mini-CRM `crm.client` (CRUD minimal, débloque la démo Doc end-to-end)
-  - Sprint 3.5.4 — Vérification + démo end-to-end (avec stub IA)
-- Phase 3.6 : Tests server action authentifiée (`createTestUser()`)
+- ~~Phase 3.5 : Sécurité cross-tenant + Mini-CRM~~ ✅ terminée
+  - ~~Sprint 3.5.1 — Aligner doc ↔ implémentation (CLAUDE.md + ADR 0005 + multi-tenant.md)~~ ✅
+  - ~~Sprint 3.5.2 — Test générique anti-fuite cross-tenant (chemin app, bloquant CI)~~ ✅
+  - ~~Sprint 3.5.3 — Mini-CRM `crm.client` (CRUD minimal, débloque la démo Doc end-to-end)~~ ✅
+  - ~~Sprint 3.5.4 — Vérification + démo end-to-end (avec stub IA)~~ ✅
+- **Phase 3.6 : Tests server action authentifiée (`createTestUser()`)** ← en cours
 - Phase 4.0 : Branchement Bedrock (dès crédits AWS débloqués) — `BedrockClassifier`
 - Phase 4.1+ : Calendar / Facture / Search / Salaire
 
 **État des modules** :
 - ✅ Bootstrap, Multi-tenant + Auth, Onboarding fiduciaire, Hardening + dashboard
 - ⚠️ **Module Doc : squelette OK, IA en STUB, en attente crédits Bedrock** — ne PAS le présenter comme « IA fonctionnelle »
-- 🚧 Sécurité cross-tenant + Mini-CRM (Phase 3.5 en cours)
+- ✅ Sécurité cross-tenant + Mini-CRM (Phase 3.5 terminée)
+- 🚧 Tests server action authentifiée (Phase 3.6 en cours)
 
-**Modules autorisés à toucher (Phase 3.5)** :
-- `tests/integration/` — test générique anti-fuite cross-tenant
-- `apps/web/app/(app)/clients/` — mini-CRM (Sprint 3.5.3)
-- `packages/db/` — migration `crm.client` si nécessaire
-- `packages/schemas/` — schémas Zod client
-- `docs/architecture/` — mise à jour (ADR 0005, multi-tenant.md)
+**Modules autorisés à toucher (Phase 3.6)** :
+- `tests/integration/` — helper `createTestUser()` + tests de server actions authentifiées
+- `tests/` — fixtures et helpers de test
+- `docs/` — mise à jour si besoin (stratégie tests)
 
 **Modules INTERDITS** :
 - `packages/integrations/bedrock` — Phase 4.0, attend AWS
