@@ -69,14 +69,6 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
 
   return (
     <div className="space-y-8">
-      {/* En-tête */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Équipe</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Gérez les membres de votre cabinet et leurs niveaux d&apos;accès.
-        </p>
-      </div>
-
       {/* ── Section membres actifs ─────────────────────────────────────────── */}
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
