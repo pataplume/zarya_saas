@@ -151,6 +151,53 @@ async function setupTwoCabinets() {
 - Tests CI tagués `@external` pour pouvoir les skip si coût élevé
 - Tests manuels avant chaque release
 
+### Server actions authentifiées (Phase 3.6)
+
+On teste la VRAIE server action (`apps/web/.../actions.ts`) contre la base de test,
+mais une server action ne peut pas tourner nativement sous Vitest : `requireAuth()`
+lit les cookies via `next/headers`, et `revalidatePath()` exige un scope de requête
+Next. On neutralise ces deux dépendances et on garde tout le reste réel (db service
+role, triggers DB, Zod).
+
+**Trois pièces, toutes nécessaires :**
+
+1. **Utilisateur Supabase réel** — `createTestUser(sql, { cabinet_id, role })`
+   (`tests/integration/helpers/auth.ts`) crée un vrai user via l'API admin
+   (`@zarya/auth/admin`) + son `crm.cabinet_membre`, et expose `user.authUser`
+   (`{ id, app_metadata: { cabinet_id, role } }`). Ne JAMAIS créer un user en SQL brut
+   (HANDOFF_V2.md § 2.7). Toujours `cleanupTestUsers(sql, ...users)` ensuite.
+
+2. **Mock de `@zarya/auth`** — un état hoisté injecte l'utilisateur courant :
+   ```typescript
+   const authState = vi.hoisted(() => ({ user: null as null | { id: string; app_metadata: Record<string, unknown> } }));
+   vi.mock("@zarya/auth", () => ({
+     requireAuth: async () => { if (!authState.user) throw new Error("UnauthorizedError"); return authState.user; },
+   }));
+   // ... afterEach(() => { authState.user = null; });
+   // ... authState.user = user.authUser; avant chaque appel d'action.
+   ```
+
+3. **Résolution de modules cohérente (CRITIQUE)** — sous pnpm, `@zarya/*` et
+   `next/cache` ne résolvent pas au même id depuis la racine (contexte du test) et
+   depuis `apps/web` (contexte de l'action importée). Si les ids divergent, le
+   `vi.mock` ne matche pas l'import de l'action. On force donc un id unique via des
+   alias dans `vitest.config.ts` :
+   - `@zarya/auth` → `packages/auth/src/index.ts` (le mock le remplace, `next/headers`
+     n'est jamais évalué) ;
+   - `@zarya/auth/admin` → `packages/auth/src/admin.ts`, **déclaré AVANT** `@zarya/auth`
+     (Vite matche les alias string par préfixe) ;
+   - `next/cache` → `tests/integration/helpers/next-cache-stub.ts` (no-op, pas de mock
+     nécessaire).
+
+L'action est importée dynamiquement APRÈS les `vi.mock` :
+`const { action } = await import("../../../apps/web/.../actions");`.
+
+Exemples : `server-actions/valider-proposition.test.ts`,
+`server-actions/rejeter-proposition.test.ts`.
+
+> Rappel : `tests/` n'est pas typechecké par `pnpm typecheck` (workspace packages
+> uniquement) — la validation des types des tests se fait au runtime Vitest.
+
 ## Performance
 
 ### Tests rapides
