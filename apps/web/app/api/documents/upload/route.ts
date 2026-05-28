@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@zarya/auth";
 import { db, fichierPhysique, uploadBrut } from "@zarya/db";
+import { classifyDocument } from "@zarya/extraction";
 import { and, eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -8,8 +9,10 @@ import { z } from "zod";
 
 // Upload manuel — module Doc (doc.md § 2.3). Les uploads passent par un route
 // handler (cf. apps/web/CLAUDE.md), jamais par une server action.
-// Pipeline 3.2 : persistance brute (upload_brut + fichier_physique). La
-// classification IA (proposition_classement) arrive au Sprint 3.3.
+// Pipeline : persistance brute (upload_brut + fichier_physique) puis
+// classification IA (extraction.invocation + doc.proposition_classement) via
+// @zarya/extraction. En mode stub (EXTRACTION_MODE=stub) la proposition est
+// produite par heuristique locale ; Bedrock se rebranche sans toucher au flux.
 
 export const runtime = "nodejs";
 
@@ -168,5 +171,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     })
     .returning({ id: fichierPhysique.id });
 
-  return NextResponse.json({ status: "recu", fichier_physique_id: fichier?.id });
+  if (!fichier) {
+    await db.update(uploadBrut).set({ statut: "erreur" }).where(eq(uploadBrut.id, upload.id));
+    return NextResponse.json({ error: "Échec de l'enregistrement du fichier" }, { status: 500 });
+  }
+
+  // 8. Classification IA → proposition en attente de validation (ADR 0007).
+  // Un échec de classification ne perd pas le fichier : il reste 'recu',
+  // reclassable plus tard. On ne bloque donc pas la réponse d'upload.
+  try {
+    await classifyDocument({
+      cabinet_id,
+      fichier_physique_id: fichier.id,
+      nom_fichier,
+      taille_octets,
+      type_mime,
+      invoked_by_user_id: user.id,
+    });
+    await db.update(uploadBrut).set({ statut: "a_valider" }).where(eq(uploadBrut.id, upload.id));
+  } catch {
+    // Le fichier est stocké ; la classification pourra être relancée.
+  }
+
+  return NextResponse.json({ status: "recu", fichier_physique_id: fichier.id });
 }
