@@ -54,7 +54,7 @@ export default function EquipePage() {
         </p>
       </div>
 
-      <form action={inviterAction} className="space-y-4">
+      <form id="form-invitations" action={inviterAction} className="space-y-4">
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           {/* En-tête tableau */}
           <div className="grid grid-cols-[1fr_1fr_1fr_140px_40px] gap-3 border-b border-gray-200 px-4 py-3">
@@ -166,27 +166,29 @@ export default function EquipePage() {
         </div>
 
         {inviteState.error && <p className="text-sm text-red-600">{inviteState.error}</p>}
+      </form>
 
-        <div className="flex items-center justify-between">
-          <form action={passerAction}>
-            <button
-              type="submit"
-              disabled={isPassing}
-              className="text-sm text-gray-500 underline hover:text-gray-700 focus:outline-none disabled:opacity-50"
-            >
-              Je suis seul·e, continuer sans inviter
-            </button>
-          </form>
-
+      {/* Boutons hors du form invitations — évite l'imbrication HTML invalide */}
+      <div className="flex items-center justify-between">
+        <form action={passerAction}>
           <button
             type="submit"
-            disabled={isInviting}
-            className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            disabled={isPassing}
+            className="text-sm text-gray-500 underline hover:text-gray-700 focus:outline-none disabled:opacity-50"
           >
-            {isInviting ? "Envoi des invitations…" : "Envoyer les invitations →"}
+            Je suis seul·e, continuer sans inviter
           </button>
-        </div>
-      </form>
+        </form>
+
+        <button
+          type="submit"
+          form="form-invitations"
+          disabled={isInviting}
+          className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {isInviting ? "Envoi des invitations…" : "Envoyer les invitations →"}
+        </button>
+      </div>
     </div>
   );
 }
