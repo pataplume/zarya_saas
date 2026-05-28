@@ -1,6 +1,17 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    // Les packages workspace exposent directement leur source TS (exports "." → src/index.ts).
+    // Le runner racine n'a pas de symlink node_modules/@zarya/*, on résout donc à la main.
+    alias: {
+      "@zarya/extraction": fileURLToPath(
+        new URL("./packages/extraction/src/index.ts", import.meta.url),
+      ),
+      "@zarya/db": fileURLToPath(new URL("./packages/db/src/index.ts", import.meta.url)),
+    },
+  },
   test: {
     include: ["tests/**/*.test.ts", "packages/*/src/**/*.test.ts"],
     globals: true,
