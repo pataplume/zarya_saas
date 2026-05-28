@@ -85,7 +85,11 @@ export default async function ValidationPage() {
           {clients.length === 0 && (
             <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               Aucun client n'existe encore pour ce cabinet. La validation attribue un document à un
-              client : créez d'abord un client (module CRM, à venir) pour pouvoir valider.
+              client :{" "}
+              <Link href="/app/clients" className="font-medium underline hover:text-amber-900">
+                créez d'abord un client
+              </Link>{" "}
+              pour pouvoir valider.
             </div>
           )}
           <ul className="space-y-3">

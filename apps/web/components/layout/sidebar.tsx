@@ -255,7 +255,7 @@ function IconLogout() {
 
 const NAV_MAIN: NavItem[] = [
   { href: "/app", label: "Dashboard", icon: <IconDashboard /> },
-  { href: "/app/crm", label: "CRM", icon: <IconUsers />, locked: true },
+  { href: "/app/clients", label: "Clients", icon: <IconUsers /> },
   { href: "/app/documents", label: "Documents", icon: <IconDocument /> },
   { href: "/app/calendrier", label: "Calendrier", icon: <IconCalendar />, locked: true },
   { href: "/app/factures", label: "Factures", icon: <IconCurrency />, locked: true },
