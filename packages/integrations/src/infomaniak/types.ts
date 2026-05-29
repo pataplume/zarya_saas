@@ -25,10 +25,20 @@ export interface IkChatMessage {
   content: string;
 }
 
-// response_format : json_object n'est PAS garanti en Beta (parité OpenAI non
-// acquise). Le client tente json_object si demandé, mais le classifier doit
-// toujours prévoir un fallback de parsing (cf. ADR 0010).
-export type IkResponseFormat = { type: "json_object" } | { type: "text" };
+// response_format — VÉRIFIÉ via sonde (2026-05-29) :
+//  - `json_object` est REJETÉ par l'API Infomaniak ("no longer supported").
+//  - `json_schema` (structured outputs) est supporté et renvoie un JSON conforme.
+// On expose donc json_schema (chemin privilégié) et text. Le classifier garde
+// néanmoins un fallback de parsing si un modèle refusait json_schema (Beta).
+export interface IkJsonSchema {
+  name: string;
+  strict?: boolean;
+  schema: Record<string, unknown>;
+}
+
+export type IkResponseFormat =
+  | { type: "text" }
+  | { type: "json_schema"; json_schema: IkJsonSchema };
 
 export interface IkChatCompletionParams {
   model: string;

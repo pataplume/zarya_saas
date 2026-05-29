@@ -1,6 +1,27 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InfomaniakClient, InfomaniakError } from "./client";
 import type { IkChatCompletionResponse, IkModelsResponse } from "./types";
+
+// Hermétique : tests/setup.ts charge .env.local, qui contient désormais de vraies
+// valeurs IK_*. On neutralise toute fuite avant chaque test pour que les assertions
+// "config absente" / "catégorie non mappée" testent bien le code, pas l'environnement.
+const IK_ENV_KEYS = [
+  "IK_PRODUCT_ID",
+  "IK_API_TOKEN",
+  "IK_MODEL_CHAT_SMALL",
+  "IK_MODEL_CHAT_LARGE",
+  "IK_MODEL_VISION",
+  "IK_MODEL_EMBEDDINGS",
+  "IK_MODEL_RERANKER",
+];
+
+beforeEach(() => {
+  for (const k of IK_ENV_KEYS) vi.stubEnv(k, "");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 // Construit une Response-like mockée minimale (suffisant pour le client).
 function jsonResponse(body: unknown, init?: { status?: number; ok?: boolean }): Response {
@@ -71,11 +92,9 @@ describe("InfomaniakClient — resolveModel (mapping par catégorie, jamais cod�
     const fetchImpl = vi.fn(async () => jsonResponse(MODELS));
     const id = await makeClient(fetchImpl as unknown as typeof fetch).resolveModel("chat_small");
     expect(id).toBe("ministral-3-14b");
-    vi.unstubAllEnvs();
   });
 
   it("lève config si la catégorie n'est pas mappée en env", async () => {
-    vi.unstubAllEnvs();
     const fetchImpl = vi.fn(async () => jsonResponse(MODELS));
     await expect(
       makeClient(fetchImpl as unknown as typeof fetch).resolveModel("chat_large"),
@@ -88,7 +107,6 @@ describe("InfomaniakClient — resolveModel (mapping par catégorie, jamais cod�
     await expect(
       makeClient(fetchImpl as unknown as typeof fetch).resolveModel("vision"),
     ).rejects.toMatchObject({ code: "model_not_available" });
-    vi.unstubAllEnvs();
   });
 });
 

@@ -12,6 +12,7 @@ export type {
   IkChatCompletionResponse,
   IkChatMessage,
   IkChatRole,
+  IkJsonSchema,
   IkModel,
   IkModelsResponse,
   IkResponseFormat,

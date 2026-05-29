@@ -52,8 +52,11 @@ Règles d'implémentation non négociables :
   de catalogue Beta sans casser la prod.
 - **Secrets côté serveur uniquement** (`IK_PRODUCT_ID`, `IK_API_TOKEN`) — jamais côté
   client, `pino redact` sur le token (cf. CLAUDE.md règle #7).
-- **`temperature: 0`** pour l'extraction ; `response_format: json_object` **si et
-  seulement si** le modèle le supporte (Beta), sinon fallback de parsing.
+- **`temperature: 0`** pour l'extraction ; sortie structurée via
+  `response_format: { type: "json_schema", … }` (**vérifié fonctionnel**, sonde du
+  2026-05-29). ⚠️ `json_object` est **rejeté** par l'API Infomaniak (« no longer
+  supported »). Conserver malgré tout un fallback de parsing si un modèle refusait
+  `json_schema` (catalogue Beta).
 - **Validation déterministe applicative renforcée en aval** (IBAN valide, total =
   Σ lignes, conformité de schéma) : la fiabilité vient autant des garde-fous
   applicatifs que du modèle.
@@ -62,15 +65,21 @@ Règles d'implémentation non négociables :
 
 Base URL : `https://api.infomaniak.com/2/ai/{product_id}/openai/v1`.
 
-### Mapping modèles → tâches (indicatif, ids réels via `/v1/models`)
+### Mapping catégorie → tâches (ids réels via `/v1/models`, jamais codés en dur)
 
-| Tâche | Avant (Bedrock) | Après (Infomaniak) |
-|---|---|---|
-| OCR documents scannés | Mistral OCR | Qwen3.5-122B (vision) |
-| Extraction factures/employés | Claude Sonnet 4.6 | Qwen3.5-122B |
-| RAG / Search | Claude Sonnet 4.6 | Qwen3.5-122B + bge-reranker-v2-m3 |
-| Classement / emails / CRM | Claude Haiku 4.5 | Ministral-3-14B |
-| Embeddings | Bedrock (Titan/Cohere) | Bge Multilingual Gemma2 |
+Ids **vérifiés** au catalogue live (sonde du 2026-05-29). Le code mappe par
+catégorie ; ces ids vivent en config (`IK_MODEL_*`), pas dans le code.
+
+| Tâche | Catégorie | Avant (Bedrock) | Après (Infomaniak — id réel vérifié) |
+|---|---|---|---|
+| Classement / emails / CRM | `chat_small` | Claude Haiku 4.5 | `mistralai/Ministral-3-14B-Instruct-2512` |
+| Extraction factures/employés, RAG | `chat_large` | Claude Sonnet 4.6 | `Qwen/Qwen3.5-122B-A10B-FP8` |
+| OCR documents scannés (vision) | `vision` | Mistral OCR | à vérifier (Phase 4.1+) |
+| Embeddings | `embeddings` | Bedrock (Titan/Cohere) | `bge_multilingual_gemma2` |
+| Reranking | `reranker` | — | à vérifier (Phase 4.1+) |
+
+> Sortie structurée **vérifiée** : `response_format: { type: "json_schema" }`
+> fonctionne sur Ministral. `json_object` est **rejeté** par l'API.
 
 ### Séquencement (important)
 
