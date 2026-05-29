@@ -2,10 +2,14 @@
 //
 // Stratégie : un seul contrat `Classifier` derrière le flag EXTRACTION_MODE.
 //  - mode "stub"  : heuristique locale déterministe (aucun appel réseau).
-//  - mode "live"  : Bedrock Haiku 4.5 — non câblé tant que les crédits AWS
-//                   sont bloqués (cf. ADR 0003, llm-strategy.md).
-// Ce fichier reste PUR (aucun import DB) pour être testable en isolation ;
-// la persistance (invocation + proposition) vit dans classify-document.ts.
+//  - mode "live"  : Infomaniak AI Services (catégorie chat_small) — souveraineté
+//                   suisse, cf. ADR 0010. Implémentation : ./infomaniak-classifier.
+// Ce fichier ne fait aucun appel réseau lui-même ; la persistance (invocation +
+// proposition) vit dans classify-document.ts, l'appel LLM dans infomaniak-classifier.
+
+// Import du mode live. La résolution se fait à l'instanciation (runtime), pas à
+// l'évaluation du module : le cycle classifier ↔ infomaniak-classifier est donc sûr.
+import { InfomaniakClassifier } from "./infomaniak-classifier";
 
 export type ExtractionMode = "stub" | "live";
 
@@ -34,12 +38,21 @@ export interface ClassificationProposal {
   anomalies: string[];
 }
 
+// Consommation tokens/coût d'une invocation LLM (renseignée par le mode live ;
+// le stub la laisse absente → le pipeline retombe sur 0).
+export interface ClassificationUsage {
+  tokens_input: number;
+  tokens_output: number;
+  cost_usd?: string;
+}
+
 export interface ClassificationResult {
   proposal: ClassificationProposal;
   model_used: string;
   prompt_version: string;
   duration_ms: number;
   raw_output: unknown;
+  usage?: ClassificationUsage;
 }
 
 export interface Classifier {
@@ -51,6 +64,18 @@ export class ExtractionNotImplementedError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ExtractionNotImplementedError";
+  }
+}
+
+// Erreur typée du chemin d'extraction live (LLM). Catch ciblé côté pipeline.
+export class ExtractionError extends Error {
+  constructor(
+    public readonly code: "CONFIG" | "LLM_ERROR" | "TIMEOUT" | "RATE_LIMIT" | "VALIDATION_FAILED",
+    message: string,
+    public readonly originalCause?: unknown,
+  ) {
+    super(message);
+    this.name = "ExtractionError";
   }
 }
 
@@ -150,20 +175,10 @@ export class StubClassifier implements Classifier {
   }
 }
 
-export class BedrockClassifier implements Classifier {
-  readonly mode = "live" as const;
-
-  async classify(_input: ClassificationInput): Promise<ClassificationResult> {
-    throw new ExtractionNotImplementedError(
-      "Classifier Bedrock non câblé (crédits AWS bloqués). Utilisez EXTRACTION_MODE=stub. Voir ADR 0003.",
-    );
-  }
-}
-
 export function resolveExtractionMode(value = process.env.EXTRACTION_MODE): ExtractionMode {
   return value === "live" ? "live" : "stub";
 }
 
 export function getClassifier(mode: ExtractionMode = resolveExtractionMode()): Classifier {
-  return mode === "live" ? new BedrockClassifier() : new StubClassifier();
+  return mode === "live" ? new InfomaniakClassifier() : new StubClassifier();
 }

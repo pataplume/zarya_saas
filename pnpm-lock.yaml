@@ -131,6 +131,9 @@ importers:
       '@zarya/db':
         specifier: workspace:*
         version: link:../db
+      '@zarya/integrations':
+        specifier: workspace:*
+        version: link:../integrations
     devDependencies:
       '@types/node':
         specifier: '*'

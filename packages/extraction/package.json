@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@zarya/db": "workspace:*"
+    "@zarya/db": "workspace:*",
+    "@zarya/integrations": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "*",
