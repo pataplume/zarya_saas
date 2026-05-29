@@ -170,8 +170,8 @@ Pour un cabinet **Pro** typique (60 clients, 400 employés, usage moyen) :
 | Poste | Coût mensuel |
 |---|---|
 | Supabase Pro (mutualisé sur 100 cabinets) | ~3 CHF |
-| Bedrock LLM (Sonnet + Haiku) | 60-100 CHF |
-| Mistral OCR | 10-30 CHF |
+| Infomaniak LLM (catégories `chat_large` + `chat_small`) | à confirmer (catalogue Infomaniak Beta) |
+| Infomaniak vision (Phase 4.1+) | à confirmer (catalogue Infomaniak Beta) |
 | Microsoft Graph (gratuit pour l'usage normal) | 0 CHF |
 | Stockage Supabase Storage | 5-15 CHF |
 | Vercel compute (mutualisé) | ~3 CHF |

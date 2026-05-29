@@ -17,7 +17,7 @@ referenced_by: [README]
 ### 1.1 Contraintes non-négociables
 1. **Résidence des données en UE** (Allemagne, France) — voir [`data-residency.md`](./data-residency.md)
 2. **Multi-tenant natif** dès le MVP — voir [`multi-tenant.md`](./multi-tenant.md) et [ADR 0005](./decisions/0005-multi-tenant-natif-mvp.md)
-3. **LLM via Bedrock eu-central-1** uniquement — voir [`llm-strategy.md`](./llm-strategy.md) et [ADR 0003](./decisions/0003-llm-via-bedrock.md)
+3. **LLM via Infomaniak AI Services** (souveraineté suisse) uniquement — voir [`llm-strategy.md`](./llm-strategy.md) et [ADR 0010](./decisions/0010-llm-via-infomaniak.md)
 4. **Self-service onboarding** — voir [ADR 0006](./decisions/0006-onboarding-self-service-mvp.md)
 5. **Conformité RGPD + nLPD by design** — voir [`security-and-audit.md`](./security-and-audit.md)
 
@@ -63,8 +63,8 @@ referenced_by: [README]
        ↓ ┌─────────────┐  ┌──────────────────────┐ ↓
        ↓ │  SUPABASE   │  │  INTÉGRATIONS TIERCES │ ↓
        ↓ │  (Frankfurt)│  │                       │ ↓
-       ↓ │             │  │  - Bedrock EU         │ ↓
-       ↓ │ - Postgres  │  │  - Mistral La Plat.   │ ↓
+       ↓ │             │  │  - Infomaniak (CH)    │ ↓
+       ↓ │ - Postgres  │  │    AI Services        │ ↓
        ↓ │ - Auth      │  │  - Microsoft Graph    │ ↓
        ↓ │ - Storage   │  │  - Zefix              │ ↓
        ↓ │ - pgvector  │  │  - Bexio              │ ↓
@@ -121,7 +121,7 @@ Chaque surface est un sous-domaine ou un préfixe :
 ### 4.2 Patterns de code
 - `/app` : routes Next.js (pages + API)
 - `/lib` : logique métier
-  - `/lib/integrations/{bexio,microsoft,zefix,bedrock}` : wrappers externes
+  - `/lib/integrations/{bexio,microsoft,zefix,infomaniak}` : wrappers externes
   - `/lib/extraction` : pipeline IA générique
   - `/lib/auth` : helpers auth
   - `/lib/multi-tenant` : helpers tenant resolution
@@ -201,16 +201,16 @@ Voir [`security-and-audit.md` § 4-5](./security-and-audit.md).
 
 ## 8. LLM et IA
 
-### 8.1 Amazon Bedrock (eu-central-1)
-- **Claude Sonnet 4.6** : extractions critiques (factures, employés, clients)
-- **Claude Haiku 4.5** : volume élevé (classification doc, changements salariaux)
+### 8.1 Infomaniak AI Services (Suisse)
+Toute la couche IA passe par Infomaniak (API OpenAI-compatible). **Aucun `model_id` codé en dur** : les modèles sont résolus au runtime via `GET /v1/models` et mappés par **catégorie**.
+- **Catégorie `chat_large`** (résolue au runtime) : extractions critiques (factures, employés, clients)
+- **Catégorie `chat_small`** (résolue au runtime) : volume élevé (classification doc, changements salariaux)
 
-### 8.2 Mistral La Plateforme (Paris)
-- **OCR** : PDFs scannés, images
+### 8.2 Vision / OCR — différé Phase 4.1+
+- Infomaniak vision (catégorie `vision`) : PDFs scannés, images. **Non implémenté au MVP** (différé Phase 4.1+).
 
-### 8.3 Embeddings
-- Modèle d'embedding Bedrock (Cohere Embed Multilingual ou Titan Embeddings)
-- Stockage dans `pgvector`
+### 8.3 Embeddings — différé Phase 4.1+
+- Infomaniak embeddings (catégorie `embeddings`), stockage dans `pgvector`. **Différé Phase 4.1+** (modules Facture/Search non construits).
 
 ### 8.4 Wrapper interne
 Voir [`extraction-ia.md`](../modules/extraction-ia.md) et [`llm-strategy.md`](./llm-strategy.md).
@@ -314,8 +314,8 @@ Pour 10 cabinets pilotes :
 |---|---|---|
 | Vercel Pro | ~20 USD | Suffisant pour MVP |
 | Supabase Pro | ~25 USD | Per project, Frankfurt |
-| Bedrock LLM | ~500 USD | Variable selon usage |
-| Mistral OCR | ~100 USD | Variable |
+| Infomaniak AI Services (LLM) | ~500 USD | Variable selon usage |
+| Infomaniak vision (OCR) | ~100 USD | Variable — différé Phase 4.1+ |
 | Storage S3 | ~10 USD | Inclus dans Supabase Pro initialement |
 | Sentry | ~30 USD | Plan Team |
 | Posthog | ~50 USD | Self-host Phase 2 |
@@ -332,12 +332,13 @@ Tous documentés dans `/docs/architecture/decisions/` :
 |---|---|---|
 | 0001 | Résidence des données UE | À écrire |
 | 0002 | Stack backend | À écrire |
-| 0003 | LLM via Bedrock | Accepté |
+| 0003 | LLM via Bedrock | Superseded (par 0010) |
 | 0004 | Supabase vs self-hosted | À écrire |
 | 0005 | Multi-tenant natif MVP | Accepté |
 | 0006 | Onboarding self-service MVP | Accepté |
 | 0007 | Validation granulaire onboarding | À écrire |
 | 0008 | Mini-dashboard client | À écrire |
+| 0010 | LLM via Infomaniak (souveraineté suisse) | Accepté |
 
 ## 15. Évolutions architecturales prévues
 
@@ -361,10 +362,10 @@ Tous documentés dans `/docs/architecture/decisions/` :
 - Solution Phase 2 : Supabase Enterprise ou self-host
 - Migration plan documenté à préparer dès qu'on atteint 50 cabinets
 
-### 16.2 Bedrock disponibilité régionale
-- eu-central-1 stable pour Claude
-- Mais Bedrock évolue : si Anthropic sort un nouveau modèle, disponibilité EU avec délai
-- Monitoring de la roadmap Bedrock requis
+### 16.2 Infomaniak disponibilité et catalogue
+- Infrastructure suisse, catalogue IK en Beta
+- Les modèles sont résolus au runtime via `GET /v1/models` (pas d'`model_id` codé en dur) : un changement de catalogue côté Infomaniak est absorbé par la résolution par catégorie
+- Monitoring du catalogue et de la disponibilité Infomaniak requis
 
 ### 16.3 Vercel et résidence des données
 - Vercel ne garantit pas une résidence stricte EU pour TOUTES les fonctions

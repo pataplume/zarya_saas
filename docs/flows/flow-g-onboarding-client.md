@@ -102,8 +102,8 @@ Si Upload :
 1. Drag & drop des fichiers
 2. Création `salaire.session_onboarding` + `salaire.upload_fichier`
 3. Pipeline Extraction IA avec contexte `employes`
-4. Modèle : Claude Sonnet 4.6 (précision critique)
-5. OCR via Mistral si PDF scanné
+4. Modèle : catégorie `chat_large` (résolue au runtime) — précision critique
+5. OCR via Infomaniak vision (catégorie `vision`) si PDF scanné — différé Phase 4.1+
 6. Output : N `proposition_employe` + détails par champ dans `proposition_champ`
 
 **4.C — Notification au cabinet**

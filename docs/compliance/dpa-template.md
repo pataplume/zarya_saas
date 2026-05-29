@@ -174,9 +174,9 @@ Le Cabinet gère en première ligne les demandes d'exercice des droits de ses cl
 
 ## Article 7 — Transferts internationaux
 
-ZARYA s'engage à ne traiter les données qu'en **Union Européenne**, principalement à Frankfurt (eu-central-1) et accessoirement à Paris (eu-west-3, pour Mistral OCR).
+ZARYA s'engage à traiter les données en **Union Européenne** (principalement à Frankfurt, eu-central-1) et en **Suisse** pour la couche IA opérée par **Infomaniak (Suisse)**. La Suisse bénéficie d'une **décision d'adéquation** de la Commission européenne (art. 45 RGPD) : le traitement par Infomaniak ne constitue donc pas un transfert vers un pays tiers non adéquat et n'exige pas de garanties supplémentaires (CCT). La fonctionnalité de reconnaissance de documents (catégorie `vision`) sera fournie par **Infomaniak (Suisse)** et n'est pas active au MVP (différée Phase 4.1+).
 
-Aucun transfert hors UE n'est effectué sans information préalable du Cabinet et mise en œuvre de garanties appropriées (clauses contractuelles types, etc.).
+Aucun transfert vers un pays tiers **non couvert par une décision d'adéquation** n'est effectué sans information préalable du Cabinet et mise en œuvre de garanties appropriées (clauses contractuelles types, etc.).
 
 Le seul cas où des données pourraient potentiellement transiter hors UE est **Microsoft Graph** si le tenant du Cabinet est hébergé hors UE. ZARYA vérifie cette localisation à l'onboarding et alerte le Cabinet si nécessaire.
 

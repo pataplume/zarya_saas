@@ -200,7 +200,7 @@ extraction.invocation
 Une ligne `extraction.invocation` trace :
 - Le `cabinet_id` (multi-tenant)
 - Le contexte d'appel
-- Le modèle utilisé (Sonnet/Haiku)
+- La catégorie de modèle utilisée (`chat_small`/`chat_large`, résolue au runtime)
 - Tokens consommés et coût
 - Statut succès/échec
 

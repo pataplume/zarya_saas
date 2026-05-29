@@ -44,11 +44,11 @@ Ce n'est pas un module produit visible par l'utilisateur, c'est un **service int
    └────────┬─────────┘
             ↓
 [3. Choix du modèle LLM]
-   (Sonnet pour qualité, Haiku pour volume)
+   (catégorie chat_large pour qualité, chat_small pour volume)
             ↓
 [4. Prompt système versionné + schéma cible]
             ↓
-[5. Appel Bedrock eu-central-1]
+[5. Appel Infomaniak AI Services (Suisse)]
             ↓
 [6. Validation du JSON output]
    (Zod schema, retry si invalide)
@@ -65,22 +65,22 @@ Ce n'est pas un module produit visible par l'utilisateur, c'est un **service int
 
 ### 3.1 Extraction d'employés (onboarding client)
 - Input : Excel structuré (export Odoo/SAP/Tipee) ou PDF de contrats
-- Modèle : Claude Sonnet 4.6 (qualité critique pour données nominatives)
-- OCR si scan : Mistral OCR
+- Modèle : catégorie `chat_large` (résolu au runtime via /v1/models) — qualité critique pour données nominatives
+- OCR si scan : Infomaniak vision (catégorie `vision`) — différé Phase 4.1+
 - Schéma cible : `salaire.proposition_employe` + `salaire.proposition_champ` (granulaire)
 - Validation : champ par champ
 - Volume typique : 5-50 employés par session
 
 ### 3.2 Extraction de clients (onboarding fiduciaire)
 - Input : Excel export Bexio CRM, Abacus, ou Excel libre
-- Modèle : Claude Sonnet 4.6
+- Modèle : catégorie `chat_large` (résolu au runtime via /v1/models)
 - Schéma cible : `crm.proposition_client`
 - Validation : en lot (moins de champs critiques)
 - Volume typique : 50-200 clients par import
 
 ### 3.3 Classification de documents (Doc)
 - Input : email + pièces jointes
-- Modèle : Claude Haiku 4.5 (rapide, volume élevé)
+- Modèle : catégorie `chat_small` (résolu au runtime) — rapide, volume élevé
 - Pas d'OCR typiquement (déjà en texte)
 - Schéma cible : `doc.proposition_classement` (type, client, période)
 - Validation : 1-clic par l'utilisateur
@@ -88,22 +88,22 @@ Ce n'est pas un module produit visible par l'utilisateur, c'est un **service int
 
 ### 3.4 Extraction de factures (Facture)
 - Input : PDF de facture (scannée ou numérique)
-- Modèle : Claude Sonnet 4.6 (précision critique sur montants)
-- OCR pour PDF scannés
+- Modèle : catégorie `chat_large` (résolu au runtime) — précision critique sur montants
+- OCR pour PDF scannés : Infomaniak vision (catégorie `vision`) — différé Phase 4.1+
 - Schéma cible : `facture.proposition_facture` (15+ champs)
 - Validation : avec bbox source surlignées
 - Volume typique : 30-100 factures par mois par client
 
 ### 3.5 Détection de changements salariaux (Salaire)
 - Input : email d'un contact RH client
-- Modèle : Claude Haiku 4.5
+- Modèle : catégorie `chat_small` (résolu au runtime)
 - Schéma cible : `salaire.changement` proposé
 - Validation : humaine systématique
 - Volume typique : 1-5 par client par mois
 
 ### 3.6 Génération d'embeddings et RAG (Search)
 - Input : documents indexés + requête utilisateur
-- Modèle : embedding model dédié + Claude Sonnet pour synthèse
+- Modèle : Infomaniak embeddings (catégorie `embeddings`) + catégorie `chat_large` pour synthèse — différé Phase 4.1+
 - Stockage : pgvector
 - Validation : sources affichées dans la réponse
 - Volume typique : ~200 requêtes par cabinet par mois
@@ -135,10 +135,10 @@ export interface ExtractionInput {
 }
 
 export interface ExtractionOptions {
-  model_override?: 'sonnet' | 'haiku';
+  model_override?: 'chat_large' | 'chat_small';  // catégorie, résolue au runtime
   prompt_version?: string;          // Pin une version de prompt spécifique
-  enable_ocr?: boolean;              // True par défaut si MIME image/PDF
-  ocr_engine?: 'mistral' | 'auto';
+  enable_ocr?: boolean;              // True par défaut si MIME image/PDF — Phase 4.1+
+  ocr_engine?: 'infomaniak_vision' | 'auto';     // catégorie vision — différé Phase 4.1+
   retry_on_validation_error?: boolean;
   max_retries?: number;
   detect_duplicates?: boolean;       // True par défaut
@@ -149,9 +149,9 @@ export interface ExtractionResult<TSchema> {
   extraction_id: string;
   items: ExtractedItem<TSchema>[];
   metadata: {
-    model_used: string;
+    model_used: string;               // catégorie résolue au runtime (chat_small/chat_large)
     prompt_version: string;
-    bedrock_request_id: string;
+    bedrock_request_id: string;       // nom hérité (ADR 0010) ; porte désormais l'ID de requête Infomaniak
     duration_ms: number;
     tokens_in: number;
     tokens_out: number;
@@ -192,7 +192,7 @@ const result = await extract({
   },
   target_schema: EmployeSchema,
   options: {
-    model_override: 'sonnet',
+    model_override: 'chat_large',
     detect_duplicates: true,
     duplicate_keys: ['numero_avs', 'nom_prenom_naissance'],
   },
@@ -222,23 +222,23 @@ for (const item of result.items) {
 - Inconnu → tenter détection magic bytes, sinon échec gracieux
 
 ### 5.2 Étape 2 — OCR si nécessaire
-Via Mistral La Plateforme EU. Voir [`/docs/architecture/llm-strategy.md` § 5](../architecture/llm-strategy.md).
+Via Infomaniak vision (catégorie `vision`) — **différé Phase 4.1+**. Voir [`/docs/architecture/llm-strategy.md` § 5](../architecture/llm-strategy.md).
 
-Configuration :
+Configuration (cible) :
 - Timeout : 30s
 - Retry : 2 fois avec backoff exponentiel
-- Fallback : si Mistral indisponible, file d'attente + notification
+- Fallback : si le service vision est indisponible, file d'attente + notification
 
 Output : texte brut + métadonnées (pages, bbox des blocs détectés).
 
 ### 5.3 Étape 3 — Choix du modèle
 Logique par défaut (peut être overridée via `options.model_override`) :
 
-| Contexte | Modèle par défaut |
+| Contexte | Catégorie par défaut (résolue au runtime) |
 |---|---|
-| `employes`, `clients`, `facture` | Claude Sonnet 4.6 |
-| `classification_doc`, `changement_salaire` | Claude Haiku 4.5 |
-| `autre` | Claude Sonnet 4.6 |
+| `employes`, `clients`, `facture` | `chat_large` |
+| `classification_doc`, `changement_salaire` | `chat_small` |
+| `autre` | `chat_large` |
 
 ### 5.4 Étape 4 — Prompt + schéma
 Les prompts sont **versionnés** dans le code (`/lib/extraction/prompts/`). Voir [`/docs/architecture/llm-strategy.md` § 6](../architecture/llm-strategy.md).
@@ -267,7 +267,7 @@ const messages = [
 ];
 ```
 
-### 5.5 Étape 5 — Appel Bedrock
+### 5.5 Étape 5 — Appel Infomaniak AI Services
 Voir [`/docs/architecture/llm-strategy.md` § 4](../architecture/llm-strategy.md) pour le détail du wrapper.
 
 Wrapping spécifique extraction :
@@ -330,11 +330,11 @@ CREATE TABLE extraction.invocation (
   input_size_bytes bigint,
   
   -- Configuration de l'appel
-  model_used text NOT NULL,                 -- 'anthropic.claude-sonnet-4-6-20260101-v1:0'
-  bedrock_region text NOT NULL DEFAULT 'eu-central-1',
-  bedrock_request_id text,
+  model_used text NOT NULL,                 -- catégorie résolue au runtime (chat_small/chat_large)
+  bedrock_region text NOT NULL DEFAULT 'eu-central-1',  -- colonne héritée (ADR 0010, superseded 0003) ; conservée
+  bedrock_request_id text,                  -- colonne héritée (ADR 0010) ; porte l'ID de requête Infomaniak
   prompt_version text NOT NULL,
-  ocr_engine text,                          -- 'mistral_ocr_eu' si applicable
+  ocr_engine text,                          -- 'infomaniak_vision' si applicable — différé Phase 4.1+
   ocr_duration_ms integer,
   
   -- Résultats
@@ -393,7 +393,7 @@ import { z } from 'zod';
 
 export const EXTRACT_EMPLOYES_V1_2_0 = {
   version: 'v1.2.0',
-  model: 'anthropic.claude-sonnet-4-6-20260101-v1:0' as const,
+  model_category: 'chat_large' as const,  // résolu au runtime via /v1/models (aucun model_id en dur)
   
   system: `Tu es un assistant spécialisé dans l'extraction de données employés
 pour un onboarding fiduciaire suisse.
@@ -449,7 +449,7 @@ Avant déploiement d'une nouvelle version :
 ## 8. Gestion des coûts
 
 ### 8.1 Estimation par invocation
-Calculée à partir des tokens consommés et du pricing Bedrock du modèle utilisé. Voir [`/docs/architecture/llm-strategy.md` § 8](../architecture/llm-strategy.md).
+Calculée à partir des tokens consommés et du pricing Infomaniak du modèle utilisé. Voir [`/docs/architecture/llm-strategy.md` § 8](../architecture/llm-strategy.md).
 
 ### 8.2 Quotas par cabinet
 - **Soft limit** : alerte quand le cabinet approche son quota mensuel
@@ -468,8 +468,8 @@ Quotas suggérés (à valider) :
 ## 9. Gestion d'erreurs
 
 ### 9.1 Échecs côté LLM
-- `ThrottlingException` Bedrock : retry exponentiel automatique
-- `ValidationException` : pas de retry, échec immédiat (problème de prompt)
+- Throttling / `429` Infomaniak : retry exponentiel automatique
+- Erreur de validation de requête : pas de retry, échec immédiat (problème de prompt)
 - Timeout : retry 1 fois, puis échec gracieux
 
 ### 9.2 Échecs de validation JSON
@@ -506,7 +506,7 @@ Le module Extraction IA ne décide pas quoi faire en cas d'échec. Il **remonte*
 - Coût LLM par contexte (rentabilité de chaque feature IA)
 - Volume d'extractions par cabinet (signal d'adoption)
 
-Dashboard CloudWatch + tableau de bord interne ZARYA.
+Observabilité (métriques/logs) + tableau de bord interne ZARYA.
 
 ## 11. Sécurité
 
@@ -515,7 +515,7 @@ Avant chaque appel :
 - Vérification que `cabinet_id` est bien injecté
 - Pas de mélange de données de cabinets différents dans un même appel
 - Pas d'envoi de mots de passe / credentials (filtrage des champs sensibles)
-- AVS et IBAN envoyés tels quels (nécessaires pour l'extraction, AWS contractuellement engagé à ne pas entraîner)
+- AVS et IBAN envoyés tels quels (nécessaires pour l'extraction, Infomaniak contractuellement engagé à ne pas entraîner)
 
 ### 11.2 Injection de prompt
 Tout contenu utilisateur est :
@@ -529,8 +529,8 @@ Pattern multi-tenant standard : un cabinet voit uniquement ses propres invocatio
 ## 12. Évolution future
 
 ### Phase 2
-- **Cache de prompts** Bedrock (réduction de -90% des tokens d'input pour prompts longs)
-- **Batch API** pour les extractions non temps réel (réduction des coûts ×2)
+- **Cache de prompts** Infomaniak (réduction de -90% des tokens d'input pour prompts longs)
+- **Batch API** Infomaniak pour les extractions non temps réel (réduction des coûts ×2)
 - **Templates de mapping** pré-définis pour formats récurrents (Odoo, SAP, Bexio export)
 - **Fine-tuning** sur les données ZARYA anonymisées (qualité++, coût--)
 

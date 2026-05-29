@@ -74,11 +74,12 @@ CREATE TYPE salaire.type_source_upload AS ENUM (
   'inconnu'
 );
 
--- Modèles utilisés via Amazon Bedrock eu-central-1 uniquement
+-- Catégories de modèle Infomaniak AI Services (Suisse), résolues au runtime via /v1/models
+-- (aucun model_id en dur — voir ADR 0010)
 CREATE TYPE salaire.type_modele_extraction AS ENUM (
-  'bedrock_claude_sonnet_4_6',
-  'bedrock_claude_sonnet_4_7',
-  'bedrock_claude_haiku_4_5',
+  'chat_large',
+  'chat_small',
+  'vision',
   'autre'
 );
 ```
@@ -158,12 +159,12 @@ Une extraction = une passe LLM sur un fichier. Plusieurs extractions possibles p
 | upload_fichier_id | uuid | FK → upload_fichier NOT NULL | |
 | numero_passe | integer | DEFAULT 1 | 1re extraction, 2e, etc. |
 | modele_utilise | enum | NOT NULL | Voir `type_modele_extraction` |
-| modele_version_exacte | text | | "anthropic.claude-sonnet-4-6-20260101-v1:0" — model_id Bedrock complet |
-| bedrock_region | text | NOT NULL DEFAULT 'eu-central-1' | Audit nLPD : région d'inférence |
-| bedrock_request_id | text | | ID unique Bedrock pour cross-référence CloudTrail |
+| modele_version_exacte | text | | Identifiant exact du modèle Infomaniak résolu au runtime via /v1/models (aucun model_id en dur) |
+| bedrock_region | text | NOT NULL DEFAULT 'eu-central-1' | Colonne héritée (ADR 0003, conservée sous ADR 0010) ; gardée pour cohérence d'audit |
+| bedrock_request_id | text | | Colonne héritée (ADR 0003, conservée sous ADR 0010) ; porte l'ID de requête Infomaniak pour cross-référence |
 | prompt_version | text | | Version interne du prompt système (ex. "onboarding-extraction-v1.2.0") |
-| ocr_engine | text | | "mistral_ocr_eu" si OCR utilisé en amont, null sinon |
-| ocr_region | text | | "eu-west-3" (Paris) typiquement |
+| ocr_engine | text | | "infomaniak_vision" si OCR utilisé en amont (catégorie `vision`, Phase 4.1+), null sinon |
+| ocr_region | text | | "ch" (Infomaniak, Suisse) — Phase 4.1+ |
 | donnees_brutes | jsonb | | Output JSON brut du LLM |
 | nb_employes_detectes | integer | | |
 | confiance_globale | numeric(3,2) | | Moyenne pondérée des confiances |

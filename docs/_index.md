@@ -98,7 +98,7 @@ referenced_by: [README]
 |---|---|---|
 | [`stack.md`](./architecture/stack.md) | Vue d'ensemble technique consolidée | P0 |
 | [`data-residency.md`](./architecture/data-residency.md) | Résidence des données UE/Suisse | P0 |
-| [`llm-strategy.md`](./architecture/llm-strategy.md) | Stratégie LLM via Bedrock | P0 |
+| [`llm-strategy.md`](./architecture/llm-strategy.md) | Stratégie LLM via Infomaniak AI Services | P0 |
 | [`multi-tenant.md`](./architecture/multi-tenant.md) | RLS, isolation, cabinet_id | P0 |
 | [`security-and-audit.md`](./architecture/security-and-audit.md) | Sécurité, audit, conformité | P0 |
 | [`dev-environment.md`](./architecture/dev-environment.md) | Setup dev, conventions, CI/CD | P0 |
@@ -115,12 +115,13 @@ referenced_by: [README]
 |---|---|---|
 | [`0001-residence-donnees.md`](./architecture/decisions/0001-residence-donnees.md) | Résidence UE (eu-central-1) au MVP, Suisse stricte option Phase 2 | ✅ accepted |
 | [`0002-stack-backend.md`](./architecture/decisions/0002-stack-backend.md) | Next.js 15+ TypeScript end-to-end, modulith | ✅ accepted |
-| [`0003-llm-via-bedrock.md`](./architecture/decisions/0003-llm-via-bedrock.md) | LLM via AWS Bedrock eu-central-1 uniquement | ✅ accepted |
+| [`0003-llm-via-bedrock.md`](./architecture/decisions/0003-llm-via-bedrock.md) | LLM via AWS Bedrock eu-central-1 uniquement | ⛔ superseded (par 0010) |
 | [`0004-supabase-vs-self-hosted.md`](./architecture/decisions/0004-supabase-vs-self-hosted.md) | Supabase Cloud Pro jusqu'à 100 cabinets | ✅ accepted |
 | [`0005-multi-tenant-natif-mvp.md`](./architecture/decisions/0005-multi-tenant-natif-mvp.md) | Multi-tenant natif dès le MVP, cabinet_id partout | ✅ accepted |
 | [`0006-onboarding-self-service-mvp.md`](./architecture/decisions/0006-onboarding-self-service-mvp.md) | Onboarding fiduciaire 100% self-service | ✅ accepted |
 | [`0007-validation-granulaire-onboarding.md`](./architecture/decisions/0007-validation-granulaire-onboarding.md) | Validation champ par champ pour employés | ✅ accepted |
 | [`0008-mini-dashboard-client.md`](./architecture/decisions/0008-mini-dashboard-client.md) | Dashboard client dédié, pas d'Excel email | ✅ accepted |
+| [`0010-llm-via-infomaniak.md`](./architecture/decisions/0010-llm-via-infomaniak.md) | Couche IA via Infomaniak AI Services (souveraineté suisse) — remplace 0003 | ✅ accepted |
 
 ---
 
@@ -144,7 +145,7 @@ Trouver rapidement où chercher un sujet.
 | Setup dev local | `architecture/dev-environment.md` |
 | Résidence données | `architecture/data-residency.md` + ADR 0001 |
 | Multi-tenant et isolation | `architecture/multi-tenant.md` + ADR 0005 |
-| LLM et IA | `architecture/llm-strategy.md` + ADR 0003 |
+| LLM et IA | `architecture/llm-strategy.md` + ADR 0010 |
 | Sécurité et conformité | `architecture/security-and-audit.md` |
 | ERD global | `data-model/entity-relationships.md` |
 
@@ -155,8 +156,8 @@ Trouver rapidement où chercher un sujet.
 | Zefix (entreprises suisses) | `architecture/zefix-integration.md` |
 | NAS cabinets (SMB/WebDAV) | `architecture/nas-ingestion.md` |
 | Bexio, Crésus, WinBIZ, Abacus | `architecture/payroll-integration.md` |
-| Bedrock (LLM) | `architecture/llm-strategy.md` |
-| Mistral OCR | `architecture/llm-strategy.md` |
+| Infomaniak (LLM) | `architecture/llm-strategy.md` |
+| Infomaniak vision (Phase 4.1+) | `architecture/llm-strategy.md` |
 
 ### Modules métier
 | Cas d'usage | Module + Flow |
@@ -229,7 +230,7 @@ Certains documents indiquent un niveau de confiance (~80%, ~50%) sur des hypoth�
 - **54 documents** au total
 - **18'869 lignes** cumulées
 - **103'967 mots** (~620 pages)
-- **8 ADR** acceptées
+- **10 ADR** acceptées
 - **7 flows utilisateurs** documentés
 - **10 modules produit** spécifiés
 - **8 schémas de données** prêts pour migrations

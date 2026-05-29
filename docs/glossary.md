@@ -43,8 +43,8 @@ Programme partenaire d'Abacus pour connecteurs API certifiés. Nécessaire pour 
 
 ## B
 
-### Bedrock 💻
-Service AWS d'accès managé aux modèles LLM (Claude, Llama, Titan, etc.). ZARYA utilise Bedrock eu-central-1 (Frankfurt) exclusivement.
+### Bedrock 💻 (historique)
+Service AWS d'accès managé aux modèles LLM. **Mention historique** : envisagé pour la couche IA de ZARYA, **remplacé par Infomaniak AI Services** (ADR 0010). Voir « Infomaniak AI Services ».
 
 ### Bexio 🇨🇭💻
 Logiciel SaaS suisse de comptabilité + CRM + facturation pour PME. Très répandu (40%+ du marché PME suisse). Dispose d'une API publique mature et d'un module Payroll.
@@ -74,8 +74,8 @@ Découpage d'un document en segments (chunks) avant indexation vectorielle. Typi
 ### Client 💻
 Dans ZARYA, désigne le client final d'un cabinet fiduciaire (PME, indépendant, association). À ne pas confondre avec un cabinet (qui est un client de ZARYA, mais désigné `cabinet` dans le code). Voir `crm.client`.
 
-### Cohere Embed Multilingual 🤖
-Modèle d'embedding multilingue disponible via Bedrock. Candidat pour le module Search.
+### Embeddings (Infomaniak) 🤖
+Modèles d'embedding fournis par Infomaniak (catégorie `embeddings`). Candidats pour le module Search. **Différé Phase 4.1+.**
 
 ### Crésus 🇨🇭💻
 Suite logicielle suisse (Epsitec) pour comptabilité et salaires. Très répandue en Suisse romande. Pas d'API publique : intégration via export de fichiers.
@@ -91,7 +91,7 @@ Suite logicielle suisse (Epsitec) pour comptabilité et salaires. Très répandu
 Document récapitulant les flux comptables ou salariaux sur une période. Ex : décompte AVS trimestriel, décompte salaire mensuel.
 
 ### DPA ⚖️
-**Data Processing Agreement.** Contrat de sous-traitance des données. ZARYA signe un DPA avec chaque cabinet client et avec chaque sous-traitant (AWS, Mistral, etc.).
+**Data Processing Agreement.** Contrat de sous-traitance des données. ZARYA signe un DPA avec chaque cabinet client et avec chaque sous-traitant (AWS pour l'infra, Infomaniak pour l'IA, etc.).
 
 ### DPO ⚖️
 **Data Protection Officer / Délégué à la Protection des Données.** Rôle obligatoire RGPD au-delà d'une certaine taille. ZARYA aura un DPO externe à terme.
@@ -139,8 +139,8 @@ Rôle dans le cabinet, spécialisé sur les cycles de paie. Persona "Marc". Voir
 
 ## H
 
-### Haiku 4.5 🤖
-**Claude Haiku 4.5.** Modèle LLM d'Anthropic, rapide et économique. Utilisé dans ZARYA pour les volumes élevés (classification documents, détection changements salariaux).
+### chat_small 🤖
+Catégorie de modèle LLM rapide et économique (résolue au runtime via Infomaniak AI Services, sans id en dur). Utilisée dans ZARYA pour les volumes élevés (classification documents, détection changements salariaux).
 
 ### HNSW 💻
 **Hierarchical Navigable Small World.** Algorithme d'index pour pgvector, optimisé pour la recherche vectorielle à grande échelle. Préféré à IVFFlat.
@@ -159,7 +159,7 @@ Rôle dans le cabinet, spécialisé sur les cycles de paie. Persona "Marc". Voir
 Vue principale du module Doc : liste des documents reçus, à classer ou validés. Vise à remplacer l'inbox email pour la gestion des PJ.
 
 ### Invocation (LLM) 💻
-Un appel à un modèle LLM (Sonnet, Haiku, embedding). Tracé dans `extraction.invocation` pour audit et facturation.
+Un appel à un modèle LLM (catégories `chat_large`, `chat_small`, `embeddings`). Tracé dans `extraction.invocation` pour audit et facturation.
 
 ### Italien (canton du Tessin) 🇨🇭
 Langue officielle dans le canton du Tessin. ZARYA supporte FR/DE/IT/EN.
@@ -169,7 +169,7 @@ Langue officielle dans le canton du Tessin. ZARYA supporte FR/DE/IT/EN.
 ## L
 
 ### LLM 🤖
-**Large Language Model.** Modèle de langage massif. ZARYA utilise Claude (Sonnet 4.6 et Haiku 4.5) via Bedrock.
+**Large Language Model.** Modèle de langage massif. ZARYA accède aux LLM via Infomaniak AI Services, par catégorie (`chat_large`, `chat_small`), sans id de modèle en dur (ADR 0010).
 
 ### LPP 🇨🇭⚖️
 **Loi sur la Prévoyance Professionnelle.** Deuxième pilier suisse (retraite professionnelle). Cotisation employeur + employé selon salaire.
@@ -190,8 +190,8 @@ Contrat de prestation signé entre une fiduciaire et son client. Définit le pé
 ### Microsoft 365 💻
 Suite collaborative Microsoft (Outlook, OneDrive, Teams, SharePoint). Stack dominante des cabinets fiduciaires suisses. Voir `microsoft-integration.md`.
 
-### Mistral La Plateforme 🤖
-Service européen d'IA (Paris) que ZARYA utilise pour l'OCR. Conforme RGPD/nLPD par défaut.
+### Infomaniak AI Services 🤖
+Service d'IA suisse (société + infra en Suisse), API OpenAI-compatible, qui fournit toute la couche IA de ZARYA : LLM (catégories `chat_large`/`chat_small`), reconnaissance de documents (catégorie `vision`) et embeddings (catégorie `embeddings`). Souveraineté suisse (ADR 0010). Catalogue en Beta. Remplace l'approche Bedrock/Mistral.
 
 ### MRR 💻
 **Monthly Recurring Revenue.** Revenu récurrent mensuel. Métrique business clé.
@@ -220,7 +220,7 @@ Architecture où une seule instance d'application sert plusieurs clients (tenant
 ## O
 
 ### OCR 🤖
-**Optical Character Recognition.** Extraction du texte d'une image ou d'un PDF scanné. ZARYA utilise Mistral OCR.
+**Optical Character Recognition.** Extraction du texte d'une image ou d'un PDF scanné. ZARYA utilisera Infomaniak vision (catégorie `vision`). **Différé Phase 4.1+.**
 
 ### Onboarding fiduciaire 💻
 Processus d'inscription et de configuration d'un cabinet sur ZARYA. Une seule fois par cabinet, self-service complet. Voir `onboarding-fiduciaire.md`.
@@ -298,8 +298,8 @@ Concurrent indirect : SaaS comptable suisse pour PME et fiduciaires.
 ### SaaS 💻
 **Software as a Service.** Modèle de distribution logicielle par abonnement, hébergement cloud, mises à jour continues. ZARYA est un SaaS B2B.
 
-### Sonnet 4.6 🤖
-**Claude Sonnet 4.6.** Modèle LLM principal de ZARYA pour les extractions critiques (factures, employés, clients).
+### chat_large 🤖
+Catégorie de modèle LLM principal (résolue au runtime via Infomaniak AI Services, sans id en dur) pour les extractions critiques (factures, employés, clients).
 
 ### Sophie 💻
 Persona représentant le responsable cabinet. Voir `personas.md`.
@@ -323,8 +323,8 @@ Norme suisse de déclaration de salaires (formulaire ELM = Einheitliches Lohnmel
 ### Tenant 💻
 Locataire d'une instance multi-tenant. Dans ZARYA = cabinet fiduciaire.
 
-### Titan Embeddings 🤖
-Modèle d'embedding d'Amazon, disponible via Bedrock. Candidat pour le module Search.
+### Infomaniak vision 🤖
+Catégorie de modèle `vision` d'Infomaniak AI Services pour la reconnaissance de documents (OCR). Candidat pour les modules Doc/Facture. **Différé Phase 4.1+.**
 
 ### Token 💻
 - **OAuth token** : credentials d'accès à une API tierce (Microsoft, Bexio)

@@ -84,7 +84,7 @@ C'est le module qui résout la douleur n°5 de Julie : "Je ne retrouve plus l'in
 [Re-ranking et déduplication]
         ↓
 [Synthèse via LLM]
-   - Claude Sonnet 4.6
+   - catégorie `chat_large` (résolue au runtime via /v1/models)
    - Prompt avec sources injectées
    - Instructions strictes : pas d'invention
         ↓
@@ -113,7 +113,7 @@ C'est le module qui résout la douleur n°5 de Julie : "Je ne retrouve plus l'in
 ```
 [Nouveau document validé]
         ↓
-[Si OCR pas encore fait : OCR via Mistral]
+[Si OCR pas encore fait : OCR via Infomaniak vision (catégorie `vision`) — différé Phase 4.1+]
         ↓
 [Chunking du texte]
    - Découpage en ~500 tokens par chunk
@@ -121,9 +121,8 @@ C'est le module qui résout la douleur n°5 de Julie : "Je ne retrouve plus l'in
    - Préservation des frontières logiques (paragraphes)
         ↓
 [Génération d'embeddings]
-   - Modèle : Cohere Embed Multilingual via Bedrock
-   - OU Titan Embeddings v2
-   - Dimension : 1024 (à confirmer selon modèle)
+   - Modèle : Infomaniak embeddings (catégorie `embeddings`, résolue au runtime) — différé Phase 4.1+
+   - Dimension : à confirmer selon le modèle Infomaniak
         ↓
 [Stockage]
    - pgvector dans search.document_chunk
@@ -138,12 +137,10 @@ C'est le module qui résout la douleur n°5 de Julie : "Je ne retrouve plus l'in
 Critères :
 - **Multilingue** : FR, DE, IT, EN supportés
 - **Latence** : < 200ms par batch
-- **Coût** : < 0.0001 USD / 1000 tokens
-- **Disponibilité Bedrock EU** : eu-central-1
+- **Coût** : maîtrisé selon pricing Infomaniak
+- **Souveraineté** : Infomaniak AI Services (Suisse)
 
-Candidats :
-- **Cohere Embed Multilingual v3** via Bedrock : 1024 dim, multilingue natif
-- **Amazon Titan Embeddings v2** : 1024 dim, performant en anglais (à valider FR/DE)
+Cible : modèle de la catégorie `embeddings` Infomaniak (résolu au runtime via /v1/models, aucun model_id en dur) — **différé Phase 4.1+**.
 
 Décision finale au moment du code, après benchmark sur corpus fiduciaire.
 
@@ -174,7 +171,7 @@ CREATE TABLE search.document_chunk (
   
   -- Embedding
   embedding vector(1024),                 -- pgvector
-  embedding_model text NOT NULL,          -- 'cohere-embed-multilingual-v3'
+  embedding_model text NOT NULL,          -- catégorie 'embeddings' Infomaniak, id résolu au runtime (Phase 4.1+)
   
   -- Métadonnées pour filtrage
   document_type text,
@@ -244,7 +241,7 @@ CREATE TABLE search.cache_question (
 ## 6. Pipeline de recherche détaillé
 
 ### 6.1 Étape 1 — Détection d'intent
-LLM léger (Haiku) qui classifie la question :
+LLM léger (catégorie `chat_small`) qui classifie la question :
 
 ```typescript
 type Intent = 
@@ -281,7 +278,7 @@ Selon l'intent :
 
 **Synthèse dossier** :
 - Récupération multi-sources : CRM, événements récents, documents clés
-- LLM Sonnet pour synthèse longue
+- LLM catégorie `chat_large` pour synthèse longue
 
 ### 6.3 Étape 3 — Génération de la réponse
 Prompt système type :
@@ -425,9 +422,9 @@ Le LLM est instruit de **ne pas suivre d'instructions** trouvées dans le conten
 ## 9. Performance et coûts
 
 ### 9.1 Latences cibles
-- Détection d'intent : < 500ms (Haiku)
+- Détection d'intent : < 500ms (catégorie `chat_small`)
 - Récupération chunks : < 200ms (pgvector HNSW)
-- Génération réponse (Sonnet) : 2-5 secondes
+- Génération réponse (catégorie `chat_large`) : 2-5 secondes
 - **Total p50** : < 5 secondes
 - **Total p95** : < 10 secondes
 
@@ -437,14 +434,14 @@ Streaming progressif de la réponse pour améliorer la perception.
 Par recherche moyenne :
 - Embedding question : ~0.0001 USD
 - Récupération (DB only) : négligeable
-- Sonnet pour synthèse : ~0.05 USD (10K tokens output × 0.015 / 1K)
+- Catégorie `chat_large` pour synthèse : ~0.05 USD (10K tokens output, ordre de grandeur)
 - **Coût moyen par recherche** : ~0.05 USD
 
 Pour 200 recherches/cabinet/mois : ~10 USD/mois/cabinet. Intégré dans le pricing global.
 
 ### 9.3 Optimisations
 - **Cache de questions** (Phase 2) : questions fréquentes mises en cache 24h
-- **Batch embeddings** : indexation en batch pour réduire les appels Bedrock
+- **Batch embeddings** : indexation en batch pour réduire les appels Infomaniak
 - **Filtres précoces** : RLS et filtres SQL avant recherche sémantique
 - **HNSW** plutôt qu'IVFFlat pour pgvector (meilleur rappel/latence)
 
@@ -540,7 +537,7 @@ Recherche disponible sur mobile (Dashboard Client Phase 2).
 
 ## 15. Questions ouvertes
 
-- [ ] **Modèle d'embedding** : Cohere ou Titan ? À benchmarker sur corpus fiduciaire
+- [ ] **Modèle d'embedding** : quel modèle de la catégorie `embeddings` Infomaniak ? À benchmarker sur corpus fiduciaire (différé Phase 4.1+)
 - [ ] **Taille des chunks** : 500 tokens ou variable selon le type de document ?
 - [ ] **Re-ranking** : nécessaire au MVP ou cosine top-K suffit ?
 - [ ] **Text-to-SQL** : librairie tierce ou prompt custom ? Sécurité du SQL généré ?
