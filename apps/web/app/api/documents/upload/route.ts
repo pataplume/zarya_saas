@@ -12,7 +12,8 @@ import { z } from "zod";
 // Pipeline : persistance brute (upload_brut + fichier_physique) puis
 // classification IA (extraction.invocation + doc.proposition_classement) via
 // @zarya/extraction. En mode stub (EXTRACTION_MODE=stub) la proposition est
-// produite par heuristique locale ; Bedrock se rebranche sans toucher au flux.
+// produite par heuristique locale ; le mode live (Infomaniak, ADR 0010) se
+// rebranche sans toucher au flux.
 
 export const runtime = "nodejs";
 

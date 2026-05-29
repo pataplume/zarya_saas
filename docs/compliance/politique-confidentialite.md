@@ -94,10 +94,9 @@ ZARYA partage vos données avec **un nombre limité de sous-traitants techniques
 
 | Sous-traitant | Rôle | Localisation |
 |---|---|---|
-| Amazon Web Services | Hébergement infrastructure | Frankfurt, Allemagne (UE) |
+| Amazon Web Services | Hébergement infrastructure (sous-jacent à Supabase) | Frankfurt, Allemagne (UE) |
 | Supabase | Base de données et stockage | Frankfurt, Allemagne (UE) |
-| Mistral AI | OCR (lecture de documents scannés) | Paris, France (UE) |
-| Anthropic / AWS Bedrock | Intelligence artificielle | Frankfurt, Allemagne (UE) |
+| Infomaniak AI Services | Intelligence artificielle (analyse de documents) | Suisse |
 | Microsoft | Intégration Outlook (si vous utilisez Microsoft 365) | Selon votre tenant |
 | Stripe | Paiement des abonnements cabinets | UE |
 | Sentry | Détection des erreurs techniques | UE |
@@ -109,7 +108,7 @@ ZARYA partage vos données avec **un nombre limité de sous-traitants techniques
 
 ## 6. Où vos données sont-elles stockées ?
 
-Toutes vos données sont stockées **en Union Européenne** (principalement à Frankfurt, Allemagne, et accessoirement à Paris, France pour l'OCR).
+Toutes vos données sont stockées **en Union Européenne** (à Frankfurt, Allemagne). L'analyse par intelligence artificielle est réalisée **en Suisse** (Infomaniak), le temps du traitement uniquement, sans stockage durable.
 
 Pour les cabinets exigeant une résidence **physiquement en Suisse**, une option Enterprise est disponible (Phase 2).
 
@@ -174,9 +173,9 @@ Si vous estimez que vos droits ne sont pas respectés, vous pouvez introduire un
 ZARYA utilise l'intelligence artificielle pour vous aider à classer des documents, extraire des informations, et répondre à des questions sur vos données.
 
 ### Comment ça fonctionne
-- Les modèles d'IA (Claude, fournis par Anthropic via AWS Bedrock) **ne sont pas entraînés sur vos données**
-- Vos données sont envoyées au modèle uniquement le temps du traitement (pas de stockage côté Anthropic/AWS au-delà des logs techniques 30 jours)
-- AWS Bedrock fonctionne en UE (Frankfurt)
+- Les modèles d'IA, **fournis par Infomaniak (société suisse)**, **ne sont pas entraînés sur vos données**
+- Vos données sont envoyées au modèle uniquement le temps du traitement (pas de stockage long terme côté Infomaniak)
+- L'inférence IA s'exécute **en Suisse** : vos documents ne quittent jamais la Suisse pour être analysés
 - Vous pouvez voir les sources de chaque réponse IA (transparence)
 
 ### Vos garanties
