@@ -27,12 +27,28 @@ export interface EvalRun {
 
 const LANGS: readonly Lang[] = ["fr", "de", "it"];
 
+export interface RunEvalOptions {
+  // Pause entre deux cas (live uniquement) pour rester sous le plafond de débit
+  // RPS/RPM d'Infomaniak Beta. Défaut 0 → aucun délai (stub / CI inchangés).
+  delayMs?: number;
+  sleepImpl?: (ms: number) => Promise<void>;
+}
+
+const defaultSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
 export async function runEval(
   classifier: Classifier,
   cases: readonly GoldenCase[] = GOLDEN_SET,
+  opts: RunEvalOptions = {},
 ): Promise<EvalRun> {
+  const delayMs = opts.delayMs ?? 0;
+  const sleep = opts.sleepImpl ?? defaultSleep;
+
   const runs: CaseRun[] = [];
+  let first = true;
   for (const golden of cases) {
+    if (!first && delayMs > 0) await sleep(delayMs);
+    first = false;
     try {
       const { proposal } = await classifier.classify(golden.input);
       runs.push({
