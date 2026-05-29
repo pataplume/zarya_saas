@@ -1,7 +1,7 @@
 ---
 status: vivant
 owner: claude
-last_updated: 2026-05-28
+last_updated: 2026-05-29
 type: retrospective
 ---
 
@@ -565,3 +565,192 @@ Comparé aux phases précédentes (~6 600 lignes pour 0→2a), Phase 3 ajoute ~3
 ---
 
 *Addendum généré le 28 mai 2026.*
+
+---
+
+# Addendum — Phase 4.0 : Migration couche IA → Infomaniak (29 mai 2026)
+
+> Suite directe. Même règle : sans filtre. La Phase 3 s'était terminée sur un pari (« on écrira le `BedrockClassifier` le jour où les crédits AWS se débloquent », cf. Reco 2). Ce pari est **caduc** : on n'attend plus AWS, on a basculé toute la couche IA sur **Infomaniak AI Services** (souveraineté suisse, API OpenAI-compatible) — c'est l'objet de l'ADR 0010 qui supersede l'ADR 0003. Cette session couvre la fin de la bascule code, sa mise en prod, et deux chantiers d'après-coup : un harnais d'évaluation du classifier et un grand nettoyage de la doc.
+
+## 12. Timeline Phase 4.0
+
+| Étape | Livré | Commit / PR |
+|-------|-------|-------------|
+| ADR 0010 + bascule code IA | `InfomaniakClassifier` derrière `EXTRACTION_MODE=live`, stub reste le défaut | PR #20 (merged) |
+| Promote → prod | Phase 4.0 en production | PR #21 (merged) |
+| Harnais d'évaluation | Golden set synthétique FR/DE/IT, métriques pures, garde stub en CI + revue live opt-in | PR #22 (**ouverte**) |
+| Sweep documentaire | Tout `/docs` aligné sur Infomaniak, purge Bedrock/Mistral résiduels | PR #23 (**ouverte**) |
+
+### Détail PR #20 — la bascule (déjà en prod)
+
+- `8d5d18f` — ADR 0010 (Infomaniak, souveraineté CH, supersede ADR 0003).
+- `57220f3` — client `@zarya/integrations/infomaniak` (OpenAI-compatible, catalogue Beta, **aucun `model_id` codé en dur** : résolution runtime via `GET /v1/models`, mappage par catégorie `chat_small`/`chat_large`/`embeddings`/`vision`).
+- `ba96ebb` — fix : aligner le client sur la sonde live (sortie structurée `json_schema`).
+- `ed136fa` — `InfomaniakClassifier` (catégorie `chat_small`) + branchement `getClassifier()` sur `EXTRACTION_MODE`.
+- `d0e7c97` + `2ca019b` — alignement conformité / stratégie LLM / CLAUDE.md de packages.
+
+Le `StubClassifier` **reste le défaut en prod** (`EXTRACTION_MODE=stub`). Le live est opt-in, le temps de valider la qualité et de gérer le quota (cf. § 14).
+
+### Détail PR #22 — harnais d'évaluation (ouverte)
+
+- `d8274a2` — harnais : `golden-set.ts`, `evaluate.ts` (métriques **fonction pure** : type/catégorie accuracy, hallucination, overconfidence, par langue), `run-eval.ts` (boucle partagée), garde CI sur le stub, test live opt-in (`RUN_LIVE_EVAL=1` + `EXTRACTION_MODE=live`).
+- Puis expansion du golden set **43 → 56 cas** (20 FR / 19 DE / 17 IT), tous dans les 11 `TYPES_CONNUS`, et assouplissement des seuils de la garde stub (planchers *sous* la baseline mesurée — garde anti-régression-franche, pas cible).
+
+### Détail PR #23 — sweep doc (ouverte)
+
+- `d9f881a` — 25 fichiers `/docs` migrés : références modèles → **catégories** Infomaniak (jamais des `model_id`), framing **Phase 4.1+** pour OCR/embeddings/RAG/facture, colonnes DB réelles conservées, enregistrements ADR historiques laissés intacts.
+
+---
+
+## 13. Ce que les runs d'éval ont appris
+
+C'est le cœur de cet addendum : pour la première fois on a des **chiffres réels** sur la qualité de classification, pas une intuition.
+
+### 13.1 — Le live bat le stub, nettement
+
+Sur les 56 cas du golden set :
+
+| | Stub (regex nom de fichier) | Live Infomaniak (`chat_small`) |
+|---|---|---|
+| Type accuracy global | **50,0 %** | **78,6 %** |
+| Hallucination | 0 % | 0 % |
+| Overconfidence | 0 % | 0 % |
+
+Le live gagne sur **les trois langues**. C'est la première preuve mesurée que la bascule apporte de la valeur réelle, pas juste un changement de provider. Le stub n'était bien qu'un faux-ami (cf. § 9 dette #1) — maintenant on peut le chiffrer.
+
+Modèle utilisé pour le live : catégorie `chat_small` → `mistralai/Ministral-3-14B-Instruct` (résolu au runtime, pas codé en dur).
+
+### 13.2 — L'italien est le maillon faible (58,8 %)
+
+L'IT plafonne à **58,8 %** quand FR/DE sont nettement au-dessus. Diagnostic (honnête sur les limites) :
+
+- **Petit modèle** (`chat_small`, 14B) + **langue moins dotée** que FR/DE → moins de signal.
+- **Mappage IT → libellés FR** : les 11 types connus sont en français ; le modèle doit traduire mentalement « busta paga » → `decompte_salaire ` etc.
+- **Je n'ai PAS le détail par cas** des ratés IT : le 2ᵉ run (celui qui devait sortir le rapport cas-par-cas) a été **coupé par un HTTP 429** (cf. § 13.3). Donc ce diagnostic reste une hypothèse argumentée, pas une analyse de chaque miss.
+
+### 13.3 — Le quota Infomaniak Beta est BAS *(découverte structurante)*
+
+Un seul run complet de 56 cas a suffi à déclencher un **HTTP 429 « Quota Infomaniak atteint »** sur le run suivant. Je n'ai pas relancé (ça n'aurait fait qu'enfoncer la limite).
+
+**Conséquence directe** : on ne peut pas, en l'état, traiter du volume réel ni itérer librement sur les prompts. **C'est un nouveau facteur qui n'était pas au plan** et qui doit être traité *avant* tout passage du live en défaut (cf. § 15).
+
+### 13.4 — Dette documentaire : ~20 specs en retard sur la bascule
+
+L'audit de tout `/docs` (3 agents en parallèle) a montré que **la décision (ADR 0010), le code, et la conformité critique** étaient bien migrés, mais qu'**une vingtaine de specs de modules futurs** (search, facture, flows…) citaient encore Bedrock/Mistral/Claude/Titan comme « couche IA active ». Normal : le périmètre doc de la Phase 4.0 était volontairement étroit (classification). Corrigé dans PR #23.
+
+### 13.5 — Les colonnes `bedrock_*` restent en DB (legacy assumé)
+
+`extraction.invocation` garde `bedrock_region` (NOT NULL DEFAULT) et `bedrock_request_id`. Les renommer = une **migration DB = hors périmètre Phase 4.0**. Annotées « héritées ADR 0003, conservées sous ADR 0010 ». À nettoyer dans une future migration, pas maintenant.
+
+---
+
+## 14. Différences avec le plan initial — et pourquoi
+
+### 14.1 — On n'écrit pas un `BedrockClassifier`, on abandonne AWS *(divergence majeure)*
+
+**Plan (Reco 2 Phase 3)** : « écrire le `BedrockClassifier` dès le déblocage des crédits ».
+
+**Réalité** : crédits jamais débloqués → décision de **changer de stratégie**, pas d'attendre. ADR 0010, `InfomaniakClassifier`, souveraineté suisse. Le pari « stub-derrière-contrat » de la Phase 3 a payé : l'interface `Classifier` étant figée, brancher Infomaniak n'a touché ni le route handler, ni la proposition, ni la validation.
+
+### 14.2 — Pas de fixtures PDF réelles, un golden set synthétique
+
+**Plan (Reco 2 Phase 3)** : « vrai jeu de fixtures PDF suisses (QR-facture, décompte salaire…) ».
+
+**Réalité** : le golden set évalue la classification **au niveau métadonnées/nom** (56 cas FR/DE/IT), pas des PDF réels. Pourquoi : l'OCR/vision est **Phase 4.1+** (non construit), donc tester sur PDF réels n'a pas encore de sens. Les vraies fixtures reviendront avec le module vision.
+
+### 14.3 — Nouveau chantier non prévu : gestion du quota / rate-limit
+
+Le 429 (§ 13.3) n'était pas anticipé. **Avant** de traiter du volume ou de passer le live en défaut, il faut : backoff/retry, batching, et/ou demande d'augmentation de quota Infomaniak. C'est une **étape ajoutée** par rapport au plan.
+
+### 14.4 — Nouveau chantier non prévu : remédiation qualité IT
+
+Les 58,8 % IT imposent une étape de mitigation (few-shot, ou router l'IT vers la catégorie `chat_large`) **avant** de se fier à la classification italienne. Pas au plan initial.
+
+---
+
+## 15. État actuel après Phase 4.0 (29 mai 2026)
+
+### Ce qui tourne (code, en prod)
+
+```
+✓ Couche IA = Infomaniak (ADR 0010), client OpenAI-compat, catégories résolues au runtime
+✓ InfomaniakClassifier (chat_small) derrière EXTRACTION_MODE=live (opt-in)
+✓ Trace extraction.invocation honnête (provider/catégorie/coût)
+✓ StubClassifier reste le défaut en prod
+✓ Harnais d'éval : métriques pures, garde stub en CI, revue live opt-in (PR #22)
+✓ Doc alignée Infomaniak (PR #23)
+✓ Preuve chiffrée : live 78,6 % > stub 50,0 % en type accuracy (56 cas)
+```
+
+### Ce qui n'existe pas / bloque encore
+
+```
+✗ Live en défaut — bloqué par quota Beta (429) + qualité IT (58,8 %)
+✗ Traitement de volume — impossible tant que le quota n'est pas géré
+✗ OCR / vision réel — Phase 4.1+
+✗ Embeddings / RAG / pgvector — Phase 4.1+ (0 embedding en base)
+✗ Fixtures PDF suisses réelles — attendent le module vision
+✗ Flux Doc end-to-end (toujours client_id NOT NULL + CRM minimal seulement)
+✗ Détail cas-par-cas des ratés IT — perdu sur le 429
+```
+
+### Dette technique nouvelle ou persistante
+
+1. **Quota Beta bas (429)** — bloque volume + itération. Priorité n°1 avant tout passage live-par-défaut.
+2. **Qualité IT (58,8 %)** — non fiable en l'état pour l'italien.
+3. **Colonnes `bedrock_*` en DB** — legacy assumé, à purger dans une future migration.
+4. **PR #22 et #23 ouvertes** — la bascule code est en prod, mais l'éval et la doc à jour n'y sont pas encore (attendent CI verte + merge).
+5. **Héritage Phase 3 toujours là** — `client_id NOT NULL` couple Doc et CRM ; `getDbForCabinet()` toujours stub (sécurité par filtre `cabinet_id`, pas RLS).
+
+---
+
+## 16. Recommandations pour la suite (peut diverger du plan)
+
+### Reco 1 — Merger #22 et #23 avant tout nouveau chantier
+
+L'éval et la doc à jour doivent atterrir en prod pour que la prochaine session parte d'une base honnête (CI verte d'abord).
+
+### Reco 2 — Régler le quota AVANT de viser le live par défaut *(nouvelle priorité)*
+
+Backoff/retry + batching côté client Infomaniak, et/ou demande d'augmentation de quota. Sans ça, ni volume ni itération prompt possibles. C'est le verrou n°1.
+
+### Reco 3 — Remédier la qualité italienne, mesurer
+
+Tester (a) few-shot dans le prompt avec exemples IT→libellé FR, ou (b) router l'IT vers `chat_large`. Re-mesurer sur le golden set. Ne pas se fier à l'IT tant que ce n'est pas remonté.
+
+### Reco 4 — Garder le live opt-in jusqu'à quota + IT réglés
+
+Ne basculer `EXTRACTION_MODE=live` en défaut qu'une fois (2) et (3) traités. Le 78,6 % global est encourageant mais le 429 et l'IT sont des bloquants opérationnels réels.
+
+### Reco 5 — Fixtures PDF réelles avec le module vision (Phase 4.1+), pas avant
+
+Le golden set synthétique suffit pour la classification métadonnées. Les vrais PDF arrivent avec l'OCR/vision.
+
+### Ce dont j'ai besoin de toi avant la prochaine session
+
+| Besoin | Pourquoi |
+|--------|----------|
+| Merge #22 + #23 (ou feu vert pour les merger) | Aligner prod sur l'éval + la doc |
+| Décision quota : demander une augmentation Infomaniak ? | Débloque volume + itération (Reco 2) |
+| Priorité : régler l'IT maintenant ou différer ? (Reco 3) | Conditionne la fiabilité multilingue |
+| Quand viser le live par défaut ? | Aujourd'hui bloqué par quota + IT |
+| Recalcul des totaux `pricing.md` / `vision.md` | En attente du catalogue Infomaniak Beta tarifé (différé) |
+
+---
+
+## 17. Chiffres Phase 4.0
+
+| Lot | Commit / PR | Nature |
+|-----|-------------|--------|
+| Bascule IA | PR #20 (5 commits, mergée) | ADR 0010 + client + classifier + conformité |
+| Promote prod | PR #21 (mergée) | Phase 4.0 en production |
+| Éval | PR #22 `d8274a2` (ouverte) | harnais + golden set 56 cas FR/DE/IT |
+| Sweep doc | PR #23 `d9f881a` (ouverte) | 25 fichiers `/docs` alignés Infomaniak |
+
+**Résultats d'éval (56 cas)** : type accuracy stub 50,0 % → live 78,6 % ; hallucination 0 % ; overconfidence 0 % ; point faible IT 58,8 %.
+
+**Le point dur de cette phase n'a pas été d'écrire le classifier** (le contrat Phase 3 a tenu) **mais de découvrir les limites opérationnelles du provider** : un quota Beta qui coupe au premier run sérieux, et une qualité italienne en retrait. La bonne nouvelle : on le sait maintenant chiffré, pas deviné. La suite n'est plus « brancher l'IA » mais « la rendre exploitable en volume et fiable en IT ».
+
+---
+
+*Addendum généré le 29 mai 2026.*
