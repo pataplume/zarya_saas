@@ -190,7 +190,7 @@ ZARYA effectue des sauvegardes quotidiennes chiffrées avec rétention 7 jours (
 Un **Contrat de Sous-Traitance** (DPA) distinct des présentes CGU régit les obligations de ZARYA en tant que sous-traitant. Voir [`dpa-template.md`](./dpa-template.md).
 
 ### 9.3 Sous-traitants ultérieurs
-ZARYA recourt à des sous-traitants ultérieurs (AWS, Mistral, etc.) listés dans [`sous-traitants.md`](./sous-traitants.md). Le Client est réputé les avoir autorisés par l'acceptation des présentes.
+ZARYA recourt à des sous-traitants ultérieurs (AWS pour l'infra, Infomaniak pour l'IA, etc.) listés dans [`sous-traitants.md`](./sous-traitants.md). Le Client est réputé les avoir autorisés par l'acceptation des présentes.
 
 ZARYA notifiera le Client de l'ajout d'un nouveau sous-traitant **30 jours avant** son intégration effective. Le Client peut s'y opposer dans ce délai en résiliant le contrat.
 

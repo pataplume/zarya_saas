@@ -33,7 +33,7 @@ Exigences clés pour ZARYA :
 - **Sécurité** : mesures techniques et organisationnelles appropriées
 - **Notification des violations** : 72h pour informer le PFPDT en cas de fuite
 - **Droits des personnes** : accès, rectification, suppression, portabilité
-- **Sous-traitance** : contrat de sous-traitance pour chaque acteur tiers (AWS, Mistral, Supabase)
+- **Sous-traitance** : contrat de sous-traitance pour chaque acteur tiers (Infomaniak, Supabase)
 
 ### 2.2 RGPD (UE)
 Applicable si des données concernent des citoyens UE (très probable : employés frontaliers français, par exemple).
@@ -183,11 +183,11 @@ Avantage : même un admin DB ne peut pas lire ces champs en clair sans la clé V
 - Clés applicatives : rotation annuelle minimum
 - Pas de clé en clair dans le code ou les configs
 
-### 7.5 Bedrock et données envoyées au LLM
+### 7.5 Infomaniak et données envoyées au LLM
 Voir [`llm-strategy.md`](./llm-strategy.md) :
 - Pas de prompt caching pour les données sensibles
-- AWS contractuellement engagé à ne pas utiliser les données pour entraîner
-- Logs Bedrock conservés 30 jours côté AWS, accessibles uniquement pour debug
+- Infomaniak (sous-traitant IA suisse, DPA) contractuellement engagé à ne pas utiliser les données pour entraîner
+- Logs d'inférence conservés côté Infomaniak selon sa politique, accessibles uniquement pour debug
 
 ## 8. Audit log
 
@@ -198,7 +198,7 @@ Toutes les actions sensibles sont **logguées** :
 - Accès aux données (read tracking pour les ressources sensibles)
 - Modifications de permissions
 - Exports de données
-- Appels API externes (Bexio, Microsoft, Zefix, Bedrock)
+- Appels API externes (Bexio, Microsoft, Zefix, Infomaniak)
 
 ### 8.2 Tables d'audit
 **Existantes** dans le modèle :
@@ -291,7 +291,7 @@ Process automatisé pour respecter le délai légal :
 
 ### 10.4 Rotation
 - DB credentials : trimestrielle
-- API keys : selon politique du fournisseur (Bedrock = annuelle min, Microsoft = en fonction)
+- API keys : selon politique du fournisseur (token Infomaniak `IK_API_TOKEN` = annuelle min, Microsoft = en fonction)
 - JWT signing keys : annuelle
 - Vault keys : annuelle
 
@@ -354,7 +354,7 @@ Voir [`extraction-ia.md` § 11.2](../modules/extraction-ia.md) :
 
 ### 12.2 DPA (Data Processing Agreement)
 - DPA avec chaque cabinet client (template inclus dans les CGU)
-- DPA avec chaque sous-traitant (AWS, Mistral, Supabase, Stripe)
+- DPA avec chaque sous-traitant (Infomaniak, Supabase, Stripe)
 - Versions signées conservées
 
 ### 12.3 Audits externes

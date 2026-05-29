@@ -43,8 +43,8 @@ Pour les cabinets exigeant une résidence **physiquement en Suisse**, une option
 
 | Traitement | Service | Région | Conformité |
 |---|---|---|---|
-| Toute inférence LLM | Amazon Bedrock | eu-central-1 (Frankfurt) | RGPD natif, DPA AWS |
-| OCR de documents scannés | Mistral La Plateforme | EU (Paris) | RGPD natif, entreprise française |
+| Toute inférence LLM | Infomaniak AI Services | Suisse | nLPD/RGPD natif, DPA Infomaniak |
+| OCR de documents scannés | Infomaniak vision (catégorie `vision`) — différé Phase 4.1+ | Suisse | nLPD/RGPD natif, sous-traitant suisse |
 | Email (Microsoft Graph) | Microsoft 365 | Tenant client (souvent EU) | À vérifier client par client |
 | Recherche Zefix | API Zefix | Suisse | Données publiques, consentement utilisateur |
 
@@ -85,7 +85,7 @@ S'applique aux données de **résidents suisses**. La nLPD est largement aligné
 ### 3.3 Secret fiscal (Art. 320 CP)
 Spécifique au métier de fiduciaire. Les données des clients (déclarations, comptabilité, salaires) sont couvertes. Implications pour ZARYA :
 - Sous-traitance autorisée si **mandat écrit** et **obligation de confidentialité contractuelle**
-- Les sous-traitants (AWS, Mistral) doivent être contractuellement liés
+- Les sous-traitants IA (Infomaniak) doivent être contractuellement liés
 - Le cabinet fiduciaire reste **responsable** vis-à-vis de ses clients
 
 ### 3.4 Spécificités salariales
@@ -108,9 +108,7 @@ Les données salariales nominatives sont **catégorie sensible** au sens de la n
         ▼
    ZARYA (Sous-traitant)
         │
-        ├──── DPA standard ───→ AWS (Sous-traitant ultérieur)
-        │
-        ├──── DPA standard ───→ Mistral La Plateforme
+        ├──── DPA standard ───→ Infomaniak (sous-traitant IA suisse)
         │
         ├──── DPA standard ───→ Supabase
         │
@@ -118,8 +116,7 @@ Les données salariales nominatives sont **catégorie sensible** au sens de la n
 ```
 
 ### 4.1 DPA à signer avant la 1re vente
-- [ ] AWS Customer Agreement + DPA AWS
-- [ ] Mistral La Plateforme DPA
+- [ ] Infomaniak AI Services DPA (sous-traitant IA suisse)
 - [ ] Supabase DPA (offre Pro+)
 - [ ] Vercel DPA (offre Pro+)
 - [ ] Microsoft 365 (data residency commitment) — vérifié par cabinet
@@ -135,7 +132,7 @@ Modèle fourni par ZARYA, à signer à l'onboarding de chaque cabinet :
 ### 4.3 DPA Cabinet → Client final
 ZARYA fournit un **modèle de clause** que le cabinet inclut dans ses contrats clients :
 - Mention de ZARYA comme outil utilisé
-- Liste des sous-traitants ultérieurs (AWS, Mistral)
+- Liste des sous-traitants ultérieurs (Infomaniak pour l'IA)
 - Consentement au traitement automatisé par IA
 - Droits du client (accès, rectification, suppression)
 
@@ -184,7 +181,7 @@ Décision : **proposer en option payante** si la demande commerciale émerge. Pa
 - Documenté dans une notice de confidentialité distincte
 
 ### 6.3 Données pour entraînement LLM
-**Interdit** au MVP. Aucune donnée ZARYA n'est utilisée pour entraîner des modèles. AWS s'engage contractuellement à ne pas le faire côté Bedrock.
+**Interdit** au MVP. Aucune donnée ZARYA n'est utilisée pour entraîner des modèles. Infomaniak s'engage contractuellement à ne pas le faire côté IA.
 
 Si un jour ZARYA veut entraîner un modèle propriétaire, il faudra :
 - Anonymisation stricte

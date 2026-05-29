@@ -198,8 +198,8 @@ Pour chaque fichier uploadé :
 
 ```
 1. Détection du type (Excel structuré / PDF contrat / image / Excel libre / CSV)
-2. Si image ou PDF scanné : OCR (Mistral OCR ou Azure Document Intelligence)
-3. Extraction LLM (Claude Sonnet 4.6 ou supérieur) :
+2. Si image ou PDF scanné : OCR via Infomaniak vision (catégorie `vision`) — différé Phase 4.1+
+3. Extraction LLM (catégorie `chat_large`, résolue au runtime) :
    - Prompt système : "Tu extrais des données employés pour un onboarding fiduciaire suisse"
    - Schéma cible : structure salaire.employe
    - Output JSON strict avec niveau de confiance par champ
@@ -403,8 +403,8 @@ Dans ces cas, l'onboarding n'est pas bloquant — c'est un workflow standard de 
 
 ## 14. Questions ouvertes
 
-- [ ] **Quel modèle LLM exactement pour l'extraction** : Claude Sonnet 4.6 (qualité) vs Haiku 4.5 (coût), tous deux via Amazon Bedrock eu-central-1 ?
-- [ ] **OCR via Mistral La Plateforme EU** : valider les quotas et latence depuis Bedrock Frankfurt
+- [ ] **Quelle catégorie de modèle pour l'extraction** : `chat_large` (qualité) vs `chat_small` (coût), toutes deux via Infomaniak AI Services (Suisse), résolues au runtime via /v1/models ?
+- [ ] **OCR via Infomaniak vision (catégorie `vision`, différé Phase 4.1+)** : valider les quotas et latence
 - [ ] Comment gérer les **erreurs d'extraction systémiques** (un format de PDF particulier que l'IA loupe toujours) : feedback loop ? amélioration manuelle ?
 - [ ] Stockage des fichiers sources : dans Doc Storage + lien, ou dupliqué dans `salaire.session_onboarding` ?
 - [ ] Durée de conservation des fichiers sources après validation : à supprimer après X mois pour minimiser le risque RGPD ?

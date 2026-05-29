@@ -106,15 +106,15 @@ Voir [`extraction-ia.md`](./extraction-ia.md) pour l'architecture générique.
 
 Configuration spécifique facture :
 - Contexte : `facture`
-- Modèle : Claude Sonnet 4.6 (précision critique sur les montants)
-- OCR : Mistral OCR pour scans
+- Modèle : catégorie `chat_large` (résolue au runtime via /v1/models) — précision critique sur les montants
+- OCR : Infomaniak vision (catégorie `vision`) pour scans — différé Phase 4.1+
 - Schéma cible : `FactureSchema` (Zod, 15+ champs)
 - Détection doublons : par `fournisseur_id + numero_facture`
 
 ### 4.2 Pre-processing PDF
 - Détection si PDF natif (texte directement extractible) ou scan
 - Si natif : extraction texte + position (bbox) directement
-- Si scan : OCR via Mistral, perte des bbox précises
+- Si scan : OCR via Infomaniak vision (différé Phase 4.1+), perte des bbox précises
 
 ### 4.3 Bbox source pour validation
 Quand possible (PDF natif), chaque champ extrait pointe vers sa position dans le PDF original.
@@ -283,14 +283,14 @@ Un même fournisseur (ex: Swisscom) apparaît chez plusieurs clients du cabinet.
 - Total : 1500-20000 factures par cabinet par mois
 
 ### 10.2 Latences cibles
-- Extraction d'une facture : 5-15 secondes (Sonnet + OCR éventuel)
+- Extraction d'une facture : 5-15 secondes (catégorie `chat_large` + OCR éventuel)
 - Affichage en file de validation : < 30 secondes après réception
 - Export logiciel : asynchrone, batch nightly par défaut
 
 ### 10.3 Optimisations
 - **Cache d'extraction** : facture déjà vue (hash) → réutilisation directe
 - **Batch d'extraction** : factures du même fournisseur du même jour → 1 seul appel LLM (Phase 2)
-- **Pre-warming** des modèles Bedrock (provisioned throughput pour gros cabinets)
+- **Pre-warming** des modèles Infomaniak pour gros cabinets (différé Phase 4.1+)
 
 ## 11. Sécurité
 

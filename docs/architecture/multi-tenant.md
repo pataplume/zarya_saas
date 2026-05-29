@@ -12,7 +12,7 @@ referenced_by: [crm-schema, salaire-schema, onboarding-fiduciaire, security-and-
 
 ## 1. Principe directeur
 
-ZARYA est un **SaaS multi-tenant natif dès le MVP**. Chaque cabinet fiduciaire est un **tenant** indépendant. Tous les tenants partagent la même infrastructure (Postgres unique, app unique, Bedrock unique), mais leurs données sont **strictement isolées**.
+ZARYA est un **SaaS multi-tenant natif dès le MVP**. Chaque cabinet fiduciaire est un **tenant** indépendant. Tous les tenants partagent la même infrastructure (Postgres unique, app unique, Infomaniak unique), mais leurs données sont **strictement isolées**.
 
 Voir [`/docs/architecture/decisions/0005-multi-tenant-natif-mvp.md`](./decisions/0005-multi-tenant-natif-mvp.md) pour le raisonnement.
 

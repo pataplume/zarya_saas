@@ -63,15 +63,13 @@ NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<from supabase status>
 SUPABASE_SERVICE_ROLE_KEY=<from supabase status>
 
-# Bedrock (compte AWS sandbox, pas prod)
-AWS_REGION=eu-central-1
-AWS_ACCESS_KEY_ID=<sandbox key>
-AWS_SECRET_ACCESS_KEY=<sandbox secret>
-BEDROCK_MODEL_SONNET=anthropic.claude-sonnet-4-6-20260101-v1:0
-BEDROCK_MODEL_HAIKU=anthropic.claude-haiku-4-5-20251001-v1:0
-
-# Mistral (sandbox key, quota limité)
-MISTRAL_API_KEY=<sandbox key>
+# Infomaniak AI Services (souveraineté suisse, API OpenAI-compatible)
+# Pas de model_id codé en dur : les modèles sont résolus au runtime via GET /v1/models,
+# mappés par catégorie (chat_small / chat_large / embeddings / vision).
+IK_PRODUCT_ID=<product id>
+IK_API_TOKEN=<api token>
+IK_MODEL_CHAT_SMALL=<catégorie chat_small, optionnel — override de la résolution runtime>
+IK_MODEL_CHAT_LARGE=<catégorie chat_large, optionnel — override de la résolution runtime>
 
 # Microsoft Graph (app de test, tenant dev)
 MICROSOFT_CLIENT_ID=<test app>
@@ -141,7 +139,7 @@ zarya/
 │   │   ├── client.ts             # API publique
 │   │   └── types.ts
 │   ├── integrations/
-│   │   ├── bedrock/
+│   │   ├── infomaniak/
 │   │   ├── microsoft/
 │   │   ├── zefix/
 │   │   ├── bexio/
@@ -173,7 +171,7 @@ zarya/
 
 ### 4.1 Local
 - DB : Supabase local (Docker)
-- Bedrock : sandbox AWS (quota strict, modèles disponibles)
+- Infomaniak AI Services : token de dev (quota strict, modèles résolus au runtime via `/v1/models`)
 - Microsoft : app test sur tenant ZARYA dev
 - Stripe : test mode
 - Pas de données client réelles
@@ -258,7 +256,7 @@ class ExtractionError extends Error {
 }
 
 // Throw typé
-throw new ExtractionError('LLM_TIMEOUT', 'Bedrock timeout after 30s', err);
+throw new ExtractionError('LLM_TIMEOUT', 'Infomaniak timeout after 30s', err);
 
 // Catch ciblé
 try { ... } catch (err) {
@@ -317,7 +315,7 @@ Convention **Conventional Commits** :
 feat(facture): add IBAN fraud detection
 fix(onboarding): handle Zefix timeout gracefully
 docs(security): update audit retention policy
-chore(deps): bump @anthropic-ai/sdk to 0.40.0
+chore(deps): bump openai (client Infomaniak OpenAI-compatible) to 4.x
 test(rls): add cross-tenant isolation tests
 ```
 
@@ -422,7 +420,7 @@ jobs:
 GitHub Actions secrets :
 - `VERCEL_TOKEN`
 - `SUPABASE_*` (par environnement)
-- `AWS_*` (sandbox uniquement en CI)
+- `IK_PRODUCT_ID` / `IK_API_TOKEN` (token de dev uniquement en CI)
 - Pas de secrets prod en CI sauf pipeline de déploiement isolé
 
 ## 9. Logs et debugging
@@ -600,7 +598,7 @@ Process pour qu'un nouveau dev soit opérationnel en 2 jours :
 - Disaster recovery procedure
 - Runbooks opérationnels (à créer Phase 1)
 - Process de promotion vers prod (validation manuelle workflow)
-- Plans de contingence (Supabase down, Bedrock down)
+- Plans de contingence (Supabase down, Infomaniak down)
 
 À documenter avant le 1er pilote payant.
 

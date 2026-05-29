@@ -339,8 +339,8 @@ Tables principales :
 
 ### 13.2 Latences cibles
 - Ingestion email → proposition affichée : < 30 secondes (perçu temps réel)
-- OCR moyen : 5-10 secondes (Mistral OCR EU)
-- Classification IA moyenne : 3-5 secondes (Claude Haiku 4.5)
+- OCR moyen : 5-10 secondes (Infomaniak vision, catégorie `vision` — différé Phase 4.1+)
+- Classification IA moyenne : 3-5 secondes (catégorie `chat_small`, résolue au runtime)
 
 ### 13.3 Optimisations
 - **Cache de classification** : même document hash → réutilisation de la classification

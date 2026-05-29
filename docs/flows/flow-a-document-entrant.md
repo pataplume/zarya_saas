@@ -70,13 +70,13 @@ referenced_by: [doc]
 
 ### Étape 2 — OCR si nécessaire
 1. Détection automatique : PDF natif vs scan, image, etc.
-2. Si OCR requis : appel à Mistral OCR EU
+2. Si OCR requis : appel à Infomaniak vision (catégorie `vision`) — différé Phase 4.1+
 3. Stockage du texte extrait dans `fichier_physique.ocr_text`
 4. Lien vers `extraction.invocation` (traçabilité)
 
 ### Étape 3 — Pipeline de classification IA
 1. Appel à la brique Extraction IA avec contexte `classification_doc`
-2. Modèle : Claude Haiku 4.5 (volume élevé, qualité suffisante)
+2. Modèle : catégorie `chat_small` (résolue au runtime) — volume élevé, qualité suffisante
 3. Input : texte extrait + métadonnées (expéditeur si email, nom fichier, taille)
 4. Output JSON structuré :
    - Type de document (slug)

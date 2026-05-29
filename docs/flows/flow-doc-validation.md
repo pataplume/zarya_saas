@@ -16,13 +16,15 @@ phase: 3.5
 > proposition → validation humaine → création du `doc.document` rattaché à un client.
 >
 > Il complète [`flow-a-document-entrant.md`](./flow-a-document-entrant.md), qui décrit
-> la **cible produit complète** (email Microsoft, NAS, OCR, Bedrock, auto-classement,
+> la **cible produit complète** (email Microsoft, NAS, OCR, classification IA Infomaniak, auto-classement,
 > effets de bord). Les écarts entre la cible et l'implémentation actuelle sont listés
 > en fin de document (§ « Écarts avec la cible »).
 >
 > ⚠️ **L'IA est en STUB.** La classification est une heuristique sur le nom de fichier
 > (`StubClassifier`), pas un appel LLM. Ne pas présenter ce flux comme « classification
-> IA fonctionnelle ». Le branchement Bedrock est différé en Phase 4.0 (crédits AWS).
+> IA fonctionnelle ». La classification live (Infomaniak, catégorie `chat_small`) est
+> livrée en Phase 4.0 mais **opt-in** via `EXTRACTION_MODE=live` (ADR 0010) ; le stub
+> reste le défaut.
 
 ## Périmètre de ce flux
 
@@ -37,8 +39,8 @@ phase: 3.5
 | Pré-requis client (mini-CRM) | ✅ (Sprint 3.5.3) | [`app/clients`](../../apps/web/app/(app)/app/clients/page.tsx) |
 | File de validation + validation 1-clic | ✅ | [`documents/validation`](../../apps/web/app/(app)/app/documents/validation/page.tsx) |
 | Création `doc.document` à la validation | ✅ | [`validation/actions.ts`](../../apps/web/app/(app)/app/documents/validation/actions.ts) |
-| OCR (Mistral) | ❌ Phase 4 | — |
-| Classification Bedrock | ❌ Phase 4.0 | — |
+| OCR (Infomaniak vision) | ❌ Phase 4.1+ | — |
+| Classification IA live (Infomaniak `chat_small`) | ⚙️ Phase 4.0 — opt-in `EXTRACTION_MODE=live`, stub par défaut | [`infomaniak-classifier.ts`](../../packages/extraction/src/infomaniak-classifier.ts) |
 | Auto-classement (politique cabinet) | ❌ Phase 4 | — |
 | Effets de bord (Calendar, Facture, Search…) | ❌ Phase 4+ | — |
 | Ingestion email / NAS / dashboard client | ❌ Phase 4+ | — |
@@ -85,7 +87,7 @@ phase: 3.5
    de fichier** (ex. `releve_ubs_2026-04.pdf` → `releve_bancaire` / `bancaire`,
    période `2026-04`). Fichier non reconnu → `a_classer` / `autre` + anomalie.
 3. Insert `extraction.invocation` (une ligne par appel, **même en stub** :
-   `model_used = 'stub'`, `cost_usd = 0`, `tokens = 0`) — traçabilité ADR 0003.
+   `model_used = 'stub'`, `cost_usd = 0`, `tokens = 0`) — traçabilité ADR 0010.
 4. Insert `doc.proposition_classement` en statut `a_valider`, reliée à l'invocation.
 5. L'`upload_brut` passe au statut `a_valider`. Si la classification échoue, le fichier
    reste stocké (statut `recu`) et reste reclassable — l'upload n'est jamais perdu.
@@ -179,8 +181,11 @@ Différé Phase 4+ — **non implémenté** aujourd'hui :
 
 - **Ingestion** : email Microsoft Graph, scan NAS, upload dashboard client (seul l'upload
   manuel cabinet existe).
-- **OCR** : Mistral OCR (le stub ne lit pas le contenu, seulement le nom de fichier).
-- **Classification réelle** : Bedrock / Claude Haiku (Phase 4.0, bloquée crédits AWS).
+- **OCR** : Infomaniak vision (catégorie `vision`, Phase 4.1+) — le stub ne lit pas le
+  contenu, seulement le nom de fichier.
+- **Classification réelle (live)** : Infomaniak (catégorie `chat_small`), livrée en
+  Phase 4.0 mais **opt-in** via `EXTRACTION_MODE=live` — le flux par défaut reste le
+  stub (ADR 0010).
 - **Auto-classement** : politiques `strict/hybride/aggressive` — tout passe en validation
   humaine au MVP.
 - **Effets de bord** : CRM (`evenement`, `risque`), Calendar (échéances), Facture, Salaire,

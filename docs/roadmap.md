@@ -90,7 +90,7 @@ Chaque phase a :
 ### 3.3 Intégrations livrées
 - Microsoft Graph (email + calendar)
 - Zefix
-- Bedrock + Mistral OCR
+- Infomaniak (classification live ; vision/embeddings différés Phase 4.1+)
 - Supabase + Stripe
 - NAS (lecture seule)
 

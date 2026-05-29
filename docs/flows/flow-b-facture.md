@@ -47,7 +47,7 @@ Quand un `doc.document` est créé avec `type LIKE 'facture_%'` :
 
 ### Étape 3 — Pipeline d'extraction IA
 1. Appel à Extraction IA avec contexte `facture`
-2. Modèle : Claude Sonnet 4.6 (précision critique sur montants)
+2. Modèle : catégorie `chat_large` (résolue au runtime) — précision critique sur montants
 3. Schéma cible : `FactureSchema` (15+ champs)
 4. Si QR-facture présent : données injectées comme contexte, IA complète les champs manquants
 5. Output : champs proposés + bbox sources + confiance par champ

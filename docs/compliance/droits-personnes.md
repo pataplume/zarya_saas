@@ -207,7 +207,7 @@ Export structuré JSON + CSV humain
 Notification sous-traitants si applicable :
   - Microsoft : pas applicable (cabinet contrôle)
   - Bexio : si données pushed, demander suppression
-  - Mistral : pas de rétention longue (rien à faire)
+  - Infomaniak (IA, Suisse) : pas de rétention longue (rien à faire)
   - Sentry/PostHog : anonymiser via API
     ↓
 Documentation dans audit.cabinet_evenement

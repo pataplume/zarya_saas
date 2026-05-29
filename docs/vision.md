@@ -177,8 +177,8 @@ Période d'essai 14 jours sans CB.
 | Poste | Coût par cabinet/mois |
 |---|---|
 | Supabase | ~3 CHF (mutualisé sur 100 cabinets) |
-| LLM (Bedrock) | 60-100 CHF (selon volume) |
-| OCR (Mistral) | 10-30 CHF |
+| LLM (Infomaniak, catégories `chat_*`) | à confirmer (catalogue Infomaniak Beta) |
+| OCR (Infomaniak vision, Phase 4.1+) | à confirmer (catalogue Infomaniak Beta) |
 | Infra (Vercel, monitoring) | ~5 CHF |
 | Stripe (3%) | ~10 CHF |
 | **Total coûts variables** | **~80-150 CHF** |
