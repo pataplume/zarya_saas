@@ -50,8 +50,8 @@ export const extractionStatusEnum = extractionSchema.enum("invocation_status", [
 // ─── extraction.invocation — Une ligne par appel LLM/OCR ─────────────────────
 // Audit, facturation à l'usage, debug, détection de régressions de prompt.
 // Le mode stub (EXTRACTION_MODE=stub) écrit une ligne model_used='stub',
-// prompt_version='stub' — Bedrock se rebranche en changeant l'implémentation
-// du Classifier sans toucher au schéma.
+// prompt_version='stub' — le mode live (Infomaniak, ADR 0010) se rebranche en
+// changeant l'implémentation du Classifier sans toucher au schéma.
 
 export const invocation = extractionSchema.table(
   "invocation",
@@ -72,6 +72,9 @@ export const invocation = extractionSchema.table(
     input_size_bytes: bigint("input_size_bytes", { mode: "number" }),
     // ── Configuration de l'appel ──
     model_used: text("model_used").notNull(),
+    // Colonnes héritées (ADR 0003 Bedrock, superseded par ADR 0010). Conservées
+    // sans renommage pour éviter une migration destructive ; le mode live
+    // Infomaniak (région CH) ne les renseigne pas. Renommage différé Phase 4.1+.
     bedrock_region: text("bedrock_region").notNull().default("eu-central-1"),
     bedrock_request_id: text("bedrock_request_id"),
     prompt_version: text("prompt_version").notNull(),
@@ -87,8 +90,8 @@ export const invocation = extractionSchema.table(
     total_duration_ms: integer("total_duration_ms"),
     tokens_input: integer("tokens_input"),
     tokens_output: integer("tokens_output"),
-    // Coût brut facturé par Bedrock (USD = source de vérité). Conversion CHF en
-    // aval pour les quotas/facturation cabinet (extraction-ia.md § 8).
+    // Coût brut facturé par le provider IA (USD = source de vérité). Conversion
+    // CHF en aval pour les quotas/facturation cabinet (extraction-ia.md § 8).
     cost_usd: numeric("cost_usd", { precision: 10, scale: 6 }),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -1,8 +1,8 @@
 // Pipeline de persistance de la classification documentaire.
 //
 // Sépare la logique pure (classifier.ts, testable sans DB) de la persistance :
-//  1. invoque le Classifier (stub ou Bedrock selon EXTRACTION_MODE)
-//  2. trace l'appel dans extraction.invocation (audit + facturation, ADR 0003)
+//  1. invoque le Classifier (stub ou Infomaniak selon EXTRACTION_MODE)
+//  2. trace l'appel dans extraction.invocation (audit + facturation, ADR 0010)
 //  3. crée la doc.proposition_classement (pattern proposition → validation, ADR 0007)
 // L'entité finale doc.document n'est PAS créée ici : elle naît à la validation
 // humaine (Sprint 3.4), jamais automatiquement (doc.md § 11.1).
@@ -57,10 +57,11 @@ export async function classifyDocument(
       nb_items_with_anomalies: proposal.anomalies.length > 0 ? 1 : 0,
       raw_output: result.raw_output,
       total_duration_ms: result.duration_ms,
-      // Mode stub : aucun coût ni token. Bedrock renseignera ces champs.
-      cost_usd: "0",
-      tokens_input: 0,
-      tokens_output: 0,
+      // Mode stub : pas d'usage → 0. Mode live (Infomaniak) : tokens réels via
+      // result.usage. Coût laissé à 0 tant que la tarification IK n'est pas câblée.
+      cost_usd: result.usage?.cost_usd ?? "0",
+      tokens_input: result.usage?.tokens_input ?? 0,
+      tokens_output: result.usage?.tokens_output ?? 0,
     })
     .returning({ id: invocation.id });
 

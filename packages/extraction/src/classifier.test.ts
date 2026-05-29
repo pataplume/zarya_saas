@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
-import {
-  BedrockClassifier,
-  ExtractionNotImplementedError,
-  getClassifier,
-  StubClassifier,
-} from "./classifier";
+import { getClassifier, StubClassifier } from "./classifier";
+import { InfomaniakClassifier } from "./infomaniak-classifier";
 
 describe("StubClassifier", () => {
   const c = new StubClassifier();
@@ -51,11 +47,7 @@ describe("getClassifier", () => {
     expect(getClassifier("stub")).toBeInstanceOf(StubClassifier);
   });
 
-  test("live → Bedrock (non câblé, throw à l'usage)", async () => {
-    const c = getClassifier("live");
-    expect(c).toBeInstanceOf(BedrockClassifier);
-    await expect(c.classify({ nom_fichier: "x.pdf" })).rejects.toBeInstanceOf(
-      ExtractionNotImplementedError,
-    );
+  test("live → Infomaniak (souveraineté CH, ADR 0010)", () => {
+    expect(getClassifier("live")).toBeInstanceOf(InfomaniakClassifier);
   });
 });
