@@ -22,7 +22,10 @@ describe.runIf(RUN_LIVE)("Infomaniak (live) — revue manuelle golden set", () =
   it("classe l'ensemble du golden set et imprime un rapport de qualité", {
     timeout: 600_000,
   }, async () => {
-    const run = await runEval(new InfomaniakClassifier());
+    // Espacement inter-requêtes : les modèles IK Beta ont un plafond de débit
+    // (RPS/RPM) indépendant des crédits. 700 ms entre cas évite les 429 en rafale
+    // (le retry/backoff du client reste le filet de sécurité pour les pics).
+    const run = await runEval(new InfomaniakClassifier(), undefined, { delayMs: 700 });
 
     // Rapport principal destiné à l'œil humain (revue manuelle).
     // biome-ignore lint/suspicious/noConsole: sortie volontaire du harnais d'éval.

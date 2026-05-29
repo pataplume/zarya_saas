@@ -60,7 +60,7 @@ describe("InfomaniakClassifier — chemin json_schema (vérifié)", () => {
     expect(res.proposal.periode).toBe("2026-04");
     expect(res.proposal.confiance_par_champ.categorie).toBe(0.95);
     expect(res.model_used).toBe(MODEL);
-    expect(res.prompt_version).toBe("ik-classify-v1");
+    expect(res.prompt_version).toBe("ik-classify-v2");
     expect(res.usage).toEqual({ tokens_input: 120, tokens_output: 40 });
 
     // 1 seul appel, et il portait bien response_format json_schema.
@@ -68,9 +68,19 @@ describe("InfomaniakClassifier — chemin json_schema (vérifié)", () => {
     expect(chat.mock.calls[0]?.[0].response_format?.type).toBe("json_schema");
   });
 
-  it("normalise une catégorie inconnue → autre", async () => {
+  it("dérive la catégorie du type connu, même si le modèle propose autre chose", async () => {
+    // Le modèle renvoie un type connu (releve_bancaire) mais une catégorie erronée.
+    // La catégorie est une fonction du type → on corrige côté code (invariant taxonomie).
     const chat = vi.fn<ChatModelClient["chatCompletion"]>(async () =>
-      chatResponse({ ...VALID_RAW, categorie: "banque" }),
+      chatResponse({ ...VALID_RAW, categorie: "fiscal" }),
+    );
+    const res = await new InfomaniakClassifier(makeClient(chat)).classify(INPUT);
+    expect(res.proposal.categorie).toBe("bancaire");
+  });
+
+  it("type inconnu + catégorie invalide → autre", async () => {
+    const chat = vi.fn<ChatModelClient["chatCompletion"]>(async () =>
+      chatResponse({ ...VALID_RAW, type: "type_inexistant", categorie: "banque" }),
     );
     const res = await new InfomaniakClassifier(makeClient(chat)).classify(INPUT);
     expect(res.proposal.categorie).toBe("autre");

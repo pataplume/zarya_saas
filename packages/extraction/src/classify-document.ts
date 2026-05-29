@@ -8,7 +8,42 @@
 // humaine (Sprint 3.4), jamais automatiquement (doc.md § 11.1).
 
 import { db, invocation, propositionClassement } from "@zarya/db";
-import { type ClassificationInput, getClassifier } from "./classifier";
+import {
+  type ClassificationInput,
+  ExtractionError,
+  type ExtractionMode,
+  getClassifier,
+  STUB_PROMPT_VERSION,
+} from "./classifier";
+import { CLASSIFY_DOC_PROMPT_VERSION } from "./prompts/classification-doc";
+
+// Statuts d'invocation (extraction.invocation_status, packages/db/src/schema/extraction.ts).
+type InvocationStatus =
+  | "success"
+  | "validation_error"
+  | "timeout"
+  | "rate_limit"
+  | "ocr_failed"
+  | "unknown_error";
+
+// Mappe un échec d'extraction vers le statut d'invocation tracé (audit + quota).
+// Pur (pas de DB) → testable isolément. Tout ce qui n'est pas un ExtractionError
+// connu retombe sur "unknown_error".
+export function mapErrorToInvocationStatus(err: unknown): InvocationStatus {
+  if (err instanceof ExtractionError) {
+    switch (err.code) {
+      case "RATE_LIMIT":
+        return "rate_limit";
+      case "TIMEOUT":
+        return "timeout";
+      case "VALIDATION_FAILED":
+        return "validation_error";
+      default:
+        return "unknown_error"; // CONFIG, LLM_ERROR
+    }
+  }
+  return "unknown_error";
+}
 
 export interface ClassifyDocumentInput {
   cabinet_id: string;
@@ -36,7 +71,17 @@ export async function classifyDocument(
     ...(input.type_mime ? { type_mime: input.type_mime } : {}),
   };
 
-  const result = await classifier.classify(classificationInput);
+  let result: Awaited<ReturnType<typeof classifier.classify>>;
+  try {
+    result = await classifier.classify(classificationInput);
+  } catch (err) {
+    // Trace l'échec (notamment les 429 après retries épuisés) dans
+    // extraction.invocation : sans ça, un quota dépassé ne laisserait aucune
+    // trace auditable (ADR 0010 § 7). On RE-LÈVE ensuite l'erreur d'origine —
+    // le pipeline d'upload la logge (cf. fix échec silencieux, PR #24).
+    await traceFailedInvocation(input, classifier.mode, err);
+    throw err;
+  }
   const { proposal } = result;
 
   // 1. Traçabilité de l'invocation (une ligne par appel, même en mode stub).
@@ -92,4 +137,36 @@ export async function classifyDocument(
   }
 
   return { invocation_id: inv.id, proposition_id: proposition.id };
+}
+
+// Écrit une ligne extraction.invocation en échec (best-effort). model_used /
+// prompt_version sont remplis au mieux : l'id de modèle résolu n'est pas connu
+// quand l'appel échoue, on trace donc le mode et la version de prompt du chemin.
+async function traceFailedInvocation(
+  input: ClassifyDocumentInput,
+  mode: ExtractionMode,
+  err: unknown,
+): Promise<void> {
+  const status = mapErrorToInvocationStatus(err);
+  const message = err instanceof Error ? err.message : String(err);
+  try {
+    await db.insert(invocation).values({
+      cabinet_id: input.cabinet_id,
+      context: "classification_doc",
+      invoked_by_module: "doc",
+      invoked_by_user_id: input.invoked_by_user_id ?? null,
+      input_type: "file",
+      input_document_id: input.fichier_physique_id,
+      input_size_bytes: input.taille_octets ?? null,
+      model_used: mode,
+      prompt_version: mode === "live" ? CLASSIFY_DOC_PROMPT_VERSION : STUB_PROMPT_VERSION,
+      status,
+      nb_items_extracted: 0,
+      error_message: message,
+    });
+  } catch {
+    // Échec d'écriture de la trace : on ne masque PAS l'erreur de classification
+    // (re-levée par l'appelant). On évite seulement qu'un souci DB secondaire ne
+    // remplace la cause réelle remontée à l'upload.
+  }
 }

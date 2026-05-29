@@ -31,6 +31,7 @@ import {
   CLASSIFY_DOC_PROMPT_VERSION,
   type ClassifyDocRaw,
   SYSTEM_PROMPT,
+  TYPE_TO_CATEGORIE,
 } from "./prompts/classification-doc";
 
 // Sous-ensemble du client Infomaniak dont le classifier a besoin (injectable en test).
@@ -82,11 +83,16 @@ function toProposal(raw: unknown, input: ClassificationInput): ClassificationPro
   if (typeof raw !== "object" || raw === null) return null;
   const r = raw as Partial<ClassifyDocRaw>;
   if (typeof r.type !== "string" || r.type.trim() === "") return null;
+  const type = r.type.trim();
 
+  // La catégorie est une fonction du type (invariant de la taxonomie, cf. prompt v2).
+  // Si le type est connu, on dérive la catégorie côté code (le modèle ne peut pas
+  // dévier). Sinon on retombe sur la catégorie du modèle si valide, sinon "autre".
   const categorie: CategorieDocument =
-    typeof r.categorie === "string" && CATEGORIE_SET.has(r.categorie)
+    TYPE_TO_CATEGORIE[type] ??
+    (typeof r.categorie === "string" && CATEGORIE_SET.has(r.categorie)
       ? (r.categorie as CategorieDocument)
-      : "autre";
+      : "autre");
 
   const libelle =
     typeof r.libelle === "string" && r.libelle.trim() !== ""
@@ -101,7 +107,7 @@ function toProposal(raw: unknown, input: ClassificationInput): ClassificationPro
     : [];
 
   return {
-    type: r.type.trim(),
+    type,
     categorie,
     libelle,
     periode,
