@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0010
 date: 2026-05-26
 deciders: [tristan]
 referenced_by: [llm-strategy, data-residency]
@@ -7,8 +8,13 @@ referenced_by: [llm-strategy, data-residency]
 
 # ADR 0003 — Tous les appels LLM passent par Amazon Bedrock (eu-central-1)
 
+> ⚠️ **REMPLACÉE par l'[ADR 0010](0010-llm-via-infomaniak.md)** (29 mai 2026) : la
+> couche IA passe désormais par Infomaniak AI Services (souveraineté suisse). Bedrock
+> n'a jamais été câblé en prod (le `BedrockClassifier` était un stub qui throw). Cette
+> ADR est conservée pour l'historique de décision.
+
 ## Statut
-Acceptée — 26 mai 2026
+~~Acceptée — 26 mai 2026~~ → **Remplacée par l'ADR 0010 le 29 mai 2026**
 
 ## Contexte
 

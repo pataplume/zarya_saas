@@ -6,7 +6,7 @@
 
 ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour gestion documentaire, échéances, factures, et salaires de leurs clients PME.
 
-**Stack** : Next.js 15+, TypeScript end-to-end strict, Supabase (Postgres + Auth + Storage + Vault + pgvector), Drizzle ORM, AWS Bedrock (Claude Sonnet 4.6 + Haiku 4.5), Mistral OCR, Microsoft Graph, Tailwind + shadcn/ui.
+**Stack** : Next.js 15+, TypeScript end-to-end strict, Supabase (Postgres + Auth + Storage + Vault + pgvector), Drizzle ORM, **Infomaniak AI Services** (Qwen3.5-122B, Ministral-3-14B, Bge embeddings — souveraineté suisse, API OpenAI-compatible), Microsoft Graph, Tailwind + shadcn/ui.
 
 **Hébergement** : eu-central-1 (Frankfurt) exclusivement pour le MVP. Aucune donnée hors UE.
 
@@ -48,11 +48,13 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 - Conservation 6 ans minimum (5 ans pour les logs Zefix, cf. `zefix-integration.md` § 4.3)
 - Référence : `/docs/architecture/security-and-audit.md` § 8
 
-### 6. Stratégie LLM
-- Tous les appels LLM passent par Bedrock eu-central-1 (jamais d'API Anthropic directe)
-- Wrapper unique dans `packages/integrations/bedrock/`
+### 6. Stratégie LLM — souveraineté suisse (Infomaniak)
+- Toute la couche IA passe par **Infomaniak AI Services** (société + infra suisses), API OpenAI-compatible. Jamais d'API Anthropic/OpenAI/Bedrock directe.
+- Wrapper unique dans `packages/integrations/infomaniak/` (client OpenAI-compatible)
+- **Aucun `model_id` codé en dur** : lus au runtime via `GET /v1/models`, mappés par catégorie (`chat_small`, `chat_large`, `embeddings`…). Catalogue IK en Beta.
+- Secrets serveur uniquement (`IK_PRODUCT_ID`, `IK_API_TOKEN`), `pino redact` sur le token
 - Tracé dans `extraction.invocation` pour audit et facturation
-- Référence : `/docs/architecture/llm-strategy.md` et `ADR 0003`
+- Référence : `/docs/architecture/llm-strategy.md` et **`ADR 0010`** (remplace ADR 0003)
 
 ### 7. Intégrations tierces — secrets côté serveur uniquement
 - Tout credential d'API tierce (Zefix, Microsoft Graph, Bexio, NAS) est **interdit côté client navigateur**
@@ -126,7 +128,7 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 - Désactiver une RLS policy
 - Coder un module non prioritaire selon la phase actuelle
 - Refactor majeur non demandé
-- Toucher aux secrets/credentials (Zefix, Bedrock, Microsoft, Supabase service role)
+- Toucher aux secrets/credentials (Zefix, Infomaniak, Microsoft, Supabase service role)
 - Optimiser prématurément
 - Introduire un nouveau pattern architectural transverse
 - Modifier les CLAUDE.md sans validation explicite
@@ -154,21 +156,22 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 | `/docs/data-model/[schema].md` | Avant de créer/modifier des tables |
 | `/docs/flows/[flow].md` | Pour comprendre un parcours utilisateur |
 
-## Référence des ADR (9 décisions actées)
+## Référence des ADR (10 décisions actées)
 
 - **ADR 0001** : Résidence des données en UE (Frankfurt)
 - **ADR 0002** : Stack Next.js + TypeScript end-to-end
-- **ADR 0003** : LLM via Bedrock eu-central-1
+- ~~**ADR 0003** : LLM via Bedrock eu-central-1~~ → **remplacée par ADR 0010**
 - **ADR 0004** : Supabase Cloud Pro jusqu'à 100 cabinets
 - **ADR 0005** : Multi-tenant natif dès le MVP
 - **ADR 0006** : Onboarding fiduciaire self-service
 - **ADR 0007** : Validation granulaire champ par champ pour employés
 - **ADR 0008** : Mini-dashboard client dédié
 - **ADR 0009** : Intégration Zefix via route handler serveur avec HTTP Basic Auth
+- **ADR 0010** : Couche IA via Infomaniak AI Services (souveraineté suisse) — remplace ADR 0003
 
 ## Phase actuelle du projet
 
-**Phase courante** : Phase 3.6 — Tests server action authentifiée (`createTestUser()`)
+**Phase courante** : Phase 4.0 — Migration couche IA vers Infomaniak (souveraineté suisse), périmètre **classification** (ADR 0010)
 
 > Source de vérité opérationnelle : `HANDOFF_V2.md` (founder, 28 mai 2026). Lire en début de session pendant les Phases 3.5 / 3.6 / 4.0.
 
@@ -191,27 +194,29 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
   - ~~Sprint 3.5.2 — Test générique anti-fuite cross-tenant (chemin app, bloquant CI)~~ ✅
   - ~~Sprint 3.5.3 — Mini-CRM `crm.client` (CRUD minimal, débloque la démo Doc end-to-end)~~ ✅
   - ~~Sprint 3.5.4 — Vérification + démo end-to-end (avec stub IA)~~ ✅
-- **Phase 3.6 : Tests server action authentifiée (`createTestUser()`)** ← en cours
-- Phase 4.0 : Branchement Bedrock (dès crédits AWS débloqués) — `BedrockClassifier`
-- Phase 4.1+ : Calendar / Facture / Search / Salaire
+- ~~Phase 3.6 : Tests server action authentifiée (`createTestUser()`)~~ ✅ terminée (PR #18/#19, en prod)
+- **Phase 4.0 : Migration IA → Infomaniak, périmètre classification** ← en cours
+  - Remplace le `BedrockClassifier` (stub jamais câblé) par `InfomaniakClassifier`, derrière `EXTRACTION_MODE=live`, stub restant le défaut jusqu'à validation. Voir ADR 0010.
+- Phase 4.1+ : IA Infomaniak vision/OCR + embeddings/RAG (quand modules Facture/Search existent), puis Calendar / Facture / Search / Salaire
 
 **État des modules** :
 - ✅ Bootstrap, Multi-tenant + Auth, Onboarding fiduciaire, Hardening + dashboard
-- ⚠️ **Module Doc : squelette OK, IA en STUB, en attente crédits Bedrock** — ne PAS le présenter comme « IA fonctionnelle »
+- ⚠️ **Module Doc : squelette OK, IA en STUB** — classification `live` en cours de bascule vers Infomaniak (Phase 4.0). Ne PAS présenter comme « IA fonctionnelle » tant que la bascule n'est pas validée.
 - ✅ Sécurité cross-tenant + Mini-CRM (Phase 3.5 terminée)
-- 🚧 Tests server action authentifiée (Phase 3.6 en cours)
+- ✅ Tests server action authentifiée (Phase 3.6 terminée, en prod)
 
-**Modules autorisés à toucher (Phase 3.6)** :
-- `tests/integration/` — helper `createTestUser()` + tests de server actions authentifiées
-- `tests/` — fixtures et helpers de test
-- `docs/` — mise à jour si besoin (stratégie tests)
+**Modules autorisés à toucher (Phase 4.0)** :
+- `packages/integrations/infomaniak/` — nouveau wrapper client OpenAI-compatible
+- `packages/extraction/` — `InfomaniakClassifier` + branchement `getClassifier`
+- `docs/` — ADR 0010, llm-strategy, conformité (registre-traitements, sous-traitants, politique-confidentialité)
+- Config d'env (`.env.example`, secrets `IK_*`), suppression des vars `AWS_*`/`BEDROCK_*`/`MISTRAL_*`
 
-**Modules INTERDITS** :
-- `packages/integrations/bedrock` — Phase 4.0, attend AWS
-- `packages/integrations/microsoft`, `mistral`, `bexio` — Phase 4+
+**Modules INTERDITS (Phase 4.0)** :
+- Vision/OCR, embeddings, pgvector, RAG, reranker — **différés Phase 4.1+** (modules Facture/Search pas construits, 0 embedding en base)
+- `packages/integrations/microsoft`, `bexio` — Phase 4+
 - Modules métier non démarrés : Calendar, Facture, Search, Salaire
 - Extension CRM au-delà de `crm.client` minimal (pas de contacts, dossiers, tags…)
-- Toute modification du `StubClassifier` (il fait son job)
+- Toute modification du `StubClassifier` (il reste le défaut en prod)
 - Nouveau schéma DB sans tests d'isolation + anti-fuite associés
 
 **⚠️ Risques connus** :
