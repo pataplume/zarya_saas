@@ -65,7 +65,7 @@ referenced_by: [_index, politique-confidentialite, droits-personnes]
 | **Catégories de données** | Nom, prénom, date de naissance, sexe, état civil, AVS, IBAN, adresse, salaire de base, primes, déductions, absences, heures travaillées, certificats médicaux (sensible) |
 | **Données sensibles** | Données de santé (certificats d'arrêt maladie) → consentement explicite + mesures renforcées |
 | **Destinataires** | Cabinet, logiciel de paie cible (Bexio, Crésus, etc.), AVS, LPP, IS, ESTV (transmissions légales) |
-| **Sous-traitants** | Supabase, AWS Bedrock (extraction IA), Mistral OCR (Paris) |
+| **Sous-traitants** | Supabase, AWS (infra Supabase), Infomaniak AI Services (Suisse — extraction IA) |
 | **Transfert hors UE** | Non |
 | **Durée de conservation** | 10 ans après fin de contrat de l'employé (obligation CH) |
 | **Mesures de sécurité** | Chiffrement applicatif (Vault), RLS double (cabinet + client), accès limité aux rôles autorisés, audit complet |
@@ -79,8 +79,8 @@ referenced_by: [_index, politique-confidentialite, droits-personnes]
 | **Catégories de personnes concernées** | Toute personne mentionnée dans les documents (clients, fournisseurs, prestataires, salariés) |
 | **Catégories de données** | Noms, identifiants entreprises, IBAN, montants, contenus textuels divers |
 | **Destinataires** | Cabinet, sous-traitants techniques |
-| **Sous-traitants** | Supabase Storage, AWS Bedrock (classification IA, extraction), Mistral OCR (Paris), NAS du cabinet |
-| **Transfert hors UE** | Non (sauf Mistral en France = UE) |
+| **Sous-traitants** | Supabase Storage, AWS (infra Supabase), Infomaniak AI Services (Suisse — classification IA, extraction), NAS du cabinet |
+| **Transfert hors UE** | Non (Infomaniak = Suisse, pays adéquat) |
 | **Durée de conservation** | 10 ans (obligation fiscale CH) puis purge ou archivage froid |
 | **Mesures de sécurité** | Chiffrement at-rest et in-transit, déduplication par hash, RLS, audit complet |
 
@@ -93,7 +93,7 @@ referenced_by: [_index, politique-confidentialite, droits-personnes]
 | **Catégories de personnes concernées** | Toute personne dont les données sont indexées |
 | **Catégories de données** | Toutes les catégories ci-dessus, sous forme d'embeddings vectoriels + chunks textuels |
 | **Destinataires** | Utilisateurs du cabinet authentifiés |
-| **Sous-traitants** | Supabase pgvector, AWS Bedrock (Cohere ou Titan embeddings) |
+| **Sous-traitants** | Supabase pgvector, AWS (infra Supabase), Infomaniak AI Services (Suisse — embeddings) |
 | **Transfert hors UE** | Non |
 | **Durée de conservation** | Idem documents source |
 | **Mesures de sécurité** | RLS sur chunks, filtrage applicatif redondant, anti-injection prompt, audit des requêtes |
@@ -186,8 +186,8 @@ ZARYA limite strictement les transferts hors UE/Suisse :
 
 | Sous-traitant | Région | Cadre |
 |---|---|---|
-| AWS (Supabase, Bedrock) | eu-central-1 Frankfurt | UE — pas de transfert |
-| Mistral La Plateforme | eu-west-3 Paris | UE — pas de transfert |
+| AWS (infrastructure Supabase) | eu-central-1 Frankfurt | UE — pas de transfert |
+| Infomaniak AI Services | Suisse | Suisse — pays adéquat (nLPD / RGPD), pas de transfert problématique |
 | Microsoft Graph | Région tenant du cabinet | Variable — vérification à l'onboarding, alerte si non-UE |
 | Stripe | UE | UE — pas de transfert |
 | Vercel | Edge global + compute UE | Compute principal redirigé UE |

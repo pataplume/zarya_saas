@@ -6,11 +6,10 @@ Wrappers internes pour toutes les intégrations externes. Un sous-package par fo
 ## Structure
 ```
 packages/integrations/
-├── bedrock/                # AWS Bedrock (LLM)
+├── infomaniak/             # Infomaniak AI Services (IA : chat, vision, embeddings) — ADR 0010
 ├── microsoft/              # Microsoft Graph (email, calendar)
 ├── zefix/                  # Zefix (entreprises CH)
 ├── bexio/                  # Bexio API (compta + payroll)
-├── mistral/                # Mistral OCR
 ├── nas/                    # NAS (SMB, WebDAV)
 └── stripe/                 # Stripe (paiements)
 ```
@@ -57,7 +56,7 @@ export class BexioClient {
 ```typescript
 class IntegrationError extends Error {
   constructor(
-    public provider: 'bexio' | 'microsoft' | 'zefix' | 'mistral' | 'bedrock' | 'nas' | 'stripe',
+    public provider: 'bexio' | 'microsoft' | 'zefix' | 'infomaniak' | 'nas' | 'stripe',
     public code: string,
     message: string,
     public cause?: unknown
@@ -79,11 +78,19 @@ class IntegrationError extends Error {
 
 ## Sous-package par sous-package
 
-### `bedrock/`
-- Référence ADR 0003
-- Endpoint : `https://bedrock-runtime.eu-central-1.amazonaws.com`
-- Modèles autorisés : Claude Sonnet 4.6, Haiku 4.5, Cohere Embed Multilingual, Titan Embeddings
-- Auth : IAM role (pas de clés statiques en prod)
+### `infomaniak/`
+- Référence ADR 0010 (remplace ADR 0003 / Bedrock)
+- Base URL : `https://api.infomaniak.com/2/ai/{product_id}/openai/v1` (API OpenAI-compatible)
+- **Exception au pattern par-cabinet** : client global ZARYA (pas par `cabinet_id`).
+  Auth par `IK_API_TOKEN` + `IK_PRODUCT_ID`, **secrets serveur uniquement**,
+  `pino redact` sur le token. La traçabilité par cabinet vit dans
+  `extraction.invocation`, pas dans le credential.
+- **Aucun `model_id` codé en dur** : ids lus au runtime via `GET /v1/models`,
+  mappés par catégorie (`chat_small`, `chat_large`, `embeddings`, `vision`,
+  `reranker`) via `resolveModel(category)`. Catalogue IK en Beta.
+- Sortie structurée : `response_format: { type: "json_schema" }` (vérifié) ;
+  `json_object` est rejeté par l'API.
+- Vision/OCR + embeddings + reranker : différés Phase 4.1+ (Phase 4.0 = classification).
 - Référence : `/docs/architecture/llm-strategy.md`
 
 ### `microsoft/`
@@ -107,12 +114,6 @@ class IntegrationError extends Error {
 - Rate limit ~30 req/sec par token
 - Webhooks pour sync bidirectionnelle (Phase 2)
 - Référence : `/docs/architecture/payroll-integration.md`
-
-### `mistral/`
-- API Mistral La Plateforme (eu-west-3 Paris)
-- Endpoint OCR
-- Auth : API key (stockée Vault, scope cabinet ZARYA pas par cabinet client)
-- Pas de stockage long terme côté Mistral
 
 ### `nas/`
 - Protocoles : SMB 3.x (priorité 1), WebDAV (priorité 2), SFTP (priorité 3)
@@ -151,7 +152,7 @@ class IntegrationError extends Error {
 
 ## Référence documentation
 
-- ADR 0003 — LLM Bedrock
+- ADR 0010 — couche IA via Infomaniak (remplace ADR 0003 / Bedrock)
 - `/docs/architecture/microsoft-integration.md`
 - `/docs/architecture/zefix-integration.md`
 - `/docs/architecture/payroll-integration.md`

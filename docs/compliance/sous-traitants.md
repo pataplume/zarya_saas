@@ -16,9 +16,9 @@ referenced_by: [_index, politique-confidentialite, cgu, dpa-template]
 
 ## 1. Vue d'ensemble
 
-ZARYA recourt à 10 sous-traitants principaux, tous situés en UE. Ils sont catégorisés par criticité :
+ZARYA recourt à un nombre limité de sous-traitants principaux, situés en UE ou en Suisse (pays adéquat). Ils sont catégorisés par criticité :
 
-- **Critique** : impact direct sur les données métier (LLM, DB, OCR)
+- **Critique** : impact direct sur les données métier (IA, DB)
 - **Important** : services support (paiement, monitoring)
 - **Accessoire** : outils internes (analytics)
 
@@ -28,9 +28,9 @@ ZARYA recourt à 10 sous-traitants principaux, tous situés en UE. Ils sont cat�
 
 | Élément | Valeur |
 |---|---|
-| **Service rendu** | Hébergement infrastructure cloud, Bedrock LLM, S3 (via Supabase Storage) |
+| **Service rendu** | Infrastructure cloud sous-jacente à Supabase (DB, Auth, Storage) — pas d'usage IA |
 | **Région** | eu-central-1 (Frankfurt, Allemagne) |
-| **Données traitées** | Toutes les Données du Client (via Supabase et Bedrock) |
+| **Données traitées** | Toutes les Données du Client (via Supabase) |
 | **Sous-sous-traitants** | AWS infrastructure providers (data centers Allemagne) |
 | **DPA signé** | À signer avant production — DPA standard AWS disponible |
 | **Certifications** | ISO 27001, ISO 27017, ISO 27018, SOC 2, GDPR compliant |
@@ -38,19 +38,7 @@ ZARYA recourt à 10 sous-traitants principaux, tous situés en UE. Ils sont cat�
 | **Date d'intégration** | À partir de [DATE] |
 | **Site web** | https://aws.amazon.com/compliance/ |
 
-AWS sous-traitant ZARYA — Setup 27 mai 2026
-─────────────────────────────────────────────
-Compte AWS         : 344156899985 (Condere)
-Région primaire    : eu-central-1 (Frankfurt)
-Régions fallback   : eu-west-1, eu-west-3, eu-north-1 (toutes UE)
-IAM User           : zarya-bedrock-prod
-ARN                : arn:aws:iam::344156899985:user/zarya-bedrock-prod
-Policy             : AmazonBedrockFullAccess (durcir Phase 2)
-Inference profiles : eu.anthropic.claude-sonnet-4-6
-                     eu.anthropic.claude-haiku-4-5-20251001-v1:0
-                     eu.anthropic.claude-opus-4-7
-Quotas demandés    : 27 mai 2026, 4 demandes (Sonnet/Haiku × TPM/RPM)
-Rotation clés      : tous les 12 mois (mai 2027)
+> AWS n'intervient **que comme infrastructure sous-jacente de Supabase** (base de données, authentification, stockage). ZARYA n'utilise plus AWS comme fournisseur d'inférence IA (Bedrock retiré, cf. ADR 0010). La couche IA est désormais opérée par Infomaniak (§ 2.3).
 
 ### 2.2 Supabase — Critique
 
@@ -66,37 +54,23 @@ Rotation clés      : tous les 12 mois (mai 2027)
 | **Date d'intégration** | À partir de [DATE] |
 | **Site web** | https://supabase.com/legal |
 
-### 2.3 Anthropic (via AWS Bedrock) — Critique
+### 2.3 Infomaniak AI Services — Critique
 
 | Élément | Valeur |
 |---|---|
-| **Service rendu** | Modèles LLM Claude Sonnet 4.6 et Haiku 4.5 |
-| **Région** | eu-central-1 (Frankfurt) via Bedrock |
+| **Service rendu** | Couche IA complète : chat (classification, extraction, génération, RAG), vision/OCR (Phase 4.1+), embeddings (Phase 4.1+) — API OpenAI-compatible |
+| **Région** | Suisse |
 | **Données traitées** | Contenus envoyés temporairement aux modèles (documents, propositions, questions) |
-| **Sous-sous-traitants** | AWS |
-| **DPA signé** | Via le DPA AWS — Anthropic est un fournisseur sur Bedrock |
-| **Engagement** | AWS Bedrock garantit que les données ne sont pas utilisées pour entraîner les modèles |
-| **Rétention** | Logs Bedrock conservés 30 jours côté AWS pour debug |
-| **Certifications** | Anthropic : SOC 2 Type II, AWS : multiples |
-| **Cadre de transfert** | Pas de transfert hors UE via Bedrock EU |
+| **Sous-sous-traitants** | Infrastructure Infomaniak (Suisse) |
+| **DPA signé** | À signer avant production — DPA Infomaniak (référence à confirmer) |
+| **Engagement** | Infomaniak n'entraîne pas ses modèles sur les données client ; les données restent en Suisse pour l'inférence |
+| **Rétention** | Pas de stockage long terme des contenus soumis |
+| **Certifications** | À confirmer |
+| **Cadre de transfert** | Suisse — pays adéquat (nLPD / RGPD), pas de transfert problématique |
 | **Date d'intégration** | À partir de [DATE] |
-| **Site web** | https://docs.aws.amazon.com/bedrock/latest/userguide/data-protection.html |
+| **Site web** | https://www.infomaniak.com/ |
 
-### 2.4 Mistral AI — Critique
-
-| Élément | Valeur |
-|---|---|
-| **Service rendu** | OCR via Mistral La Plateforme |
-| **Région** | eu-west-3 (Paris, France) |
-| **Données traitées** | Documents PDF scannés temporairement pendant OCR |
-| **Sous-sous-traitants** | Infrastructure cloud française |
-| **DPA signé** | À signer — DPA Mistral disponible |
-| **Engagement** | Mistral garantit conformité RGPD, pas d'entraînement sur données client |
-| **Rétention** | Pas de stockage long terme des documents soumis |
-| **Certifications** | En cours d'obtention SOC 2 |
-| **Cadre de transfert** | Pas de transfert hors UE |
-| **Date d'intégration** | À partir de [DATE] |
-| **Site web** | https://mistral.ai/terms/ |
+> Société suisse, infrastructure suisse : la couche d'inférence IA relève d'un opérateur **non soumis au CLOUD Act**. Voir ADR 0010 pour le périmètre exact de la souveraineté (la DB Supabase/AWS et l'hébergement Vercel restent US).
 
 ### 2.5 Microsoft (Graph API) — Critique
 
@@ -227,13 +201,12 @@ Rotation clés      : tous les 12 mois (mai 2027)
 ## 6. Cartographie géographique
 
 ```
-🇩🇪 Frankfurt (eu-central-1)
-  ├─ AWS (infrastructure)
-  ├─ Supabase (DB, Auth, Storage, Vault, pgvector)
-  └─ Bedrock (Claude Sonnet + Haiku + embeddings)
+🇨🇭 Suisse
+  └─ Infomaniak AI Services (chat, vision/OCR, embeddings)
 
-🇫🇷 Paris (eu-west-3)
-  └─ Mistral La Plateforme (OCR)
+🇩🇪 Frankfurt (eu-central-1)
+  ├─ AWS (infrastructure sous-jacente de Supabase)
+  └─ Supabase (DB, Auth, Storage, Vault, pgvector)
 
 🇪🇺 UE (multi-région)
   ├─ Stripe Payments Europe
@@ -251,8 +224,7 @@ Rotation clés      : tous les 12 mois (mai 2027)
 |---|---|---|---|---|---|
 | AWS | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Supabase | ✅ | ✅ | ✅ | 🟡 en cours | ✅ |
-| Anthropic (via Bedrock) | ✅ | ✅ | ✅ | — | ✅ (via AWS) |
-| Mistral AI | ✅ | ✅ | 🟡 en cours | — | ✅ |
+| Infomaniak | ✅ | ✅ | 🟡 à confirmer | 🟡 à confirmer | 🟡 à signer |
 | Microsoft | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Stripe | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Vercel | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -273,8 +245,8 @@ Pour chaque sous-traitant critique :
 - [ ] DPA signé avec Supabase
 - [ ] DPA signé avec Stripe
 - [ ] DPA signé avec Vercel
-- [ ] Vérification rétention Bedrock
-- [ ] Vérification Mistral DPA
+- [ ] DPA signé avec Infomaniak
+- [ ] Vérification certifications Infomaniak (SOC 2 / ISO 27001)
 
 ### Avant 5e client payant
 - [ ] DPA signé avec Sentry

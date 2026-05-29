@@ -1,146 +1,123 @@
 ---
 status: draft
 owner: tristan
-last_updated: 2026-05-26
+last_updated: 2026-05-29
 domain: architecture
-depends_on: [data-residency]
+depends_on: [data-residency, decisions/0010-llm-via-infomaniak]
 referenced_by: [salaire-onboarding, salaire, doc, facture, search]
 ---
 
-# Stratégie LLM — Amazon Bedrock eu-central-1
+# Stratégie LLM — Infomaniak AI Services (souveraineté suisse)
 
 ## 1. Décision fondatrice
 
-**Tous les appels LLM de ZARYA passent par Amazon Bedrock en région `eu-central-1` (Frankfurt).** Sans exception, en production comme en développement.
+**Toute la couche IA/LLM de ZARYA passe par Infomaniak AI Services** (société suisse, infrastructure suisse), via une API OpenAI-compatible. Sans exception, en production comme en développement.
 
-Aucun appel direct à l'API Anthropic, OpenAI, Mistral chat, etc. depuis le code ZARYA. Seul Bedrock est autorisé pour les inférences LLM.
+Aucun appel direct à l'API Anthropic, OpenAI, Mistral La Plateforme, Amazon Bedrock, etc. depuis le code ZARYA. Seul Infomaniak est autorisé pour les inférences IA (chat, vision/OCR, embeddings).
 
-Voir [`/docs/architecture/decisions/0003-llm-via-bedrock.md`](./decisions/0003-llm-via-bedrock.md) pour le contexte de cette décision.
+Base URL : `https://api.infomaniak.com/2/ai/{product_id}/openai/v1`.
 
-## 2. Pourquoi Bedrock
+Voir [`ADR 0010`](./decisions/0010-llm-via-infomaniak.md) pour le contexte de cette décision. Cette décision **remplace ADR 0003** (LLM via Bedrock), conservée comme archive historique.
 
-### 2.1 Conformité RGPD et nLPD
-- Région `eu-central-1` (Frankfurt) garantit la **résidence des données en UE**
-- L'Allemagne bénéficie d'une **décision d'adéquation** suisse pour les transferts de données personnelles
-- AWS fournit un **Data Processing Agreement** conforme RGPD Article 28
-- **Pas d'entraînement** sur les données envoyées (engagement contractuel AWS)
-- Certifications : SOC 2, ISO 27001, C5 (Allemagne), HIPAA, etc.
+## 2. Pourquoi Infomaniak
+
+### 2.1 Souveraineté juridictionnelle (au-delà de la résidence)
+- Infomaniak est une **société suisse** opérant une **infrastructure en Suisse** : la couche d'inférence IA n'est pas seulement *résidente* en UE, elle relève d'un **opérateur suisse** non soumis au CLOUD Act américain
+- Pour des fiduciaires suisses traitant des données salariales et fiscales sensibles, cela répond à l'exigence de **souveraineté juridictionnelle** sur la partie analyse de documents
+- **Pas d'entraînement** sur les données client (engagement contractuel Infomaniak)
+- Les documents ne quittent jamais la Suisse pour être analysés par les modèles
+- Conformité nLPD / RGPD : la Suisse est un **pays adéquat** ; pas de transfert problématique pour la couche IA
+
+> ⚠️ **Périmètre de la souveraineté** : cet engagement couvre la **couche d'inférence IA**. La base de données (Supabase, hébergée sur AWS eu-central-1) et l'hébergement applicatif (Vercel) restent opérés par des sociétés US. On ne revendique donc **pas** une chaîne « 100 % souveraine end-to-end ». Formulation approuvée côté produit/marketing : « IA 100 % suisse et souveraine (Infomaniak) : vos documents ne quittent jamais la Suisse pour être analysés. »
 
 ### 2.2 Auditabilité
-- **CloudTrail** trace tous les appels Bedrock (qui, quand, quel modèle, quel volume)
-- **CloudWatch Logs** pour les détails d'inférence
-- Logs de **6 ans minimum** disponibles pour audit nLPD / fiscal
+- Chaque inférence est tracée côté ZARYA dans `extraction.invocation` (modèle, tokens, latence, statut, coût, `client_id`, `feature`)
+- Conservation **6 ans minimum** côté ZARYA pour audit nLPD / fiscal
+- L'`usage` retourné par l'API (tokens input/output) sert de base à l'estimation de coût et à la facturation interne
 
 ### 2.3 Chiffrement
-- TLS 1.2+ en transit (imposé par AWS)
-- Chiffrement au repos avec clés KMS **gérées par ZARYA**
-- Possibilité de **clés client-managed (CMK)** pour les cabinets exigeants
+- TLS en transit jusqu'à l'API Infomaniak
+- Données envoyées au modèle uniquement le temps du traitement, pas de stockage long terme côté Infomaniak
 
-### 2.4 IAM > clé API
-- Authentification via **IAM roles**, pas de clé API à rotater/fuiter
-- Policies fines (un modèle = un scope)
-- Audit complet via IAM Access Analyzer
+### 2.4 Secrets serveur uniquement
+- Authentification par token (`IK_API_TOKEN`) + identifiant produit (`IK_PRODUCT_ID`), **secrets serveur uniquement**
+- Jamais exposés côté client ; `pino redact` masque le token dans tous les logs
+- Catalogue de modèles **lu au runtime** (`GET /v1/models`), aucun `model_id` codé en dur
 
 ## 3. Modèles utilisés
 
-### 3.1 Catalogue
+### 3.1 Mapping par catégorie
 
-| Usage | Modèle | Région | Justification |
+Aucun `model_id` n'est codé en dur. Les ids sont **lus au runtime** via `GET /v1/models` et mappés par **catégorie** logique. Le catalogue Infomaniak est en **Beta** : les ids ci-dessous sont les valeurs *actuellement* observées, pas des constantes.
+
+| Catégorie | Usage | `model_id` actuel (lu au runtime) | Justification |
 |---|---|---|---|
-| Extraction onboarding (employés depuis PDF/Excel) | `anthropic.claude-sonnet-4-6-20260101-v1:0` | eu-central-1 | Qualité critique, données nominatives |
-| Extraction factures | `anthropic.claude-sonnet-4-6-20260101-v1:0` | eu-central-1 | Qualité financière + auditabilité |
-| Classification documents (Doc) | `anthropic.claude-haiku-4-5-20251001-v1:0` | eu-central-1 | Volume, rapide, bon marché |
-| RAG Search (réponses avec sources) | `anthropic.claude-sonnet-4-6-20260101-v1:0` | eu-central-1 | Synthèse complexe sur N documents |
-| Mapping de champs (templates onboarding) | `anthropic.claude-haiku-4-5-20251001-v1:0` | eu-central-1 | Simple, à volume |
-| Génération d'emails de relance | `anthropic.claude-haiku-4-5-20251001-v1:0` | eu-central-1 | Sortie courte, multilangue |
-| Suggestions de catégorisation CRM | `anthropic.claude-haiku-4-5-20251001-v1:0` | eu-central-1 | Tâches simples |
+| `chat_small` | Classification documents (Doc), génération d'emails de relance, suggestions de catégorisation CRM | `mistralai/Ministral-3-14B-Instruct-2512` | Volume, rapide, bon marché |
+| `chat_large` | Extraction onboarding (employés), extraction factures, RAG Search | `Qwen/Qwen3.5-122B-A10B-FP8` | Qualité critique, données nominatives / financières, synthèse complexe |
+| `embeddings` | Indexation vectorielle (RAG, Phase 4.1+) | `bge_multilingual_gemma2` | Multilingue (FR/DE/IT), souveraineté |
+| `vision` | OCR / vision sur documents scannés (Phase 4.1+) | à vérifier (Phase 4.1+) | Lecture de documents images |
+| `reranker` | Reranking RAG (Phase 4.1+) | à vérifier (Phase 4.1+) | Pertinence des chunks |
 
-⚠️ Niveau de confiance moyen sur les noms exacts des model_id Bedrock — à valider lors de l'implémentation. Les versions évoluent.
+⚠️ Catalogue Infomaniak en Beta : les noms exacts évoluent. La résolution passe toujours par `resolveModel(category)` (voir § 4), jamais par une constante en dur.
 
 ### 3.2 Politique de mise à jour des modèles
-- Test des nouvelles versions Claude sur un **set d'évaluation interne** (50-100 documents anonymisés) avant bascule
+- Test des nouvelles versions de modèles sur un **set d'évaluation interne** (50-100 documents anonymisés) avant bascule
 - Mise à jour des modèles **planifiée**, pas automatique
-- Conservation de l'ancienne version 30 jours pour fallback
 - Champ `modele_version_exacte` stocké à chaque inférence pour reproductibilité
 
-### 3.3 Cross-region inference
-Bedrock propose le **cross-region inference** qui peut router automatiquement vers d'autres régions EU pour optimiser la latence et la disponibilité. **Désactivé chez ZARYA** : nous voulons un contrôle strict sur la région exacte pour la conformité.
+### 3.3 Résolution dynamique
+Les ids étant lus via `GET /v1/models`, ZARYA garde un **contrôle strict** sur la catégorie utilisée par feature, tout en restant robuste aux renommages du catalogue Beta.
 
 ## 4. Architecture d'intégration
 
-### 4.1 Client AWS SDK
+### 4.1 Client OpenAI-compatible
+
+L'API Infomaniak est OpenAI-compatible. ZARYA l'enveloppe dans un **wrapper unique** sous `packages/integrations/infomaniak/`, qui instancie un client OpenAI pointé sur la base URL Infomaniak :
 
 ```typescript
-import { 
-  BedrockRuntimeClient, 
-  InvokeModelCommand,
-  ConverseCommand 
-} from '@aws-sdk/client-bedrock-runtime';
+// packages/integrations/infomaniak/client.ts
+import OpenAI from 'openai';
 
-const bedrockClient = new BedrockRuntimeClient({
-  region: 'eu-central-1',
-  credentials: fromEnv() // IAM role en prod, credentials dev en local
+const ik = new OpenAI({
+  baseURL: `https://api.infomaniak.com/2/ai/${process.env.IK_PRODUCT_ID}/openai/v1`,
+  apiKey: process.env.IK_API_TOKEN, // secret serveur uniquement, jamais côté client
 });
 ```
 
-### 4.2 Wrapper d'abstraction
-Pour éviter de coupler le code métier au SDK AWS, ZARYA expose un **wrapper interne** :
+`IK_PRODUCT_ID` et `IK_API_TOKEN` sont des **secrets serveur** (variables d'env en dev, Supabase Vault en prod). `pino redact` masque `IK_API_TOKEN` et les en-têtes `authorization` dans tous les logs.
+
+### 4.2 Résolution de modèle par catégorie
+Aucun `model_id` codé en dur. Un helper `resolveModel(category)` lit le catalogue via `GET /v1/models` (avec cache court) et renvoie l'id concret pour une catégorie logique (`chat_small`, `chat_large`, `embeddings`, `vision`, `reranker`) :
 
 ```typescript
-// /lib/llm/client.ts
-export interface LlmClient {
-  extract<T>(params: ExtractParams): Promise<T>;
-  classify(params: ClassifyParams): Promise<string>;
-  generateText(params: GenerateParams): Promise<string>;
-  rag(params: RagParams): Promise<RagResponse>;
+// packages/integrations/infomaniak/resolve-model.ts
+export async function resolveModel(category: ModelCategory): Promise<string> {
+  const models = await ik.models.list(); // GET /v1/models
+  // mapping catégorie → id concret du catalogue Beta
+  return pickByCategory(models, category);
 }
-
-// /lib/llm/bedrock-client.ts (seule implémentation autorisée)
-export class BedrockLlmClient implements LlmClient { ... }
 ```
 
-**Règle de revue de code** : tout import direct de `@aws-sdk/client-bedrock-runtime` en dehors de `/lib/llm/` est rejeté.
+### 4.3 Output structuré
+- Extraction et classification utilisent `response_format: { type: "json_schema" }` (vérifié fonctionnel sur l'API Infomaniak)
+- `response_format: { type: "json_object" }` est **rejeté** par l'API — ne pas l'utiliser
+- `temperature: 0` pour l'extraction (déterminisme), schéma Zod en sortie pour le parsing
 
-### 4.3 Configuration IAM
+**Règle de revue de code** : tout appel IA en dehors de `packages/integrations/infomaniak/` (et des classifiers/extractors qui en dépendent) est rejeté. Pas d'import d'un SDK provider tiers (Bedrock, Anthropic, Mistral) dans le code ZARYA.
 
-```yaml
-# Rôle IAM minimal pour le service ZARYA
-Policies:
-  - Effect: Allow
-    Action:
-      - bedrock:InvokeModel
-      - bedrock:InvokeModelWithResponseStream
-    Resource:
-      - "arn:aws:bedrock:eu-central-1::foundation-model/anthropic.claude-sonnet-4-6-*"
-      - "arn:aws:bedrock:eu-central-1::foundation-model/anthropic.claude-haiku-4-5-*"
-    Condition:
-      StringEquals:
-        aws:RequestedRegion: eu-central-1
+## 5. OCR / Vision : Infomaniak (Phase 4.1+)
+
+L'OCR et la vision sur documents scannés passeront par les **modèles vision d'Infomaniak** (catégorie `vision`), via la même API OpenAI-compatible.
+
+> ⚠️ **Non construit au MVP** : la couche vision/OCR est différée en **Phase 4.1+** (modules Facture/Search pas encore construits). Le `model_id` vision reste **à vérifier** dans le catalogue Beta. La Phase 4.0 ne couvre que la **classification** (`chat_small`).
+
+**Pipeline type (cible Phase 4.1+)** :
+```
+Document PDF/image → Infomaniak vision (Suisse) → texte structuré
+                  → Infomaniak chat_large (Suisse) → extraction sémantique
 ```
 
-Pas de wildcard `bedrock:*`, pas d'accès aux modèles non listés. Sécurité par défaut.
-
-## 5. OCR : Mistral La Plateforme (EU)
-
-L'OCR (en amont du LLM pour les documents scannés) passe par **Mistral La Plateforme** en région UE.
-
-| Critère | Mistral OCR |
-|---|---|
-| Région | Paris (EU) |
-| Conformité RGPD | Native (entreprise française) |
-| Qualité sur français/allemand/italien | Excellente |
-| Coût | Compétitif |
-| Latence depuis Frankfurt | < 100ms |
-
-**Pas d'OCR via AWS Textract** au MVP : qualité inférieure sur le multilingue suisse, et complexité d'intégration accrue pour bénéfice marginal.
-
-**Pipeline type** :
-```
-Document PDF/image → Mistral OCR (Paris) → texte structuré 
-                  → Bedrock Claude Sonnet (Frankfurt) → extraction sémantique
-```
-
-Les deux services UE, latence ajoutée < 200ms.
+Toute la chaîne reste sur l'infrastructure Infomaniak en Suisse.
 
 ## 6. Prompts versionnés
 
@@ -159,11 +136,11 @@ Chaque prompt est typé en TypeScript :
 ```typescript
 export const ONBOARDING_EXTRACTION_EMPLOYE = {
   version: 'v1.2.0',
-  model: 'anthropic.claude-sonnet-4-6-20260101-v1:0',
+  modelCategory: 'chat_large', // résolu au runtime via resolveModel(), pas d'id en dur
   system: `Tu extrais des données employés pour un onboarding fiduciaire suisse...`,
-  schema: z.object({ ... }), // Zod schema pour parsing
+  schema: z.object({ ... }), // Zod schema pour parsing + response_format json_schema
   maxTokens: 4096,
-  temperature: 0.1
+  temperature: 0
 };
 ```
 
@@ -178,21 +155,21 @@ Toute modification de prompt → passage sur le **set d'évaluation** (jeu de 50
 ## 7. Logging et observabilité
 
 ### 7.1 Ce qui est loggué
-À chaque appel LLM :
-- `bedrock_request_id` (pour CloudTrail)
-- `model_id` exact
-- `region` (toujours eu-central-1, mais loggué pour vérification)
+À chaque appel IA :
+- `bedrock_request_id` (colonne legacy conservée sans renommage ; stocke désormais l'id de requête Infomaniak quand disponible)
+- `model_id` exact (id concret résolu au runtime)
+- `model_category` (`chat_small` / `chat_large` / `embeddings` / `vision`)
 - `prompt_version` (référence interne ZARYA)
-- `tokens_input`, `tokens_output`
-- `cost_estime_chf` (calculé depuis pricing AWS)
+- `tokens_input`, `tokens_output` (depuis le champ `usage` de la réponse Infomaniak)
+- `cost_estime_chf` (calculé depuis l'`usage` et le pricing Infomaniak)
 - `latence_ms`
 - `statut` (succès / échec / timeout)
 - `client_id` concerné (pour facturation et audit)
 - `feature` (onboarding / facture / search / etc.)
 
-Stocké dans `audit.llm_invocation` (nouveau schéma `audit.*` à créer).
+Stocké dans `extraction.invocation`.
 
-### 7.2 CloudWatch
+### 7.2 Observabilité
 Dashboard avec :
 - Volume d'appels par feature
 - Coût quotidien / hebdomadaire / mensuel
@@ -214,12 +191,12 @@ Pour 1 cabinet fiduciaire / 50 clients / mois (estimation MVP, à recalibrer) :
 
 | Feature | Volume mensuel | Modèle | Coût estimé/mois |
 |---|---|---|---|
-| Onboarding (initial 1 fois) | 50 clients × 5 employés = 250 extractions | Sonnet | ~25 CHF (one-shot) |
-| Classification documents Doc | 1500 docs | Haiku | ~5 CHF |
-| Extraction factures | 800 factures | Sonnet | ~40 CHF |
-| Pré-remplissage salaire mensuel | 50 périodes | Haiku | ~3 CHF |
-| Génération emails relance | ~100 | Haiku | ~1 CHF |
-| Search RAG | ~200 requêtes | Sonnet | ~10 CHF |
+| Onboarding (initial 1 fois) | 50 clients × 5 employés = 250 extractions | `chat_large` | ~25 CHF (one-shot) |
+| Classification documents Doc | 1500 docs | `chat_small` | ~5 CHF |
+| Extraction factures | 800 factures | `chat_large` | ~40 CHF |
+| Pré-remplissage salaire mensuel | 50 périodes | `chat_small` | ~3 CHF |
+| Génération emails relance | ~100 | `chat_small` | ~1 CHF |
+| Search RAG | ~200 requêtes | `chat_large` | ~10 CHF |
 | **Total mensuel récurrent** | | | **~60 CHF / cabinet** |
 | Onboarding one-shot par cabinet | | | ~25 CHF |
 
@@ -230,25 +207,25 @@ Pour 10 cabinets : ~600 CHF/mois récurrent. Pour 100 cabinets : ~6000 CHF/mois.
 ⚠️ Confiance ~50% sur ces estimations — vrais coûts à mesurer en pilote sur 3-5 cabinets pendant 3 mois.
 
 ### 8.2 Optimisations possibles
-- **Prompt caching Bedrock** : Anthropic propose le cache des prompts système (jusqu'à -90% sur tokens d'input pour les prompts longs). Activable plus tard quand le volume justifie.
-- **Batch API** : pour les traitements asynchrones (extraction d'onboarding en arrière-plan), Bedrock Batch divise le coût par ~2. Idéal pour les traitements non temps-réel.
+- **Choix de catégorie** : router systématiquement les tâches simples vers `chat_small` plutôt que `chat_large` (gros levier de coût).
 - **Compression de contexte** : pour le RAG, mesurer si on peut envoyer moins de chunks sans dégrader la qualité.
+- **Caching / batch** : à évaluer selon les capacités offertes par le catalogue Infomaniak (catalogue Beta — fonctionnalités à confirmer).
 
 ## 9. Gestion d'erreurs et fallback
 
 ### 9.1 Retry logic
 - Erreurs **5xx** : retry exponentiel (1s, 2s, 4s, 8s, abandon)
-- **Throttling** (`ThrottlingException`) : retry avec jitter
-- **Validation** (`ValidationException`) : pas de retry, log + erreur applicative
+- **Throttling / rate limit** (HTTP 429) : retry avec jitter
+- **Validation** (HTTP 4xx de validation) : pas de retry, log + erreur applicative
 
-### 9.2 Fallback en cas de Bedrock indisponible
-Si Bedrock eu-central-1 est down :
+### 9.2 Fallback en cas d'Infomaniak indisponible
+Si l'API Infomaniak est indisponible :
 - **Mode dégradé** : les workflows non critiques (suggestions, classifications) sont mis en attente
-- **Mode critique** : pas de fallback vers une autre région (conformité avant disponibilité)
+- **Mode critique** : pas de bascule vers un autre provider d'inférence
 - Notification au gestionnaire fiduciaire
-- File de traitement reprise dès que Bedrock revient
+- File de traitement reprise dès qu'Infomaniak revient
 
-⚠️ Pas de fallback vers l'API Anthropic directe : violerait la politique de résidence des données.
+⚠️ Pas de fallback vers une API US (Anthropic, OpenAI, Bedrock) : cela briserait la souveraineté suisse de la couche IA, fondement de la décision ADR 0010.
 
 ### 9.3 Timeouts
 - Extraction onboarding : 60s max
@@ -264,7 +241,7 @@ Si Bedrock eu-central-1 est down :
 - IBAN complet si non nécessaires
 - Mots de passe (jamais, évidemment)
 
-Pour l'**extraction d'employés**, ces données sont **nécessaires** dans le contenu — pas de masquage. Mais le LLM les lit en input, ne les "apprend" pas (engagement contractuel AWS).
+Pour l'**extraction d'employés**, ces données sont **nécessaires** dans le contenu — pas de masquage. Mais le LLM les lit en input, ne les "apprend" pas (engagement contractuel Infomaniak : pas d'entraînement sur les données client).
 
 ### 10.2 Pas de transmission cross-cabinet
 Un appel LLM contient toujours les données d'**un seul cabinet** à la fois. Pas de batch multi-cabinets (sauf pour les stats anonymisées internes ZARYA, hors scope produit).
@@ -278,9 +255,9 @@ Tout contenu utilisateur (document extrait, message client) passé au LLM est :
 ## 11. Conformité contractuelle
 
 ### 11.1 Chaîne de DPA
-- **AWS ↔ ZARYA** : DPA AWS Standard (Article 28 RGPD)
-- **ZARYA ↔ Cabinet fiduciaire** : DPA bilatéral mentionnant AWS comme sous-traitant
-- **Cabinet fiduciaire ↔ Client final** : à la charge du cabinet, mais ZARYA fournit un **modèle** mentionnant ZARYA et AWS
+- **Infomaniak ↔ ZARYA** : DPA Infomaniak pour la couche IA (Article 28 RGPD) — *à signer* (référence à confirmer)
+- **ZARYA ↔ Cabinet fiduciaire** : DPA bilatéral mentionnant Infomaniak (IA) comme sous-traitant, aux côtés de Supabase (DB/Storage, sur AWS) et Vercel (hébergement app)
+- **Cabinet fiduciaire ↔ Client final** : à la charge du cabinet, mais ZARYA fournit un **modèle** mentionnant ZARYA et ses sous-traitants (Infomaniak, Supabase, Vercel)
 
 ### 11.2 Sous-traitance et notification
 Tout changement de sous-traitant majeur (passage à un autre provider, ajout d'OCR différent) déclenche :
@@ -290,27 +267,25 @@ Tout changement de sous-traitant majeur (passage à un autre provider, ajout d'O
 
 ## 12. Évolution future
 
-### v2 (Phase 2)
-- Prompt caching Bedrock activé sur les prompts longs
-- Batch API pour les extractions onboarding non temps-réel
-- Modèles spécialisés par usage (ex. fine-tuning sur extraction de factures suisses)
+### Phase 4.1+
+- Activation de la couche **vision/OCR** Infomaniak (catégorie `vision`)
+- **Embeddings** (`bge_multilingual_gemma2`) + pgvector pour le RAG, puis **reranker**
+- Modèles spécialisés par usage selon ce que propose le catalogue Infomaniak
 
-### v3 (Phase 3+)
-- Modèle propriétaire fine-tuné sur les données ZARYA (anonymisées)
-- Option **Azure Switzerland North** pour les cabinets exigeant résidence Suisse stricte
-- Self-hosted LLM open-source (Llama, Mistral) pour les classifications simples (réduction de coûts)
+### Plus tard
+- Évaluation continue des nouveaux modèles ajoutés au catalogue Infomaniak (Beta → GA)
+- Optimisations de coût (caching/batch) si offertes par Infomaniak
 
 ## 13. Hors-scope
-- API Anthropic directe : **interdite**
-- Modèles non-Anthropic sur Bedrock (Llama, Titan, Mistral via Bedrock) : pas au MVP
-- Cross-region failover : pas au MVP
+- Tout provider d'inférence non-Infomaniak (Anthropic, OpenAI, Bedrock, Mistral La Plateforme) : **interdit**
+- Vision/OCR, embeddings, RAG, reranker : différés **Phase 4.1+** (Phase 4.0 = classification uniquement)
 - Streaming en temps réel : OK techniquement, pas un besoin UX au MVP
 
 ## 14. Questions ouvertes
-- [ ] **Pricing Bedrock vs API Anthropic** : différence exacte à vérifier sur calculatrice AWS
-- [ ] **Quotas par défaut** : suffisants pour 100 cabinets ? Demander augmentation ?
-- [ ] **Prompt caching** : disponible en eu-central-1 sur tous les modèles Claude ?
-- [ ] **Latence depuis l'app** : tester en pilote la latence end-to-end (UI → Backend → Bedrock → réponse) sur extraction onboarding
-- [ ] **Données d'évaluation** : où stockés les jeux de test annotés (Git LFS, S3 séparé) ?
-- [ ] **Politique en cas de modèle obsolète** : si AWS retire un modèle, comment migrer en douceur ?
-- [ ] **Cas des données salariales nominatives** : chiffrement côté app **avant** envoi à Bedrock ? Pas faisable pour l'extraction, mais à discuter pour d'autres usages.
+- [ ] **DPA Infomaniak** : référence et URL du DPA à confirmer ; signature avant production
+- [ ] **Certifications Infomaniak** : SOC 2 / ISO 27001 à vérifier et documenter
+- [ ] **Quotas / rate limits** : suffisants pour 100 cabinets ? (catalogue Beta)
+- [ ] **`model_id` vision et reranker** : à vérifier dans le catalogue dès la Phase 4.1
+- [ ] **Latence depuis l'app** : tester en pilote la latence end-to-end (UI → Backend → Infomaniak → réponse) sur extraction onboarding
+- [ ] **Données d'évaluation** : où stockés les jeux de test annotés (Git LFS, bucket séparé) ?
+- [ ] **Cas des données salariales nominatives** : chiffrement côté app **avant** envoi à Infomaniak ? Pas faisable pour l'extraction, mais à discuter pour d'autres usages.
