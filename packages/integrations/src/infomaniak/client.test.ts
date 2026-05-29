@@ -24,11 +24,16 @@ afterEach(() => {
 });
 
 // Construit une Response-like mockée minimale (suffisant pour le client).
-function jsonResponse(body: unknown, init?: { status?: number; ok?: boolean }): Response {
+function jsonResponse(
+  body: unknown,
+  init?: { status?: number; ok?: boolean; headers?: Record<string, string> },
+): Response {
   const status = init?.status ?? 200;
+  const headers = init?.headers ?? {};
   return {
     ok: init?.ok ?? (status >= 200 && status < 300),
     status,
+    headers: { get: (name: string) => headers[name.toLowerCase()] ?? null },
     json: async () => body,
   } as unknown as Response;
 }
@@ -36,8 +41,9 @@ function jsonResponse(body: unknown, init?: { status?: number; ok?: boolean }): 
 const TOKEN = "tok_test";
 const PRODUCT = "12345";
 
+// maxRetries:0 → ces tests valident le mapping d'erreur, pas le retry (couvert plus bas).
 function makeClient(fetchImpl: typeof fetch) {
-  return new InfomaniakClient({ productId: PRODUCT, apiToken: TOKEN, fetchImpl });
+  return new InfomaniakClient({ productId: PRODUCT, apiToken: TOKEN, fetchImpl, maxRetries: 0 });
 }
 
 const MODELS: IkModelsResponse = {
@@ -167,5 +173,122 @@ describe("InfomaniakClient — mapping des erreurs HTTP", () => {
     await expect(
       makeClient(fetchImpl as unknown as typeof fetch).listModels(),
     ).rejects.toMatchObject({ code: "timeout" });
+  });
+});
+
+describe("InfomaniakClient — retry/backoff (llm-strategy.md § 9.1)", () => {
+  // Client avec attente injectée (aucun sleep réel) + backoff déterministe court.
+  function retryingClient(fetchImpl: typeof fetch, sleeps: number[], maxRetries = 3) {
+    return new InfomaniakClient({
+      productId: PRODUCT,
+      apiToken: TOKEN,
+      fetchImpl,
+      maxRetries,
+      baseDelayMs: 10,
+      maxDelayMs: 100,
+      sleepImpl: async (ms) => {
+        sleeps.push(ms);
+      },
+    });
+  }
+
+  it("429 puis 200 → réussit après 1 retry", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, { status: 429 }))
+      .mockResolvedValueOnce(jsonResponse(MODELS));
+    const sleeps: number[] = [];
+    const models = await retryingClient(fetchImpl as unknown as typeof fetch, sleeps).listModels();
+
+    expect(models.map((m) => m.id)).toEqual(["ministral-3-14b", "qwen3.5-122b"]);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(sleeps).toHaveLength(1);
+  });
+
+  it("429 persistant → lève rate_limit après maxRetries+1 tentatives", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({}, { status: 429 }));
+    const sleeps: number[] = [];
+    await expect(
+      retryingClient(fetchImpl as unknown as typeof fetch, sleeps, 3).listModels(),
+    ).rejects.toMatchObject({ code: "rate_limit" });
+    expect(fetchImpl).toHaveBeenCalledTimes(4); // 1 + 3 retries
+    expect(sleeps).toHaveLength(3);
+  });
+
+  it("honore Retry-After (secondes) sur 429, sans jitter", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, { status: 429, headers: { "retry-after": "2" } }))
+      .mockResolvedValueOnce(jsonResponse(MODELS));
+    const sleeps: number[] = [];
+    await retryingClient(fetchImpl as unknown as typeof fetch, sleeps).listModels();
+    expect(sleeps).toEqual([2000]);
+  });
+
+  it("5xx → retenté puis réussit", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, { status: 503 }))
+      .mockResolvedValueOnce(jsonResponse(MODELS));
+    const sleeps: number[] = [];
+    const models = await retryingClient(fetchImpl as unknown as typeof fetch, sleeps).listModels();
+    expect(models).toHaveLength(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("400 (validation) → pas de retry", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({}, { status: 400 }));
+    const sleeps: number[] = [];
+    await expect(
+      retryingClient(fetchImpl as unknown as typeof fetch, sleeps).listModels(),
+    ).rejects.toMatchObject({ code: "api_error" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(sleeps).toHaveLength(0);
+  });
+
+  it("401 → pas de retry", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({}, { status: 401 }));
+    const sleeps: number[] = [];
+    await expect(
+      retryingClient(fetchImpl as unknown as typeof fetch, sleeps).listModels(),
+    ).rejects.toMatchObject({ code: "unauthorized" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("erreur réseau transitoire → retenté", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("ECONNRESET"))
+      .mockResolvedValueOnce(jsonResponse(MODELS));
+    const sleeps: number[] = [];
+    const models = await retryingClient(fetchImpl as unknown as typeof fetch, sleeps).listModels();
+    expect(models).toHaveLength(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("timeout (AbortError) → pas de retry", async () => {
+    const fetchImpl = vi.fn(async () => {
+      const e = new Error("aborted");
+      e.name = "AbortError";
+      throw e;
+    });
+    const sleeps: number[] = [];
+    await expect(
+      retryingClient(fetchImpl as unknown as typeof fetch, sleeps).listModels(),
+    ).rejects.toMatchObject({ code: "timeout" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("backoff exponentiel borné par maxDelayMs (full jitter)", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({}, { status: 429 }));
+    const sleeps: number[] = [];
+    await retryingClient(fetchImpl as unknown as typeof fetch, sleeps, 3)
+      .listModels()
+      .catch(() => {});
+    expect(sleeps).toHaveLength(3);
+    for (const ms of sleeps) {
+      expect(ms).toBeGreaterThanOrEqual(0);
+      expect(ms).toBeLessThanOrEqual(100); // maxDelayMs
+    }
   });
 });
