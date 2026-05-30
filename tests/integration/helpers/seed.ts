@@ -63,6 +63,12 @@ export interface TestMandat {
   client_id: string;
 }
 
+export interface TestBanque {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+
 export interface TestFichierPhysique {
   id: string;
   cabinet_id: string;
@@ -339,6 +345,23 @@ export async function seedMandat(
   return { id, cabinet_id, client_id };
 }
 
+/**
+ * Crée un crm.banque de test pour un client donné (service role).
+ * iban est NOT NULL — valeur factice de test (non un vrai IBAN).
+ */
+export async function seedBanque(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestBanque> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.banque (id, cabinet_id, client_id, iban, usage)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${`CH00-TEST-${id.slice(0, 8)}`}, 'principal')
+  `;
+  return { id, cabinet_id, client_id };
+}
+
 /** Crée un extraction.invocation de test (mode stub) pour un cabinet donné. */
 export async function seedInvocation(
   sql: postgres.Sql,
@@ -597,6 +620,8 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   // Bloc A5 (relation / mandat, enfants de crm.client ; mandat.document_id SET NULL)
   await sql`DELETE FROM crm.mandat                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.relation                WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // Bloc A6 (banque, enfant de crm.client)
+  await sql`DELETE FROM crm.banque                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc A3 (service / param_comptable, enfants de crm.client)
   await sql`DELETE FROM crm.service                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.param_comptable         WHERE cabinet_id = ANY(${arr}::uuid[])`;

@@ -170,6 +170,17 @@ export const honorairesModeleEnum = crmSchema.enum("honoraires_modele", [
 // Cycle de vie d'un mandat (relation contractuelle versionnée).
 export const statutMandatEnum = crmSchema.enum("statut_mandat", ["actif", "expire", "resilie"]);
 
+// ── Bloc A6 — crm.banque (§12) ───────────────────────────────────────────────
+
+// Usage d'un compte bancaire d'un client (un client peut avoir plusieurs comptes :
+// principal, secondaire, dédié à la paie, dédié à la TVA).
+export const usageBanqueEnum = crmSchema.enum("usage_banque", [
+  "principal",
+  "secondaire",
+  "paie",
+  "tva",
+]);
+
 // ── Module Calendar (Run 1) — échéances & relances ───────────────────────────
 // Périmètre Run 1 (ADR 0011) : tables opérationnelles de base crm.echeance et
 // crm.relance. Le découpage canonique des runs est figé dans l'addendum
@@ -592,6 +603,48 @@ export const mandat = crmSchema.table(
   (t) => [
     index("idx_mandat_cabinet").on(t.cabinet_id, t.archived_at),
     index("idx_mandat_client").on(t.cabinet_id, t.client_id),
+  ],
+);
+
+// ─── crm.banque — Comptes bancaires d'un client (Bloc A6) ────────────────────
+// crm-schema.md § 12. cabinet_id dénormalisé pour la RLS, cohérence garantie par
+// trg_check_client_cabinet_banque (migration 0014). Un client peut avoir plusieurs
+// comptes (usage principal / secondaire / paie / tva).
+//
+// ⚠️ SÉCURITÉ — champs ULTRA-SENSIBLES (CLAUDE.md §2, ADR 0013) :
+//  - `iban` (NOT NULL) : IBAN du client → chiffrement au repos OBLIGATOIRE.
+//  - `credentials_open_banking` : secrets d'accès Open Banking (intégration future).
+// Tout chemin d'écriture DOIT chiffrer ces colonnes (Vault / pgsodium / AEAD appli —
+// décision tranchée à l'ADR 0013). Aucun chemin d'écriture n'existe encore (table de
+// contrat) ; l'enforcement est porté par la feature qui peuplera ces colonnes, pas
+// par ce run de schéma. Voir COMMENT ON COLUMN dans la migration 0014 + ADR 0013.
+
+export const banque = crmSchema.table(
+  "banque",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    nom_banque: text("nom_banque"),
+    // Chiffré au repos (voir avertissement ci-dessus, ADR 0013).
+    iban: text("iban").notNull(),
+    bic: text("bic"),
+    devise: text("devise").notNull().default("CHF"),
+    usage: usageBanqueEnum("usage"),
+    actif: boolean("actif").notNull().default(true),
+    // Chiffré au repos (voir avertissement ci-dessus, ADR 0013).
+    credentials_open_banking: jsonb("credentials_open_banking"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_banque_cabinet").on(t.cabinet_id, t.archived_at),
+    index("idx_banque_client").on(t.cabinet_id, t.client_id),
   ],
 );
 
