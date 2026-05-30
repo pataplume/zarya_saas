@@ -37,7 +37,7 @@
 | Bloc | Périmètre | Prérequis | État |
 |----|-----------|-----------|------|
 | **A** | **Fondation CRM v1.0** (~20 tables `crm.*` + RLS + triggers + vues + seeds) | — | ✅ **SCELLÉ** (A1→A10 + fix AVS) |
-| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 ✅ ; B3 prochain) |
+| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 ✅ ; B3 ✅ ; B4 prochain) |
 | **C** | **Calendar fini** — génération auto échéances, envoi relances, UI | A3, A4 | à faire (Runs 1-5 déjà livrés) |
 | **D** | **Microsoft Graph** — OAuth + wrapper Graph (producteur transverse) | — | à faire (package vide) |
 | **E** | **Facture** — décodage QR-bill + extraction IA + export | B, A3, A5, **D** | à faire (ADR QR-bill à ouvrir) |
@@ -148,11 +148,16 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   `flow-a` §4 (0.95/0.80) = politique auto-classement, inactive en MVP `strict` (différée).
   Signal domaine expéditeur (`domaines_emails`) et « entité cabinet lui-même » différés
   (ADR 0014 §4). · Done : top-3 homonymes ; anti-fuite (jamais de rattachement cross-cabinet).
-- [ ] **B3 — Détection période + MAJ `crm.document_attendu`** *(cœur cible ADR 0012)*
-  Livrable : détection période (mois/trim/année/ponctuel) + passage `document_attendu` à
-  `recu`/`en_retard` à la validation. · Surface : `doc.document`, `crm.document_attendu`,
-  `crm.evenement` (`document_recu`). · Prérequis : B1, B2, A4. · Done : doc validé couvre la
-  bonne période ; transition testée ; événement créé ; scope `cabinet_id` respecté.
+- [x] **B3 — Détection période + MAJ `crm.document_attendu`** ✅ *(cœur cible ADR 0012)*
+  Livrable : dérivation fréquence depuis la période (`2026-04`→mensuelle, `2026-Q1`→trimestrielle,
+  `2025`→annuelle) + appariement déterministe à l'attente (fréquence + catégorie, départage par
+  recouvrement de tokens du libellé) → passage `document_attendu` à **`recu`** à la validation +
+  lien `doc.document.document_attendu_id` + événement `crm.evenement` `document_recu`. · Surface :
+  `packages/extraction` (cœur pur), `apps/web` validerPropositionAction, `crm.document_attendu`,
+  `crm.evenement`. · ✅ **Arbitré** : `recu` seul à la validation (manquant→en_retard = balayage
+  temporel Calendar/Bloc C) ; effets de bord applicatifs (pas trigger, cohérent avec l'exception
+  doc.document) ; appariement intelligent (type_document texte libre ≠ slug). · Done : doc validé
+  couvre la bonne période ; transition + no-match + scope autre client testés ; événement créé.
 - [ ] **B4 — Décision auto-classement vs file (politique cabinet)**
   Livrable : application `crm.cabinet.politique_classement` (strict/hybride/aggressive) +
   audit IA (`crm.evenement` `acteur_type='ia'`). · ⚠️ **Hors-scope** : règle apprise
