@@ -9,11 +9,13 @@ export {
   templateEcheance,
 } from "./calendar";
 export {
+  adresse,
   cabinet,
   cabinetMembre,
   cabinetStatutEnum,
   canalRelanceEnum,
   client,
+  contact,
   crmSchema,
   echeance,
   invitationMembre,
@@ -26,6 +28,7 @@ export {
   statutInvitationMembreEnum,
   statutRelanceEnum,
   statutSessionOnboardingFiduciaireEnum,
+  typeAdresseEnum,
   typeEcheanceEnum,
   zefixRechercheCabinet,
 } from "./crm";

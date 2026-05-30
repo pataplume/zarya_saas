@@ -23,6 +23,18 @@ export interface TestClient {
   cabinet_id: string;
 }
 
+export interface TestContact {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+
+export interface TestAdresse {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+
 export interface TestFichierPhysique {
   id: string;
   cabinet_id: string;
@@ -193,6 +205,34 @@ export async function seedClient(sql: postgres.Sql, cabinet_id: string): Promise
     VALUES (${id}, ${cabinet_id}, ${`Test Client ${id.slice(0, 8)} SA`}, 'actif')
   `;
   return { id, cabinet_id };
+}
+
+/** Crée un crm.contact de test pour un client donné (service role). */
+export async function seedContact(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestContact> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.contact (id, cabinet_id, client_id, nom, role)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${`Contact ${id.slice(0, 8)}`}, 'Comptable')
+  `;
+  return { id, cabinet_id, client_id };
+}
+
+/** Crée une crm.adresse de test pour un client donné (service role). */
+export async function seedAdresse(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestAdresse> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.adresse (id, cabinet_id, client_id, type, rue, ville, canton)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, 'siege', ${`Rue ${id.slice(0, 8)} 1`}, 'Lausanne', 'VD')
+  `;
+  return { id, cabinet_id, client_id };
 }
 
 /** Crée un extraction.invocation de test (mode stub) pour un cabinet donné. */
@@ -445,6 +485,9 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   // Module Calendar Run 1 (ordre FK : relance → echeance, enfants de crm.client)
   await sql`DELETE FROM crm.relance                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.echeance                WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // Bloc A2 (contact / adresse, enfants de crm.client)
+  await sql`DELETE FROM crm.contact                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM crm.adresse                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.client                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // CRM existant
   await sql`DELETE FROM crm.zefix_recherche_cabinet WHERE cabinet_id = ANY(${arr}::uuid[])`;

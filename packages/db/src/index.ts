@@ -6,6 +6,7 @@ export type { DbForCabinet } from "./client";
 export { db, getDbForCabinet } from "./client";
 // Schémas et enums
 export {
+  adresse,
   cabinet,
   cabinetMembre,
   cabinetStatutEnum,
@@ -14,6 +15,7 @@ export {
   canalRelanceEnum,
   categorieDocumentEnum,
   client,
+  contact,
   crmSchema,
   docSchema,
   document,
@@ -44,6 +46,7 @@ export {
   statutSessionOnboardingFiduciaireEnum,
   statutTraitementEnum,
   templateEcheance,
+  typeAdresseEnum,
   typeEcheanceEnum,
   uploadBrut,
   zefixRechercheCabinet,
