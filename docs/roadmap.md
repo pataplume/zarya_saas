@@ -140,7 +140,7 @@ Chaque phase a :
 | Module | Sprint cible |
 |---|---|
 | Zarya Search (RAG avec sources) | M6-M8 |
-| Zarya Facture (extraction + export) | M7-M9 |
+| Zarya Facture (extraction + export, **décodage QR-bill SIX**) | M7-M9 |
 | Connecteur API Bexio Payroll | M9-M10 |
 | Option Suisse stricte (Azure Switzerland North) | M10-M11 |
 | Améliorations Doc (auto-classement, règles apprises) | M6-M9 |

@@ -231,6 +231,13 @@ Configuration (cible) :
 
 Output : texte brut + métadonnées (pages, bbox des blocs détectés).
 
+> **Donnée de paiement = décodage déterministe avant tout LLM.** Pour les documents
+> porteurs d'un **QR-bill suisse** (factures CH), le payload de paiement (IBAN/QR-IBAN,
+> créancier, montant, devise, référence) se lit directement par décodage du QR code SIX,
+> **jamais** via OCR/LLM (fiabilité ~100%, gratuit, zéro hallucination). L'OCR/vision et
+> l'IA ne complètent que les champs hors QR. Détail dans
+> [`/docs/modules/facture.md` § 4.4](./facture.md). Implémentation au module Facture.
+
 ### 5.3 Étape 3 — Choix du modèle
 Logique par défaut (peut être overridée via `options.model_override`) :
 

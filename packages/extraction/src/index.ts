@@ -22,6 +22,29 @@ export {
 } from "./classify-document";
 export { type ChatModelClient, InfomaniakClassifier } from "./infomaniak-classifier";
 export {
+  type ExtractTextInput,
+  type ExtractTextOptions,
+  type ExtractTextResult,
+  extractText,
+  OCR_PROMPT_VERSION,
+  type OcrSource,
+  type VisionModelClient,
+} from "./ocr";
+export {
+  type OcrDocumentInput,
+  type OcrDocumentResult,
+  ocrDocument,
+} from "./ocr-document";
+export {
+  extractPdfText,
+  isPdfTextUsable,
+  type PdfExtractFn,
+  PdfParseError,
+  type PdfTextQuality,
+  type PdfTextQualityOptions,
+  type PdfTextResult,
+} from "./pdf-text";
+export {
   CLASSIFY_DOC_PROMPT_VERSION,
   type ClassifyDocRaw,
 } from "./prompts/classification-doc";

@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@zarya/db": "workspace:*",
-    "@zarya/integrations": "workspace:*"
+    "@zarya/integrations": "workspace:*",
+    "unpdf": "^1.6.2"
   },
   "devDependencies": {
     "@types/node": "*",

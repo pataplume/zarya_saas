@@ -20,7 +20,21 @@ export interface IkModelsResponse {
 
 export type IkChatRole = "system" | "user" | "assistant";
 
+// Parties de contenu multimodal (format OpenAI). Utilisé pour la VISION/OCR :
+// un message `user` peut mêler texte et image(s). L'image passe en data URL base64
+// (`data:image/jpeg;base64,...`) — souveraineté CH : l'image n'est lue que par IK.
+export type IkChatContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+// Message de REQUÊTE : contenu string (cas courant) OU parties multimodales (vision).
 export interface IkChatMessage {
+  role: IkChatRole;
+  content: string | IkChatContentPart[];
+}
+
+// Message de RÉPONSE : l'assistant renvoie toujours du texte (content string).
+export interface IkChatResponseMessage {
   role: IkChatRole;
   content: string;
 }
@@ -50,7 +64,7 @@ export interface IkChatCompletionParams {
 
 export interface IkChatChoice {
   index: number;
-  message: IkChatMessage;
+  message: IkChatResponseMessage;
   finish_reason: string | null;
 }
 
