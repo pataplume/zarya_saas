@@ -1,4 +1,14 @@
-import { boolean, index, pgSchema, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  index,
+  integer,
+  pgSchema,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 // Namespace Postgres crm.*
 export const crmSchema = pgSchema("crm");
@@ -56,6 +66,44 @@ export const statutClientEnum = crmSchema.enum("statut_client", [
   "actif",
   "inactif",
   "archive",
+]);
+
+// ── Module Calendar (Phase 4.1+, Run 1) — échéances & relances ───────────────
+// Périmètre Run 1 (ADR 0011) : tables opérationnelles de base crm.echeance et
+// crm.relance. Différés : calendar.* (templates, config, pauses, sync Outlook),
+// colonnes d'extension Outlook/escalade/pipeline d'envoi (Runs 3/5/6/7).
+
+export const typeEcheanceEnum = crmSchema.enum("type_echeance", [
+  "fiscale",
+  "tva",
+  "bouclement",
+  "salaire",
+  "relance_documents",
+  "personnalisee",
+]);
+
+export const statutEcheanceEnum = crmSchema.enum("statut_echeance", [
+  "a_venir",
+  "imminente",
+  "en_retard",
+  "traitee",
+  "reportee",
+  "annulee",
+]);
+
+export const canalRelanceEnum = crmSchema.enum("canal_relance", [
+  "email",
+  "telephone",
+  "sms",
+  "dashboard",
+]);
+
+export const statutRelanceEnum = crmSchema.enum("statut_relance", [
+  "brouillon",
+  "envoyee",
+  "lue",
+  "repondue",
+  "sans_reponse",
 ]);
 
 // ─── crm.cabinet — Racine du tenant (pas de cabinet_id) ──────────────────────
@@ -266,5 +314,81 @@ export const zefixRechercheCabinet = crmSchema.table(
   (t) => [
     index("idx_zefix_recherche_cabinet").on(t.cabinet_id),
     index("idx_zefix_recherche_session").on(t.session_id),
+  ],
+);
+
+// ─── crm.echeance — Échéances fiscales/sociales par client ───────────────────
+// Colonnes de base (crm-schema.md § 15). Les extensions Outlook / escalade /
+// pause (echeance-schema.md § 4) sont différées à leurs runs respectifs.
+
+export const echeance = crmSchema.table(
+  "echeance",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    // crm.service différé (CRM étendu, Phase 4+) — uuid simple sans FK.
+    service_id: uuid("service_id"),
+    // calendar.template_echeance différé (Run 2) — uuid simple sans FK.
+    template_id: uuid("template_id"),
+    type: typeEcheanceEnum("type").notNull(),
+    libelle: text("libelle").notNull(),
+    date_echeance: date("date_echeance").notNull(),
+    date_alerte: date("date_alerte"),
+    statut: statutEcheanceEnum("statut").notNull().default("a_venir"),
+    date_traitement: date("date_traitement"),
+    reporte_a: date("reporte_a"),
+    motif_report: text("motif_report"),
+    // crm.document_attendu différé (CRM étendu, Phase 4+) — uuid[] sans FK.
+    documents_requis: uuid("documents_requis").array(),
+    created_by: uuid("created_by").references(() => cabinetMembre.id, { onDelete: "set null" }),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_echeance_client").on(t.cabinet_id, t.client_id, t.date_echeance),
+    index("idx_echeance_statut").on(t.cabinet_id, t.statut, t.date_echeance),
+  ],
+);
+
+// ─── crm.relance — Relances clients liées à une échéance / un document ───────
+// Colonnes de base (crm-schema.md § 16). Le pipeline d'envoi (modèle email,
+// validation Mode A, Microsoft Graph) est différé (Runs 5/6).
+
+export const relance = crmSchema.table(
+  "relance",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    echeance_id: uuid("echeance_id").references(() => echeance.id, { onDelete: "set null" }),
+    // crm.document_attendu différé (CRM étendu, Phase 4+) — uuid simple sans FK.
+    document_attendu_id: uuid("document_attendu_id"),
+    canal: canalRelanceEnum("canal").notNull().default("email"),
+    // crm.contact différé (CRM étendu, Phase 4+) — uuid simple sans FK.
+    destinataire_contact_id: uuid("destinataire_contact_id"),
+    date_envoi: timestamp("date_envoi", { withTimezone: true }),
+    sujet: text("sujet"),
+    corps: text("corps"),
+    statut: statutRelanceEnum("statut").notNull().default("brouillon"),
+    reponse_recue_le: timestamp("reponse_recue_le", { withTimezone: true }),
+    validee_par: uuid("validee_par").references(() => cabinetMembre.id, { onDelete: "set null" }),
+    numero_dans_serie: integer("numero_dans_serie"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_relance_echeance").on(t.echeance_id),
+    index("idx_relance_client").on(t.cabinet_id, t.client_id),
+    index("idx_relance_statut").on(t.cabinet_id, t.statut),
   ],
 );
