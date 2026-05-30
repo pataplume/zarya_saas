@@ -140,6 +140,23 @@ export const modeTransmissionEnum = crmSchema.enum("mode_transmission", [
   "physique",
 ]);
 
+// ── Bloc A4 — crm.document_attendu (enums) ───────────────────────────────────
+
+export const categorieDocAttenduEnum = crmSchema.enum("categorie_doc_attendu", [
+  "bancaire",
+  "fiscal",
+  "salaire",
+  "commercial",
+  "administratif",
+]);
+
+export const statutPeriodeDocEnum = crmSchema.enum("statut_periode_doc", [
+  "recu",
+  "manquant",
+  "en_retard",
+  "non_applicable",
+]);
+
 // ── Module Calendar (Run 1) — échéances & relances ───────────────────────────
 // Périmètre Run 1 (ADR 0011) : tables opérationnelles de base crm.echeance et
 // crm.relance. Le découpage canonique des runs est figé dans l'addendum
@@ -460,6 +477,43 @@ export const paramComptable = crmSchema.table(
   (t) => [index("idx_param_comptable_cabinet").on(t.cabinet_id)],
 );
 
+// ─── crm.document_attendu — Documents périodiques attendus d'un client (Bloc A4)
+// crm-schema.md § 13. cabinet_id dénormalisé pour la RLS, cohérence garantie par
+// trg_check_client_cabinet_document_attendu (migration 0012). service_id est une
+// vraie FK vers crm.service (existe depuis A3). `frequence` réutilise l'enum
+// frequence_service (valeurs identiques — divergence assumée : pas de doublon).
+
+export const documentAttendu = crmSchema.table(
+  "document_attendu",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    service_id: uuid("service_id").references(() => service.id, { onDelete: "set null" }),
+    type_document: text("type_document").notNull(),
+    categorie: categorieDocAttenduEnum("categorie"),
+    frequence: frequenceServiceEnum("frequence").notNull(),
+    obligatoire: boolean("obligatoire").notNull().default(true),
+    deadline_jours_apres_periode: integer("deadline_jours_apres_periode"),
+    derniere_reception: date("derniere_reception"),
+    derniere_periode_recue: text("derniere_periode_recue"),
+    statut_periode_courante: statutPeriodeDocEnum("statut_periode_courante"),
+    non_applicable_motif: text("non_applicable_motif"),
+    actif: boolean("actif").notNull().default(true),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_document_attendu_statut").on(t.cabinet_id, t.client_id, t.statut_periode_courante),
+    index("idx_document_attendu_reception").on(t.derniere_reception),
+  ],
+);
+
 // ─── crm.session_onboarding_fiduciaire — Suivi wizard d'onboarding ───────────
 
 export const sessionOnboardingFiduciaire = crmSchema.table(
@@ -587,8 +641,8 @@ export const echeance = crmSchema.table(
     client_id: uuid("client_id")
       .notNull()
       .references(() => client.id, { onDelete: "restrict" }),
-    // crm.service différé (CRM étendu, Phase 4+) — uuid simple sans FK.
-    service_id: uuid("service_id"),
+    // FK reconnectée en A4 : crm.service existe depuis A3.
+    service_id: uuid("service_id").references(() => service.id, { onDelete: "set null" }),
     // calendar.template_echeance différé (Run 2) — uuid simple sans FK.
     template_id: uuid("template_id"),
     type: typeEcheanceEnum("type").notNull(),
@@ -599,7 +653,8 @@ export const echeance = crmSchema.table(
     date_traitement: date("date_traitement"),
     reporte_a: date("reporte_a"),
     motif_report: text("motif_report"),
-    // crm.document_attendu différé (CRM étendu, Phase 4+) — uuid[] sans FK.
+    // uuid[] de crm.document_attendu : pas de FK possible sur un tableau Postgres
+    // (intégrité applicative). Le type cible existe depuis A4.
     documents_requis: uuid("documents_requis").array(),
     created_by: uuid("created_by").references(() => cabinetMembre.id, { onDelete: "set null" }),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -628,11 +683,15 @@ export const relance = crmSchema.table(
       .notNull()
       .references(() => client.id, { onDelete: "restrict" }),
     echeance_id: uuid("echeance_id").references(() => echeance.id, { onDelete: "set null" }),
-    // crm.document_attendu différé (CRM étendu, Phase 4+) — uuid simple sans FK.
-    document_attendu_id: uuid("document_attendu_id"),
+    // FK reconnectée en A4 : crm.document_attendu existe depuis A4.
+    document_attendu_id: uuid("document_attendu_id").references(() => documentAttendu.id, {
+      onDelete: "set null",
+    }),
     canal: canalRelanceEnum("canal").notNull().default("email"),
-    // crm.contact différé (CRM étendu, Phase 4+) — uuid simple sans FK.
-    destinataire_contact_id: uuid("destinataire_contact_id"),
+    // FK reconnectée en A4 : crm.contact existe depuis A2.
+    destinataire_contact_id: uuid("destinataire_contact_id").references(() => contact.id, {
+      onDelete: "set null",
+    }),
     date_envoi: timestamp("date_envoi", { withTimezone: true }),
     sujet: text("sujet"),
     corps: text("corps"),

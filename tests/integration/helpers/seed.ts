@@ -46,6 +46,12 @@ export interface TestParamComptable {
   cabinet_id: string;
 }
 
+export interface TestDocumentAttendu {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+
 export interface TestFichierPhysique {
   id: string;
   cabinet_id: string;
@@ -275,6 +281,20 @@ export async function seedParamComptable(
     ON CONFLICT (client_id) DO NOTHING
   `;
   return { client_id, cabinet_id };
+}
+
+/** Crée un crm.document_attendu de test pour un client donné (service role). */
+export async function seedDocumentAttendu(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestDocumentAttendu> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.document_attendu (id, cabinet_id, client_id, type_document, frequence)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${`Relevé bancaire ${id.slice(0, 8)}`}, 'mensuelle')
+  `;
+  return { id, cabinet_id, client_id };
 }
 
 /** Crée un extraction.invocation de test (mode stub) pour un cabinet donné. */
@@ -530,6 +550,8 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   // Bloc A2 (contact / adresse, enfants de crm.client)
   await sql`DELETE FROM crm.contact                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.adresse                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // Bloc A4 (document_attendu, enfant de crm.client ; FK service ON DELETE SET NULL)
+  await sql`DELETE FROM crm.document_attendu        WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc A3 (service / param_comptable, enfants de crm.client)
   await sql`DELETE FROM crm.service                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.param_comptable         WHERE cabinet_id = ANY(${arr}::uuid[])`;
