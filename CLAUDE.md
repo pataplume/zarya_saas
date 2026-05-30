@@ -171,58 +171,49 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 
 ## Phase actuelle du projet
 
-**Phase courante** : Phase 4.0 — Migration couche IA vers Infomaniak (souveraineté suisse), périmètre **classification** (ADR 0010)
+> **Séquencement : la source de vérité est la séquence canonique Blocs 0→H (ADR 0012).**
+> Les anciennes « Phases 4.x » sont périmées (réconciliées par l'ADR 0012, action founder
+> §135 appliquée). L'**exécution** détaillée (sous-blocs, DoD, rituel, arbitrages) vit dans
+> **`KICKOFF-BLOCS-B-H.md`** (racine) — à lire en début de chaque session. `HANDOFF_V2.md` §0
+> reste l'état opérationnel.
 
-> Source de vérité opérationnelle : `HANDOFF_V2.md` (founder, 28 mai 2026). Lire en début de session pendant les Phases 3.5 / 3.6 / 4.0.
+**Bloc courant** : **Bloc B — Doc fini** (classif live sur texte réel, MAJ `crm.document_attendu`,
+file de validation). La **fondation CRM (Bloc A) est SCELLÉE**.
 
-**Historique des phases :**
-- ~~Phase 0 Bootstrap~~ ✅ terminée
-- ~~Phase 1 Multi-tenant + Auth~~ ✅ terminée
-- ~~Phase 2a Onboarding fiduciaire~~ ✅ terminée
-- ~~Phase 2b Hardening~~ ✅ terminée (tests isolation multi-tenant, CI, dashboard, bug fixes, Biome cleanup, email redirect Supabase)
-- ~~Phase 2c Paramètres & dashboard~~ ✅ terminée
-  - ~~Sprint 2c.1 — Page équipe~~ ✅ (`/app/parametres/equipe` — liste, inviter, rôles, révoquer)
-  - ~~Sprint 2c.2 — Page cabinet~~ ✅ (`/app/parametres/cabinet` — identité, adresse, préférences)
-  - ~~Sprint 2c.3 — Page profil~~ ✅ (`/app/parametres/profil` — prénom/nom, mot de passe)
-- ~~Phase 3 : Module Doc~~ ✅ **squelette livré, IA en STUB** (cf. ci-dessous)
-  - ~~Sprint 3.1 — Schéma DB + migrations (tables `doc.*`)~~ ✅
-  - ~~Sprint 3.2 — Inbox documentaire (`/app/documents` — upload, liste, statut)~~ ✅
-  - ~~Sprint 3.3 — Pipeline classification~~ ✅ **livré en STUB** (Mistral OCR + Bedrock NON câblés — crédits AWS bloqués)
-  - ~~Sprint 3.4 — Validation humaine + entité finale~~ ✅
-- ~~Phase 3.5 : Sécurité cross-tenant + Mini-CRM~~ ✅ terminée
-  - ~~Sprint 3.5.1 — Aligner doc ↔ implémentation (CLAUDE.md + ADR 0005 + multi-tenant.md)~~ ✅
-  - ~~Sprint 3.5.2 — Test générique anti-fuite cross-tenant (chemin app, bloquant CI)~~ ✅
-  - ~~Sprint 3.5.3 — Mini-CRM `crm.client` (CRUD minimal, débloque la démo Doc end-to-end)~~ ✅
-  - ~~Sprint 3.5.4 — Vérification + démo end-to-end (avec stub IA)~~ ✅
-- ~~Phase 3.6 : Tests server action authentifiée (`createTestUser()`)~~ ✅ terminée (PR #18/#19, en prod)
-- **Phase 4.0 : Migration IA → Infomaniak, périmètre classification** ← en cours
-  - Remplace le `BedrockClassifier` (stub jamais câblé) par `InfomaniakClassifier`, derrière `EXTRACTION_MODE=live`, stub restant le défaut jusqu'à validation. Voir ADR 0010.
-- Phase 4.1+ : IA Infomaniak vision/OCR + embeddings/RAG (quand modules Facture/Search existent), puis Calendar / Facture / Search / Salaire
+**Séquence canonique (ADR 0012) :**
+- ✅ **Bloc 0** — Gouvernance (ADR 0012)
+- ✅ **Bloc A — Fondation CRM v1.0 SCELLÉE** — runs A1→A10 + correctif AVS, mergés (migrations 0009→0019). ~20 tables `crm.*` + RLS + triggers cohérence + vues `crm.v_*` + catalogues `crm.standard_*`.
+- 🚧 **Bloc B — Doc fini** ← **en cours (prochain)**
+- ⬜ **Bloc C** — Calendar fini (Runs 1-5 livrés ; restent génération auto échéances + envoi relances + UI)
+- ⬜ **Bloc D** — Microsoft Graph (OAuth + wrapper, à construire de zéro)
+- ⬜ **Bloc E** — Facture (QR-bill + extraction IA + export ; ADR QR-bill à ouvrir)
+- ⬜ **Bloc F** — onboarding-client + dashboard-client
+- ⬜ **Bloc G** — Salaire (workflow, PAS de calcul de paie)
+- ⬜ **Bloc H** — embeddings/pgvector + Search (bloqué tant que modèle `embeddings` IK non câblé)
+- ⬜ **Phase I** — Chiffrement au repos colonnes ultra-sensibles (ADR 0013) — placé après H (décision founder ; ⚠️ ré-arbitrer au 1er write-path E/F/G)
+
+**Historique bouclé** (pour mémoire) : Phase 0 Bootstrap · Phase 1 Multi-tenant + Auth ·
+Phase 2a Onboarding fiduciaire · Phase 2b Hardening · Phase 2c Paramètres & dashboard ·
+Phase 3 Module Doc (squelette) · Phase 3.5 Sécurité cross-tenant + Mini-CRM · Phase 3.6
+Tests server action authentifiée · Phase 4.0 Migration IA → Infomaniak (classif **live
+validée** sur golden set ; `EXTRACTION_MODE=stub` reste le défaut prod).
 
 **État des modules** :
-- ✅ Bootstrap, Multi-tenant + Auth, Onboarding fiduciaire, Hardening + dashboard
-- ⚠️ **Module Doc : squelette OK, IA en STUB** — classification `live` en cours de bascule vers Infomaniak (Phase 4.0). Ne PAS présenter comme « IA fonctionnelle » tant que la bascule n'est pas validée.
-- ✅ Sécurité cross-tenant + Mini-CRM (Phase 3.5 terminée)
-- ✅ Tests server action authentifiée (Phase 3.6 terminée, en prod)
+- ✅ Fondation CRM (Bloc A) scellée — contrat de schéma stable, « jamais reshapé » (ADR 0012)
+- ⚠️ **Module Doc : squelette OK + classif live validée, mais `EXTRACTION_MODE=stub` reste le défaut prod** tant que le Bloc B (bascule complète + MAJ `document_attendu` + file de validation) n'est pas livré. Ne PAS présenter comme « IA fonctionnelle » end-to-end avant la clôture du Bloc B.
+- ✅ OCR texte natif livré ; ⚠️ OCR `vision` + `embeddings` Infomaniak **différés** (pré-requis explicite de E/F-scans et de tout H).
 
-**Modules autorisés à toucher (Phase 4.0)** :
-- `packages/integrations/infomaniak/` — nouveau wrapper client OpenAI-compatible
-- `packages/extraction/` — `InfomaniakClassifier` + branchement `getClassifier`
-- `docs/` — ADR 0010, llm-strategy, conformité (registre-traitements, sous-traitants, politique-confidentialité)
-- Config d'env (`.env.example`, secrets `IK_*`), suppression des vars `AWS_*`/`BEDROCK_*`/`MISTRAL_*`
-
-**Modules INTERDITS (Phase 4.0)** :
-- Vision/OCR, embeddings, pgvector, RAG, reranker — **différés Phase 4.1+** (modules Facture/Search pas construits, 0 embedding en base)
-- `packages/integrations/microsoft`, `bexio` — Phase 4+
-- Modules métier non démarrés : Calendar, Facture, Search, Salaire
-- Extension CRM au-delà de `crm.client` minimal (pas de contacts, dossiers, tags…)
-- Toute modification du `StubClassifier` (il reste le défaut en prod)
-- Nouveau schéma DB sans tests d'isolation + anti-fuite associés
+**Règles de périmètre (Blocs B→H)** :
+- Suivre `KICKOFF-BLOCS-B-H.md` : un sous-bloc = une PR, DoD universel respecté, arbitrages `⚠️` tranchés par le founder **avant** de coder (ne pas inventer une convention non documentée).
+- **Réordonner B→H** possible selon priorité produit ; **ne jamais toucher au Bloc A** (scellé).
+- IA via **Infomaniak** uniquement (catégories, pas de `model_id` en dur). Pas d'`StubClassifier` modifié tant qu'il est le défaut prod.
+- Toute nouvelle table métier : DoD complet (migration additive + RLS + triggers + `METIER_TABLES`/`RLS_TABLES` + tests isolation **et** anti-fuite, bloquants CI) + **zéro FK fantôme**.
 
 **⚠️ Risques connus** :
 - Le `db` applicatif (service role, postgres-js) **bypasse la RLS** — la sécurité multi-tenant du chemin app repose sur le filtre `cabinet_id` discipliné dans chaque WHERE + le trigger `fn_check_client_cabinet`, **pas** sur la RLS. Voir addendum ADR 0005.
-- `getDbForCabinet()` est un stub : la propagation JWT + `SET LOCAL` n'est pas implémentée (différé Phase 4+).
-- Le module Doc en stub ne peut pas être présenté comme « classification IA fonctionnelle » (regex sur nom de fichier).
+- `getDbForCabinet()` est un stub : la propagation JWT + `SET LOCAL` n'est pas implémentée (différé).
+- **CI n'applique pas les migrations** : appliquer à la base Supabase partagée avant que les tests la référencent.
+- Colonnes ultra-sensibles (IBAN/AVS/tokens/credentials) : **chiffrement au repos exigé au 1er write-path** (ADR 0013) — ne pas écrire en clair en E/F/G.
 
 ## Tests obligatoires en CI
 
