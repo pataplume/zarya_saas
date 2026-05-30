@@ -51,14 +51,20 @@ les modules **verticalement, en ordre de dépendance**, chacun fini avant le sui
 | Bloc | Périmètre | État |
 |----|-----------|------|
 | 0 | Gouvernance (ADR 0012 + réconciliation doc) | ✅ fait |
-| **A** | **Fondation CRM v1.0** — les ~20 tables `crm.*` (+ RLS, triggers, vues, seeds), reconnexion des FK fantômes | 🚧 en cours |
-| B | **Doc** fini (OCR vision prod, classif live, MAJ `document_attendu`) | à faire |
-| C | **Calendar** fini (génération auto échéances, UI) | à faire |
+| **A** | **Fondation CRM v1.0** — les ~20 tables `crm.*` (+ RLS, triggers, vues, seeds), reconnexion des FK fantômes | ✅ **SCELLÉ** (A1→A10 + correctif AVS, mergés) |
+| **B** | **Doc** fini (classif live texte réel, MAJ `document_attendu`, file de validation) | 🚧 **EN COURS (prochain)** |
+| C | **Calendar** fini (génération auto échéances, envoi relances, UI) | à faire (Runs 1-5 livrés) |
 | D | **Microsoft Graph** (OAuth + Graph) | à faire |
 | E | **Facture** (extraction structurée, QR-bill) | à faire |
 | F | **onboarding-client + dashboard-client** | à faire |
 | G | **Salaire** | à faire |
 | H | **embeddings/pgvector + Search** | à faire |
+| I | **Chiffrement au repos** colonnes ultra-sensibles (#17, ADR 0013) | à faire — placé après H (décision founder) |
+
+> 📌 **Découpage exécutable B→H + Phase I** : voir **`KICKOFF-BLOCS-B-H.md`** à la racine.
+> C'est désormais la **source de vérité d'exécution** (sous-blocs ancrés sur `docs/`,
+> DoD universel, rituel par run, arbitrages ouverts). Le découpage A1→A10 ci-dessous reste
+> l'historique de la fondation.
 
 **Découpage du Bloc A (runs A1→A10)** — c'est la liste exhaustive des runs de la
 fondation CRM :
@@ -70,13 +76,16 @@ fondation CRM :
 - **A5** — `crm.relation` + `crm.mandat` + `crm.banque` (IBAN chiffré)
 - **A6** — `crm.salaire_config` (schéma seulement)
 - **A7** — `crm.risque` (+ trigger recalc) + `crm.evenement` + `crm.note`
-- **A8** — `crm.standard_*` + seeds + `cabinet_integration` + `modele_*`
-- **A9** — vues + fonctions
-- **A10** — UI fiche client
+- **A8** — `crm.risque` + `crm.evenement` + `crm.note` (migration 0017)
+- **A9** — `crm.standard_*` (catalogues globaux) + correctif AVS (89 caisses officielles, migration 0019)
+- **A10** — vues `crm.v_*` + trigger `derniere_activite` (migration 0018)
 
-> Les runs des Blocs **B→H** ne sont **pas** encore découpés : chaque module sera
-> décomposé en runs au moment de son démarrage (même méthode que les Runs Calendar,
-> cf. ADR 0011). La seule liste de runs exhaustive à ce jour est A1→A10 ci-dessus.
+> ✅ **Bloc A scellé.** Les runs des Blocs **B→H** sont désormais **découpés en
+> sous-blocs** dans `KICKOFF-BLOCS-B-H.md` (dérivés des `docs/modules/*.md` + flows).
+> Note : `recalc_risque` (formule de scoring §23.2) et l'UI fiche client ont été
+> **différés** — non spécifiés au niveau fondation, ils arrivent avec leurs modules /
+> un ADR dédié. La numérotation A5→A10 réellement livrée diffère légèrement du libellé
+> initial (mandat/banque/salaire_config répartis), mais le périmètre est couvert.
 
 ### 0.3 — Definition of Done par run (anti-bancal, ADR 0012)
 
@@ -90,7 +99,8 @@ ticket. Runs **forward-only et additifs** ; un numéro n'est jamais réutilisé.
 - ✅ Phase 3.6 (tests server action authentifiée) — en prod
 - ✅ Phase 4.0 (migration IA → Infomaniak, périmètre classification) — classif live validée
 - ✅ Bloc 0 (ADR 0012)
-- 🚧 Bloc A (fondation CRM) — A1 livré, A2 en cours
+- ✅ **Bloc A (fondation CRM) SCELLÉ** — A1→A10 + correctif AVS, tous mergés (migrations 0009→0019)
+- 🚧 **Bloc B (Doc fini)** — prochain. Découpage : `KICKOFF-BLOCS-B-H.md`
 
 ---
 
