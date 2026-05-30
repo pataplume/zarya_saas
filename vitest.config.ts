@@ -13,6 +13,7 @@ export default defineConfig({
         new URL("./packages/integrations/src/index.ts", import.meta.url),
       ),
       "@zarya/db": fileURLToPath(new URL("./packages/db/src/index.ts", import.meta.url)),
+      "@zarya/logger": fileURLToPath(new URL("./packages/logger/src/index.ts", import.meta.url)),
       "@zarya/calendar": fileURLToPath(
         new URL("./packages/calendar/src/index.ts", import.meta.url),
       ),

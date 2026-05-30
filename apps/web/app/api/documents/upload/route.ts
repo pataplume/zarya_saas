@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@zarya/auth";
 import { db, fichierPhysique, uploadBrut } from "@zarya/db";
 import { classifyDocument, ocrDocument, resolveExtractionMode } from "@zarya/extraction";
+import { logger } from "@zarya/logger";
 import { and, eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -209,13 +210,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     } catch (err) {
       // OCR best-effort : on logge (contexte cabinet_id, jamais de PII) et on
       // poursuit la classification sans texte OCR.
-      // biome-ignore lint/suspicious/noConsole: observabilité serveur, capté par Vercel Runtime Logs
-      console.error("[doc.upload] OCR échoué", {
-        cabinet_id,
-        upload_brut_id: upload.id,
-        fichier_physique_id: fichier.id,
-        error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
-      });
+      logger.error(
+        {
+          cabinet_id,
+          upload_brut_id: upload.id,
+          fichier_physique_id: fichier.id,
+          error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+        },
+        "[doc.upload] OCR échoué",
+      );
     }
   }
 
@@ -243,15 +246,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // classification (ex. mode live sans credentials Infomaniak) laisse le
     // document bloqué sur 'recu' sans aucun signal (cf. security-and-audit.md
     // § erreurs : contexte cabinet_id, jamais de PII → pas de nom_fichier).
-    // console.error est capturé par les Runtime Logs Vercel (serverless) ;
-    // migration vers pino structuré avec l'infra de logging (Phase 4.1+).
-    // biome-ignore lint/suspicious/noConsole: observabilité serveur, capté par Vercel Runtime Logs
-    console.error("[doc.upload] classification échouée", {
-      cabinet_id,
-      upload_brut_id: upload.id,
-      fichier_physique_id: fichier.id,
-      error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
-    });
+    logger.error(
+      {
+        cabinet_id,
+        upload_brut_id: upload.id,
+        fichier_physique_id: fichier.id,
+        error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+      },
+      "[doc.upload] classification échouée",
+    );
   }
 
   return NextResponse.json({ status: "recu", fichier_physique_id: fichier.id });
