@@ -435,13 +435,16 @@ calendar/
 
 ## 15. À trancher avant implémentation
 
-- [ ] **Granularité du job de génération** : quotidien, horaire, ou trigger événementiel ?
-- [ ] **Outlook : calendrier individuel vs partagé** : politique par défaut cabinet ?
-- [ ] **Détection conflit Outlook** : si modif côté Outlook ET côté ZARYA, qui gagne par défaut ?
-- [ ] **Format des templates** : Handlebars (`{{var}}`) ou Liquid ou DIY ?
-- [ ] **Échéances cantonales** : base de données à maintenir où ? (interne ou source externe)
-- [ ] **Auto-détection des régimes TVA** : depuis Bexio ou saisie manuelle ?
-- [ ] **Calendrier partagé cabinet** : un seul ou un par équipe ?
-- [ ] **Pauses client** : peut-on les faire approuver par le cabinet avant application ?
-- [ ] **Politique de purge** des relances anciennes (rétention vs volume) ?
-- [ ] **Sync calendrier client** : si le contact RH a Outlook, on sync chez lui aussi ?
+> **Tranché dans l'ADR 0011 — Périmètre MVP du module Calendar** (30 mai 2026).
+> Voir `docs/architecture/decisions/0011-calendar-mvp-scope.md`.
+
+- [x] **Granularité du job de génération** → pg_cron nocturne quotidien (génération) + job horaire (transitions de statut). (ADR 0011 §1)
+- [x] **Outlook : calendrier individuel vs partagé** → individuel du responsable, 1-way au MVP. (ADR 0011 §7)
+- [x] **Détection conflit Outlook** → sans objet au MVP (1-way, ZARYA écrase) ; last-write-wins ZARYA-prioritaire si 2-way Phase 2. (ADR 0011 §8)
+- [x] **Format des templates** → Handlebars (`{{var}}`), logic-less. (ADR 0011 §2)
+- [x] **Échéances cantonales** → table seed interne versionnée (fédéral + cantons des premiers clients). (ADR 0011 §9)
+- [x] **Auto-détection des régimes TVA** → saisie manuelle (Bexio = Phase 2). (ADR 0011 §10)
+- [x] **Calendrier partagé cabinet** → écarté au MVP (calendrier individuel). (ADR 0011 §7)
+- [x] **Pauses client** → pause auto 7 jours ouvrés sans approbation ; pauses manuelles posées par le cabinet. (ADR 0011 §5)
+- [x] **Politique de purge** → pas de purge au MVP, rétention alignée audit (6 ans). (ADR 0011 §12)
+- [x] **Sync calendrier client** → non au MVP (candidat Phase 2). (ADR 0011 §11)

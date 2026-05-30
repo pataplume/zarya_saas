@@ -384,11 +384,14 @@ Le contact RH peut signaler "absent jusqu'au X" dans son dashboard. Relances sus
 
 ## 16. Questions ouvertes
 
-- [ ] **Granularité des templates** : combien de templates standard livrer (par contexte × langue × canton) ?
-- [ ] **Politique de pause** : combien de temps après une réponse client avant nouvelle relance ?
-- [ ] **Tonalité IA** : faut-il vraiment adapter le ton ou rester sur des templates simples ?
-- [ ] **Échéances cantonales** : maintenance d'une base à jour (équipe interne ou source externe) ?
-- [ ] **Régimes TVA** : auto-détection depuis Bexio ou saisie manuelle dans `crm.param_comptable` ?
-- [ ] **Intégration Outlook** : créer des événements dans le cal du responsable OU calendrier partagé cabinet ?
-- [ ] **Bulk relances** : limite max d'envois en une fois (anti-spam, anti-flood Microsoft) ?
-- [ ] **Sync calendrier client** : si le contact RH a un Outlook, on synchronise dans le sien aussi ?
+> **Tranchées dans l'ADR 0011 — Périmètre MVP du module Calendar** (30 mai 2026).
+> Voir `docs/architecture/decisions/0011-calendar-mvp-scope.md`.
+
+- [x] **Granularité des templates** → par contexte × langue (pas par canton) : ~12 seed FR/DE/IT. (ADR 0011 §3)
+- [x] **Politique de pause** → pause auto 7 jours ouvrés après réponse client, configurable. (ADR 0011 §5)
+- [x] **Tonalité IA** → templates simples au MVP, IA `chat_small` en surcouche optionnelle. (ADR 0011 §4)
+- [x] **Échéances cantonales** → table seed interne versionnée (fédéral + cantons des premiers clients). (ADR 0011 §9)
+- [x] **Régimes TVA** → saisie manuelle dans `crm.param_comptable` (Bexio = Phase 2). (ADR 0011 §10)
+- [x] **Intégration Outlook** → calendrier individuel du responsable, 1-way au MVP. (ADR 0011 §7)
+- [x] **Bulk relances** → plafond configurable défaut 50/envoi + throttle ~30 mails/min. (ADR 0011 §6)
+- [x] **Sync calendrier client** → non au MVP (candidat Phase 2). (ADR 0011 §11)
