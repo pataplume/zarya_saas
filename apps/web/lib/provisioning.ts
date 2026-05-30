@@ -3,6 +3,7 @@
 
 import { createSupabaseAdminClient } from "@zarya/auth";
 import { cabinet, cabinetMembre, db } from "@zarya/db";
+import { logger } from "@zarya/logger";
 
 export interface ProvisionResult {
   cabinet_id: string;
@@ -51,8 +52,12 @@ export async function provisionNewCabinet(params: {
   });
 
   if (error) {
-    // Non-bloquant : le cabinet est créé, mais le JWT sera mis à jour au prochain refresh
-    // TODO: logger via pino avec redact PII (phase 2)
+    // Non-bloquant : le cabinet est créé, mais le JWT sera mis à jour au prochain refresh.
+    // Contexte minimal (ids techniques), jamais de PII.
+    logger.warn(
+      { user_id: params.userId, cabinet_id: newCabinet.id, error: error.message },
+      "[provisioning] injection app_metadata échouée (JWT MAJ au prochain refresh)",
+    );
   }
 
   return { cabinet_id: newCabinet.id };

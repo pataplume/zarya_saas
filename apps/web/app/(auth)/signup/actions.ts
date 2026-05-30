@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@zarya/auth";
+import { logger } from "@zarya/logger";
 import { z } from "zod";
 import { provisionNewCabinet } from "@/lib/provisioning";
 
@@ -62,9 +63,16 @@ export async function signupAction(
         userId: authData.user.id,
         email: parsed.data.email,
       });
-    } catch (_err) {
-      // TODO: logger via pino avec redact PII (phase 2)
-      // On retourne l'erreur mais le compte auth.users est créé — support peut corriger
+    } catch (err) {
+      // On retourne l'erreur mais le compte auth.users est créé — support peut corriger.
+      // Contexte minimal (user_id technique), jamais l'email ni le mot de passe.
+      logger.error(
+        {
+          user_id: authData.user.id,
+          error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+        },
+        "[signup] provisioning cabinet échoué",
+      );
       return { error: "Compte créé mais erreur de configuration. Contactez le support." };
     }
   }

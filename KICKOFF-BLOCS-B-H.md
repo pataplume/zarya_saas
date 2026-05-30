@@ -266,6 +266,12 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   AUCUNE infra pino dans le repo (2 TODO seulement) → choix de NE JAMAIS logger de token
   plutôt que d'ajouter une dépendance transverse non arbitrée — à trancher avant D2 ;
   (3) codé contre des mocks `fetch` (pas d'app Azure réelle) conformément à l'arbitrage.
+- [x] **Infra logger `@zarya/logger` (pino + redact)** ✅ (ADR 0017 ; arbitrage D1 §2 tranché)
+  PR d'infra dédiée AVANT D2 : package `@zarya/logger` (pino, `base:null`, `LOG_LEVEL`),
+  redact CLAUDE.md §2 (`authorization`/`cookie`/`ZEFIX_PASSWORD`/`access_token`/`refresh_token`/
+  `id_token`/`client_secret`/`token`/`secret`, racine + 1 niveau + `req.headers`). Discipline
+  d'abord (jamais de secret brut en contexte), redact en filet. 4 call-sites migrés (upload Doc
+  ×2, signup, provisioning) → 2 TODO « logger phase 2 » soldés. Test unitaire prouvant la censure.
 - [ ] **D2 — Wrapper `MicrosoftGraphClient` (scopé cabinet_id)**
   Méthodes : `listEmails/getEmail/downloadAttachment/sendEmail/listEvents/createEvent/…`,
   refresh transparent. · Done : chaque appel porte le bon `cabinet_id` ; retry/`Retry-After`/
