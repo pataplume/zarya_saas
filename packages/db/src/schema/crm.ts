@@ -5,6 +5,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgSchema,
   text,
   timestamp,
@@ -156,6 +157,18 @@ export const statutPeriodeDocEnum = crmSchema.enum("statut_periode_doc", [
   "en_retard",
   "non_applicable",
 ]);
+
+// ── Bloc A5 — crm.relation (§8) & crm.mandat (§9) ────────────────────────────
+
+// Modèle d'honoraires de la relation contractuelle cabinet ↔ client.
+export const honorairesModeleEnum = crmSchema.enum("honoraires_modele", [
+  "forfait",
+  "regie",
+  "mixte",
+]);
+
+// Cycle de vie d'un mandat (relation contractuelle versionnée).
+export const statutMandatEnum = crmSchema.enum("statut_mandat", ["actif", "expire", "resilie"]);
 
 // ── Module Calendar (Run 1) — échéances & relances ───────────────────────────
 // Périmètre Run 1 (ADR 0011) : tables opérationnelles de base crm.echeance et
@@ -511,6 +524,74 @@ export const documentAttendu = crmSchema.table(
   (t) => [
     index("idx_document_attendu_statut").on(t.cabinet_id, t.client_id, t.statut_periode_courante),
     index("idx_document_attendu_reception").on(t.derniere_reception),
+  ],
+);
+
+// ─── crm.relation — Relation contractuelle cabinet ↔ client (Bloc A5) ────────
+// crm-schema.md § 8. 1-1 avec le client (client_id = PK). cabinet_id dénormalisé
+// pour la RLS, cohérence garantie par trg_check_client_cabinet_relation (0013).
+//
+// ⚠️ SÉCURITÉ : `iban_facturation` est un IBAN → champ SENSIBLE (CLAUDE.md §2).
+// Tout chemin d'écriture DOIT chiffrer via Supabase Vault. Aucun n'existe encore
+// (table de contrat) ; l'enforcement est porté par la feature qui peuplera la
+// colonne, pas par ce run de schéma.
+
+export const relation = crmSchema.table(
+  "relation",
+  {
+    client_id: uuid("client_id")
+      .primaryKey()
+      .references(() => client.id, { onDelete: "restrict" }),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    pack_tarifaire: text("pack_tarifaire"),
+    honoraires_mensuels: numeric("honoraires_mensuels", { precision: 10, scale: 2 }),
+    honoraires_modele: honorairesModeleEnum("honoraires_modele"),
+    date_signature: date("date_signature"),
+    date_renouvellement: date("date_renouvellement"),
+    duree_engagement_mois: integer("duree_engagement_mois"),
+    notes_facturation: text("notes_facturation"),
+    // Chiffré via Vault à l'écriture (voir avertissement ci-dessus).
+    iban_facturation: text("iban_facturation"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_relation_cabinet").on(t.cabinet_id)],
+);
+
+// ─── crm.mandat — Mandat contractuel versionné cabinet ↔ client (Bloc A5) ────
+// crm-schema.md § 9. cabinet_id dénormalisé pour la RLS, cohérence garantie par
+// trg_check_client_cabinet_mandat (0013). `document_id` référence doc.document :
+// FK déclarée en SQL (migration 0013) et non côté Drizzle pour éviter l'import
+// circulaire crm ↔ doc (doc importe déjà crm.client / crm.cabinet).
+
+export const mandat = crmSchema.table(
+  "mandat",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    version: integer("version").notNull().default(1),
+    date_signature: date("date_signature").notNull(),
+    date_effet: date("date_effet").notNull(),
+    date_fin: date("date_fin"),
+    // FK → doc.document déclarée en SQL (0013) — voir note ci-dessus.
+    document_id: uuid("document_id"),
+    services_couverts: text("services_couverts").array(),
+    signataires: jsonb("signataires"),
+    statut: statutMandatEnum("statut").notNull().default("actif"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_mandat_cabinet").on(t.cabinet_id, t.archived_at),
+    index("idx_mandat_client").on(t.cabinet_id, t.client_id),
   ],
 );
 
