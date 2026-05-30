@@ -304,6 +304,39 @@ export async function seedEcheance(
   return { id, cabinet_id, client_id };
 }
 
+/**
+ * Crée une crm.echeance avec contrôle fin des dates et du statut, pour les tests
+ * du moteur de transitions (Run 3). Les décalages sont en jours par rapport à
+ * current_date. date_alerte vaut NULL si dateAlerteOffsetDays est omis ou null.
+ */
+export async function seedEcheanceForTransition(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  opts: {
+    dateEcheanceOffsetDays: number;
+    dateAlerteOffsetDays?: number | null;
+    statut?: "a_venir" | "imminente" | "en_retard" | "traitee" | "reportee" | "annulee";
+  },
+): Promise<TestEcheance> {
+  const id = randomUUID();
+  const statut = opts.statut ?? "a_venir";
+  const alerte = opts.dateAlerteOffsetDays ?? null;
+  await sql`
+    INSERT INTO crm.echeance
+      (id, cabinet_id, client_id, type, libelle, date_echeance, date_alerte, statut)
+    VALUES (
+      ${id}, ${cabinet_id}, ${client_id}, 'tva',
+      ${`Échéance transition ${id.slice(0, 8)}`},
+      (current_date + make_interval(days => ${opts.dateEcheanceOffsetDays}))::date,
+      CASE WHEN ${alerte}::int IS NULL THEN NULL
+           ELSE (current_date + make_interval(days => ${alerte}::int))::date END,
+      ${statut}::crm.statut_echeance
+    )
+  `;
+  return { id, cabinet_id, client_id };
+}
+
 /** Crée une crm.relance de test liée à une échéance (service role). */
 export async function seedRelance(
   sql: postgres.Sql,
