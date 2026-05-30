@@ -29,6 +29,7 @@ import {
   contact,
   db,
   document,
+  documentAttendu,
   echeance,
   eq,
   fichierPhysique,
@@ -57,6 +58,7 @@ import {
   seedClient,
   seedContact,
   seedDocument,
+  seedDocumentAttendu,
   seedEcheance,
   seedFichierPhysique,
   seedInvitation,
@@ -141,6 +143,13 @@ const METIER_TABLES: MetierTableSpec[] = [
     table: paramComptable,
     scopeCol: paramComptable.cabinet_id,
     idCol: paramComptable.client_id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "crm.document_attendu",
+    table: documentAttendu,
+    scopeCol: documentAttendu.cabinet_id,
+    idCol: documentAttendu.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
   {
@@ -256,6 +265,7 @@ const RLS_TABLES = [
   ["crm", "adresse"],
   ["crm", "service"],
   ["crm", "param_comptable"],
+  ["crm", "document_attendu"],
   ["crm", "invitation_membre"],
   ["crm", "zefix_recherche_cabinet"],
   ["crm", "session_onboarding_fiduciaire"],
@@ -306,6 +316,10 @@ beforeAll(async () => {
   const [paramA, paramB] = [
     await seedParamComptable(sql, cabinetA.id, clientA.id),
     await seedParamComptable(sql, cabinetB.id, clientB.id),
+  ];
+  const [docAttA, docAttB] = [
+    await seedDocumentAttendu(sql, cabinetA.id, clientA.id),
+    await seedDocumentAttendu(sql, cabinetB.id, clientB.id),
   ];
   const [invA, invB] = [
     await seedInvitation(sql, cabinetA.id),
@@ -372,6 +386,7 @@ beforeAll(async () => {
     "crm.adresse": adresseA.id,
     "crm.service": serviceA.id,
     "crm.param_comptable": paramA.client_id,
+    "crm.document_attendu": docAttA.id,
     "crm.invitation_membre": invA.id,
     "crm.zefix_recherche_cabinet": zA.id,
     "crm.session_onboarding_fiduciaire": sessA,
@@ -395,6 +410,7 @@ beforeAll(async () => {
     "crm.adresse": adresseB.id,
     "crm.service": serviceB.id,
     "crm.param_comptable": paramB.client_id,
+    "crm.document_attendu": docAttB.id,
     "crm.invitation_membre": invB.id,
     "crm.zefix_recherche_cabinet": zB.id,
     "crm.session_onboarding_fiduciaire": sessB,
