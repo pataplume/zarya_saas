@@ -8,6 +8,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -90,6 +91,11 @@ export const canalPrefereEnum = crmSchema.enum("canal_prefere", [
   "telephone",
   "dashboard",
 ]);
+
+// ── Bloc A2 (ADR 0012) — contacts & adresses du client ───────────────────────
+// Type d'adresse d'un client. `siege` = adresse légale (RC) ; `facturation` =
+// destinataire des factures ; `postale` = courrier opérationnel.
+export const typeAdresseEnum = crmSchema.enum("type_adresse", ["postale", "facturation", "siege"]);
 
 // ── Module Calendar (Run 1) — échéances & relances ───────────────────────────
 // Périmètre Run 1 (ADR 0011) : tables opérationnelles de base crm.echeance et
@@ -254,6 +260,86 @@ export const client = crmSchema.table(
     // Recherche par nom (autocomplete, barre de recherche) — GIN trigram.
     index("idx_client_raison_trgm").using("gin", sql`${t.raison_sociale} gin_trgm_ops`),
     unique("uniq_client_ide_per_cabinet").on(t.cabinet_id, t.ide),
+  ],
+);
+
+// ─── crm.contact — Personnes de contact d'un client (Bloc A2, ADR 0012) ──────
+// Interlocuteurs d'un client (dirigeant, comptable, RH, signataire…). cabinet_id
+// est dénormalisé pour la RLS ; sa cohérence avec client.cabinet_id est garantie
+// par le trigger trg_check_client_cabinet_contact (migration 0010). Au plus un
+// contact `est_principal` par client (index unique partiel uniq_contact_principal).
+// `langue` NULL ⇒ on hérite de la langue du client (résolu côté applicatif).
+
+export const contact = crmSchema.table(
+  "contact",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    prenom: text("prenom"),
+    nom: text("nom").notNull(),
+    role: text("role"), // "Dirigeant", "Comptable", "RH"… (texte libre)
+    est_principal: boolean("est_principal").notNull().default(false),
+    est_contact_rh: boolean("est_contact_rh").notNull().default(false),
+    est_signataire: boolean("est_signataire").notNull().default(false),
+    email: text("email"),
+    telephone: text("telephone"),
+    langue: langueClientEnum("langue"), // NULL ⇒ hérite du client
+    notes: text("notes"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_contact_cabinet").on(t.cabinet_id, t.archived_at),
+    index("idx_contact_client").on(t.cabinet_id, t.client_id),
+    // Au plus 1 contact principal par client (les contacts archivés ne comptent pas).
+    uniqueIndex("uniq_contact_principal_per_client")
+      .on(t.client_id)
+      .where(sql`${t.est_principal} AND ${t.archived_at} IS NULL`),
+  ],
+);
+
+// ─── crm.adresse — Adresses d'un client (Bloc A2, ADR 0012) ──────────────────
+// Adresses postale / facturation / siège d'un client. cabinet_id dénormalisé pour
+// la RLS, cohérence garantie par trg_check_client_cabinet_adresse (migration 0010).
+// Au plus une adresse `est_principale` par client (index unique partiel).
+// NB vs crm-schema.md §7 : on ajoute created_at/updated_at/archived_at (convention
+// db/CLAUDE.md §2 — toute table métier porte ces timestamps) — divergence assumée.
+
+export const adresse = crmSchema.table(
+  "adresse",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    type: typeAdresseEnum("type").notNull(),
+    rue: text("rue"),
+    complement: text("complement"),
+    code_postal: text("code_postal"),
+    ville: text("ville"),
+    canton: text("canton"), // canton suisse (ex. "VD", "GE") — au niveau adresse
+    pays: text("pays").notNull().default("CH"), // ISO 3166-1 alpha-2
+    est_principale: boolean("est_principale").notNull().default(false),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_adresse_cabinet").on(t.cabinet_id, t.archived_at),
+    index("idx_adresse_client").on(t.cabinet_id, t.client_id),
+    // Au plus 1 adresse principale par client (les adresses archivées ne comptent pas).
+    uniqueIndex("uniq_adresse_principale_per_client")
+      .on(t.client_id)
+      .where(sql`${t.est_principale} AND ${t.archived_at} IS NULL`),
   ],
 );
 

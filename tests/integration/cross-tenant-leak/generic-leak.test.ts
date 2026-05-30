@@ -20,11 +20,13 @@
  * + dans RLS_TABLES. C'est non négociable (cf. ADR 0005 addendum).
  */
 import {
+  adresse,
   and,
   cabinet,
   cabinetMembre,
   calendarCabinetConfig,
   client,
+  contact,
   db,
   document,
   echeance,
@@ -48,8 +50,10 @@ import { createServiceClient } from "../helpers/rls";
 import {
   cleanupCabinets,
   getSessionId,
+  seedAdresse,
   seedCalendarConfig,
   seedClient,
+  seedContact,
   seedDocument,
   seedEcheance,
   seedFichierPhysique,
@@ -104,6 +108,20 @@ const METIER_TABLES: MetierTableSpec[] = [
     table: client,
     scopeCol: client.cabinet_id,
     idCol: client.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "crm.contact",
+    table: contact,
+    scopeCol: contact.cabinet_id,
+    idCol: contact.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "crm.adresse",
+    table: adresse,
+    scopeCol: adresse.cabinet_id,
+    idCol: adresse.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
   {
@@ -215,6 +233,8 @@ const METIER_TABLES: MetierTableSpec[] = [
 const RLS_TABLES = [
   ["crm", "cabinet_membre"],
   ["crm", "client"],
+  ["crm", "contact"],
+  ["crm", "adresse"],
   ["crm", "invitation_membre"],
   ["crm", "zefix_recherche_cabinet"],
   ["crm", "session_onboarding_fiduciaire"],
@@ -249,6 +269,14 @@ beforeAll(async () => {
   const [clientA, clientB] = [
     await seedClient(sql, cabinetA.id),
     await seedClient(sql, cabinetB.id),
+  ];
+  const [contactA, contactB] = [
+    await seedContact(sql, cabinetA.id, clientA.id),
+    await seedContact(sql, cabinetB.id, clientB.id),
+  ];
+  const [adresseA, adresseB] = [
+    await seedAdresse(sql, cabinetA.id, clientA.id),
+    await seedAdresse(sql, cabinetB.id, clientB.id),
   ];
   const [invA, invB] = [
     await seedInvitation(sql, cabinetA.id),
@@ -311,6 +339,8 @@ beforeAll(async () => {
     "crm.cabinet": cabinetA.id,
     "crm.cabinet_membre": cabinetA.membre_id,
     "crm.client": clientA.id,
+    "crm.contact": contactA.id,
+    "crm.adresse": adresseA.id,
     "crm.invitation_membre": invA.id,
     "crm.zefix_recherche_cabinet": zA.id,
     "crm.session_onboarding_fiduciaire": sessA,
@@ -330,6 +360,8 @@ beforeAll(async () => {
     "crm.cabinet": cabinetB.id,
     "crm.cabinet_membre": cabinetB.membre_id,
     "crm.client": clientB.id,
+    "crm.contact": contactB.id,
+    "crm.adresse": adresseB.id,
     "crm.invitation_membre": invB.id,
     "crm.zefix_recherche_cabinet": zB.id,
     "crm.session_onboarding_fiduciaire": sessB,
