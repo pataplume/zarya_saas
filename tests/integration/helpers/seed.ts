@@ -50,6 +50,18 @@ export interface TestDocument {
   client_id: string;
 }
 
+export interface TestEcheance {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+
+export interface TestRelance {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+
 export interface TestCabinet {
   id: string;
   raison_sociale: string;
@@ -255,6 +267,38 @@ export async function seedDocument(
   return { id, cabinet_id, client_id };
 }
 
+/** Crée une crm.echeance de test pour un client donné (service role). */
+export async function seedEcheance(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestEcheance> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.echeance (id, cabinet_id, client_id, type, libelle, date_echeance)
+    VALUES (
+      ${id}, ${cabinet_id}, ${client_id}, 'tva',
+      ${`Échéance test ${id.slice(0, 8)}`}, now() + interval '14 days'
+    )
+  `;
+  return { id, cabinet_id, client_id };
+}
+
+/** Crée une crm.relance de test liée à une échéance (service role). */
+export async function seedRelance(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  echeance_id: string,
+): Promise<TestRelance> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.relance (id, cabinet_id, client_id, echeance_id, canal, statut)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${echeance_id}, 'email', 'brouillon')
+  `;
+  return { id, cabinet_id, client_id };
+}
+
 /**
  * Supprime toutes les données de test liées aux cabinet_ids fournis.
  * Ordre FK strict : tables enfants avant tables parents.
@@ -271,6 +315,9 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   await sql`DELETE FROM doc.fichier_physique        WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM doc.upload_brut             WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM extraction.invocation       WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // Module Calendar (ordre FK : relance → echeance, tous deux enfants de crm.client)
+  await sql`DELETE FROM crm.relance                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM crm.echeance                WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.client                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // CRM existant
   await sql`DELETE FROM crm.zefix_recherche_cabinet WHERE cabinet_id = ANY(${arr}::uuid[])`;

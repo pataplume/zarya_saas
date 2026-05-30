@@ -26,11 +26,13 @@ import {
   client,
   db,
   document,
+  echeance,
   eq,
   fichierPhysique,
   invitationMembre,
   invocation,
   propositionClassement,
+  relance,
   sessionOnboardingFiduciaire,
   uploadBrut,
   zefixRechercheCabinet,
@@ -44,10 +46,12 @@ import {
   getSessionId,
   seedClient,
   seedDocument,
+  seedEcheance,
   seedFichierPhysique,
   seedInvitation,
   seedInvocation,
   seedProposition,
+  seedRelance,
   seedTwoCabinets,
   seedUploadBrut,
   seedZefixRecherche,
@@ -150,6 +154,20 @@ const METIER_TABLES: MetierTableSpec[] = [
     idCol: document.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
+  {
+    name: "crm.echeance",
+    table: echeance,
+    scopeCol: echeance.cabinet_id,
+    idCol: echeance.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "crm.relance",
+    table: relance,
+    scopeCol: relance.cabinet_id,
+    idCol: relance.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
 ];
 
 // Tables dont la RLS doit rester ACTIVÉE en DB (défense en profondeur).
@@ -166,6 +184,8 @@ const RLS_TABLES = [
   ["doc", "fichier_physique"],
   ["doc", "proposition_classement"],
   ["doc", "document"],
+  ["crm", "echeance"],
+  ["crm", "relance"],
 ] as const;
 
 let sql: postgres.Sql;
@@ -220,6 +240,14 @@ beforeAll(async () => {
     await seedDocument(sql, cabinetA.id, clientA.id, fpA.id),
     await seedDocument(sql, cabinetB.id, clientB.id, fpB.id),
   ];
+  const [echA, echB] = [
+    await seedEcheance(sql, cabinetA.id, clientA.id),
+    await seedEcheance(sql, cabinetB.id, clientB.id),
+  ];
+  const [relA, relB] = [
+    await seedRelance(sql, cabinetA.id, clientA.id, echA.id),
+    await seedRelance(sql, cabinetB.id, clientB.id, echB.id),
+  ];
 
   Object.assign(idsA, {
     "crm.cabinet": cabinetA.id,
@@ -233,6 +261,8 @@ beforeAll(async () => {
     "doc.fichier_physique": fpA.id,
     "doc.proposition_classement": propA.id,
     "doc.document": docA.id,
+    "crm.echeance": echA.id,
+    "crm.relance": relA.id,
   });
   Object.assign(idsB, {
     "crm.cabinet": cabinetB.id,
@@ -246,6 +276,8 @@ beforeAll(async () => {
     "doc.fichier_physique": fpB.id,
     "doc.proposition_classement": propB.id,
     "doc.document": docB.id,
+    "crm.echeance": echB.id,
+    "crm.relance": relB.id,
   });
 });
 
