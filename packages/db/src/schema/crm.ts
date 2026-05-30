@@ -24,6 +24,14 @@ export const cabinetStatutEnum = crmSchema.enum("cabinet_statut", ["actif", "sus
 
 export const planTarifaireEnum = crmSchema.enum("plan_tarifaire", ["starter", "pro", "enterprise"]);
 
+// Politique d'auto-classement Doc (flow-a §4). `strict` = défaut MVP (tout en file de
+// validation, seuils inactifs — ADR 0014) ; `hybride`/`aggressive` = opt-in cabinet.
+export const politiqueClassementEnum = crmSchema.enum("politique_classement", [
+  "strict",
+  "hybride",
+  "aggressive",
+]);
+
 export const roleMembreEnum = crmSchema.enum("role_membre", [
   "responsable",
   "gestionnaire_salaires",
@@ -296,6 +304,10 @@ export const cabinet = crmSchema.table(
     plan_tarifaire: planTarifaireEnum("plan_tarifaire").notNull().default("starter"),
     onboarding_termine: boolean("onboarding_termine").notNull().default(false),
     onboarding_termine_at: timestamp("onboarding_termine_at", { withTimezone: true }),
+    // Auto-classement Doc (flow-a §4) — défaut `strict` = comportement MVP inchangé.
+    politique_classement: politiqueClassementEnum("politique_classement")
+      .notNull()
+      .default("strict"),
 
     // ── Identité enrichie (remplie à l'étape A) ─────────────────────────────
     zefix_ehraid: text("zefix_ehraid"),

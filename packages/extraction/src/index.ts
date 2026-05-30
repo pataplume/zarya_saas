@@ -20,6 +20,18 @@ export {
   type ClassifyDocumentResult,
   classifyDocument,
 } from "./classify-document";
+export {
+  type AutoClassementSignals,
+  decideAutoClassement,
+  type PolitiqueClassement,
+  SEUIL_AUTO_AGGRESSIVE,
+  SEUIL_AUTO_HYBRIDE,
+} from "./decide-auto-classement";
+export {
+  type FinaliserDocumentInput,
+  type FinaliserDocumentResult,
+  finaliserDocument,
+} from "./finalize-document";
 export { type ChatModelClient, InfomaniakClassifier } from "./infomaniak-classifier";
 export {
   type AttenduRow,

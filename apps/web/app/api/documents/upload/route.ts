@@ -223,7 +223,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // Un échec de classification ne perd pas le fichier : il reste 'recu',
   // reclassable plus tard. On ne bloque donc pas la réponse d'upload.
   try {
-    await classifyDocument({
+    const classif = await classifyDocument({
       cabinet_id,
       fichier_physique_id: fichier.id,
       nom_fichier,
@@ -232,7 +232,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ocr_text,
       invoked_by_user_id: user.id,
     });
-    await db.update(uploadBrut).set({ statut: "a_valider" }).where(eq(uploadBrut.id, upload.id));
+    // B4 — auto-classé (doc.document créé sans humain) → 'valide' ; sinon file 'a_valider'.
+    await db
+      .update(uploadBrut)
+      .set({ statut: classif.auto_classe ? "valide" : "a_valider" })
+      .where(eq(uploadBrut.id, upload.id));
   } catch (err) {
     // Le fichier est stocké ; il reste 'recu' et reclassable plus tard.
     // On n'avale PAS l'erreur en silence : sans trace, un échec de
