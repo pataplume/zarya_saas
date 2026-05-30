@@ -892,15 +892,24 @@ export const standardCantonCh = crmSchema.table("standard_canton_ch", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-// Caisses de compensation AVS (référentiel ; seed = 26 caisses cantonales).
-export const standardCaisseAvs = crmSchema.table("standard_caisse_avs", {
-  code: text("code").primaryKey(),
-  nom: text("nom").notNull(),
-  type: text("type"),
-  actif: boolean("actif").notNull().default(true),
-  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+// Caisses de compensation AVS (référentiel officiel ahv-iv.ch). `code` = VRAI numéro
+// de caisse officiel (ex. '1' canton ZH, '26.1' CFC, '27' CSC, '106.1' FER CIAM ;
+// sous-numéros décimaux possibles → text). `type` ∈ {cantonale, federale,
+// professionnelle}. `canton` rattache les 26 cantonales à crm.standard_canton_ch
+// (NULL pour fédérales/professionnelles). Seed corrigé/enrichi en migration 0019.
+export const standardCaisseAvs = crmSchema.table(
+  "standard_caisse_avs",
+  {
+    code: text("code").primaryKey(),
+    nom: text("nom").notNull(),
+    type: text("type"),
+    canton: text("canton").references(() => standardCantonCh.code, { onDelete: "restrict" }),
+    actif: boolean("actif").notNull().default(true),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_standard_caisse_avs_canton").on(t.canton)],
+);
 
 // ─── crm.session_onboarding_fiduciaire — Suivi wizard d'onboarding ───────────
 
