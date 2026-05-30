@@ -74,6 +74,7 @@ export {
   statutClassementEnum,
   statutTraitementEnum,
   uploadBrut,
+  vInboxAValider,
 } from "./doc";
 export {
   extractionContextEnum,

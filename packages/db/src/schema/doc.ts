@@ -228,3 +228,32 @@ export const document = docSchema.table(
     index("idx_document_reception").on(t.date_reception),
   ],
 );
+
+// ─── doc.v_inbox_a_valider — File de validation (Bloc B7) ─────────────────────
+
+// Définie en DB par la migration 0022 (security_invoker = true). Déclarée ici en
+// `.existing()` : Drizzle n'en gère PAS le DDL, il expose seulement un type de lecture
+// pour le query-builder. La vue expose `cabinet_id` → le consommateur applicatif DOIT
+// filtrer `WHERE cabinet_id = X` (frontière de sécurité réelle sur le chemin service-role,
+// ADR 0005 addendum). Enums typés en `text` côté vue (lecture seule).
+export const vInboxAValider = docSchema
+  .view("v_inbox_a_valider", {
+    proposition_id: uuid("proposition_id").notNull(),
+    cabinet_id: uuid("cabinet_id").notNull(),
+    fichier_physique_id: uuid("fichier_physique_id"),
+    client_id_propose: uuid("client_id_propose"),
+    client_nom: text("client_nom"),
+    type_propose: text("type_propose"),
+    categorie_proposee: text("categorie_proposee"),
+    periode_proposee: text("periode_proposee"),
+    libelle_propose: text("libelle_propose"),
+    confiance_globale: numeric("confiance_globale"),
+    client_candidats: jsonb("client_candidats"),
+    anomalies_detectees: text("anomalies_detectees").array(),
+    nb_anomalies: integer("nb_anomalies"),
+    nom_fichier_original: text("nom_fichier_original"),
+    type_mime: text("type_mime"),
+    date_reception: timestamp("date_reception", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }),
+  })
+  .existing();

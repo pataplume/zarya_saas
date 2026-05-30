@@ -37,7 +37,7 @@
 | Bloc | Périmètre | Prérequis | État |
 |----|-----------|-----------|------|
 | **A** | **Fondation CRM v1.0** (~20 tables `crm.*` + RLS + triggers + vues + seeds) | — | ✅ **SCELLÉ** (A1→A10 + fix AVS) |
-| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 ✅ ; B3 ✅ ; B4 ✅ ; B5 ✅ ; B6 ✅ ; B7 prochain) |
+| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | ✅ **TERMINÉ** (B1→B7 ✅ — bascule prod = décision founder) |
 | **C** | **Calendar fini** — génération auto échéances, envoi relances, UI | A3, A4 | à faire (Runs 1-5 déjà livrés) |
 | **D** | **Microsoft Graph** — OAuth + wrapper Graph (producteur transverse) | — | à faire (package vide) |
 | **E** | **Facture** — décodage QR-bill + extraction IA + export | B, A3, A5, **D** | à faire (ADR QR-bill à ouvrir) |
@@ -199,11 +199,24 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   physique (clé de dédup) n'est PAS déplacé ; nom appliqué à l'export/download. **Aucune migration**
   (colonne `nom_fichier_standardise` déjà au schéma). Tests : 12 unit + 4 intégration (convention,
   anti-collision, storage_path inchangé).
-- [ ] **B7 — File de validation + corrections + lot (UI)**
+- [x] **B7 — File de validation + corrections + lot (UI)** ✅ **Réalisé**
   Livrable : inbox « à valider », validation 1-clic, modal correction (client/type/période/
   note = feedback), validation en lot (confirmation >20), raccourcis J/V/C/N. · Surface : UI
   `/app/documents`, vues `doc.v_inbox_a_valider`, server actions. · Done : parcours valider/
   corriger/lot + E2E.
+  **Réalisé** : migration **0022** `doc.v_inbox_a_valider` (vue `security_invoker`, dénormalise
+  les propositions `a_valider` + client proposé + candidats + anomalies + métadonnées d'origine ;
+  **pas une table métier** → hors `METIER_TABLES`/RLS ; SQL documenté périmé adapté au schéma réel —
+  nom/​date d'origine via `doc.upload_brut`) ; déclarée Drizzle `.existing()`. UI `ValidationInbox`
+  (client component) : sélection multiple + « Valider la sélection » (confirmation modale **>20**),
+  Valider 1-clic par ligne, modale **Corriger** (client/catégorie/type/période/libellé + **note interne
+  = feedback**), modale **Rejeter** (motif), raccourcis **J/V/C/N** (doc.md §15.1). Server actions :
+  `validerLotAction` (valeurs **proposées** telles quelles ; ignore les propositions incomplètes &
+  ids hors cabinet/déjà traités — anti-fuite) partage le cœur `finaliserUneProposition` avec
+  `validerPropositionAction` (étendue d'une **note** repliée dans `corrections_apportees.note_interne`,
+  **pas de colonne dédiée** — arbitré founder). **Aucune autre migration.** Tests : 6 intégration B7
+  (lot nominal, skip-incomplet, anti-fuite cross-tenant, RBAC lecteur, note seule, note + correction).
+  E2E Playwright **différé** (pas d'infra E2E — arbitré founder, cohérent B1–B6).
 
 ### BLOC C — Calendar fini. Prérequis : A3, A4. *(Runs 1-5 déjà livrés)*
 
