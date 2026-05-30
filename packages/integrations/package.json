@@ -8,6 +8,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@zarya/db": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "*",
     "typescript": "*"

@@ -22,5 +22,28 @@ export {
   InfomaniakError,
   infomaniakClient,
 } from "./infomaniak";
+export type {
+  MicrosoftErrorCode,
+  MicrosoftIntegrationParams,
+  MicrosoftOAuthConfig,
+  MicrosoftOAuthStatePayload,
+  MicrosoftTokenResponse,
+  MicrosoftTokenSet,
+} from "./microsoft";
+export {
+  buildAuthorizationUrl,
+  exchangeCodeForTokens,
+  getMicrosoftOAuthConfig,
+  getValidMicrosoftAccessToken,
+  isAccessTokenExpiring,
+  loadMicrosoftTokens,
+  MICROSOFT_SCOPES,
+  MicrosoftGraphError,
+  REFRESH_MARGIN_MS,
+  refreshAccessToken,
+  saveMicrosoftTokens,
+  signOAuthState,
+  verifyOAuthState,
+} from "./microsoft";
 export type { ZefixAddress, ZefixCompanyDetail, ZefixCompanySummary, ZefixResultat } from "./zefix";
 export { ZefixClient, ZefixError, zefixClient } from "./zefix";

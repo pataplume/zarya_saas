@@ -159,6 +159,10 @@ importers:
         version: 5.9.3
 
   packages/integrations:
+    dependencies:
+      '@zarya/db':
+        specifier: workspace:*
+        version: link:../db
     devDependencies:
       '@types/node':
         specifier: '*'

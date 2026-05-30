@@ -289,6 +289,15 @@ export const statutRelanceEnum = crmSchema.enum("statut_relance", [
   "sans_reponse",
 ]);
 
+// Bloc D1 — intégrations tierces (Microsoft Graph ; bexio/nas à venir).
+export const integrationProviderEnum = crmSchema.enum("integration_provider", ["microsoft_graph"]);
+export const integrationStatutEnum = crmSchema.enum("integration_statut", [
+  "en_attente",
+  "actif",
+  "revoque",
+  "erreur",
+]);
+
 // ─── crm.cabinet — Racine du tenant (pas de cabinet_id) ──────────────────────
 
 export const cabinet = crmSchema.table(
@@ -851,6 +860,37 @@ export const note = crmSchema.table(
     index("idx_note_epingle")
       .on(t.cabinet_id, t.client_id)
       .where(sql`${t.epingle} AND ${t.archived_at} IS NULL`),
+  ],
+);
+
+// ─── crm.cabinet_integration — Credentials d'intégration tierce (Bloc D1) ────
+// docs/architecture/microsoft-integration.md §3.2. PAS de client_id (l'intégration
+// appartient au cabinet). ⚠️ SÉCURITÉ (ADR 0013 addendum) : aucune colonne de token
+// en clair. Les tokens OAuth vivent dans Supabase Vault ; seul `vault_secret_id` (UUID
+// du secret) est stocké ici. `parametres` ne contient que du NON sensible (tenant_id,
+// user_principal_name, tenant_region, expires_at, scope). Migration 0024.
+
+export const cabinetIntegration = crmSchema.table(
+  "cabinet_integration",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    provider: integrationProviderEnum("provider").notNull(),
+    vault_secret_id: uuid("vault_secret_id"),
+    statut: integrationStatutEnum("statut").notNull().default("en_attente"),
+    parametres: jsonb("parametres").notNull().default({}),
+    derniere_erreur: text("derniere_erreur"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("uniq_cabinet_integration_provider")
+      .on(t.cabinet_id, t.provider)
+      .where(sql`${t.archived_at} IS NULL`),
+    index("idx_cabinet_integration_cabinet").on(t.cabinet_id, t.archived_at),
   ],
 );
 

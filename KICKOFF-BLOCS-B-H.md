@@ -255,11 +255,17 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
 > `microsoft-integration.md`. **Tout en route handlers** `/api/integrations/microsoft/*`
 > (CORS/secrets — jamais côté client).
 
-- [ ] **D1 — App Azure AD + OAuth Authorization Code + refresh**
+- [x] **D1 — App Azure AD + OAuth Authorization Code + refresh** ✅ (migration 0024 ;
+  package `microsoft/` ; routes connect + callback ; tests verts)
   Scopes moindre privilège (`offline_access`, `User.Read`, `Mail.Read`, `Mail.Send`,
   `Calendars.ReadWrite`). · Surface : route callback, `crm.cabinet_integration` (tokens
   chiffrés Vault — voir ⚠️ §4.I), package microsoft. · Done : tokens chiffrés, refresh
   proactif -5 min, `pino redact`, secrets serveur only ; tests échange code + refresh.
+  · **Notes founder** : (1) liaison cabinet au callback (route publique) via `state`
+  signé HMAC-SHA256 (anti-CSRF) — pas de session côté Microsoft ; (2) `pino redact` :
+  AUCUNE infra pino dans le repo (2 TODO seulement) → choix de NE JAMAIS logger de token
+  plutôt que d'ajouter une dépendance transverse non arbitrée — à trancher avant D2 ;
+  (3) codé contre des mocks `fetch` (pas d'app Azure réelle) conformément à l'arbitrage.
 - [ ] **D2 — Wrapper `MicrosoftGraphClient` (scopé cabinet_id)**
   Méthodes : `listEmails/getEmail/downloadAttachment/sendEmail/listEvents/createEvent/…`,
   refresh transparent. · Done : chaque appel porte le bon `cabinet_id` ; retry/`Retry-After`/

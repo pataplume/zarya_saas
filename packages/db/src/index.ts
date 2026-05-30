@@ -10,6 +10,7 @@ export {
   adresse,
   banque,
   cabinet,
+  cabinetIntegration,
   cabinetMembre,
   cabinetStatutEnum,
   calendarCabinetConfig,
@@ -34,6 +35,8 @@ export {
   frequencePaieEnum,
   frequenceServiceEnum,
   honorairesModeleEnum,
+  integrationProviderEnum,
+  integrationStatutEnum,
   invitationMembre,
   invocation,
   langueEnum,
@@ -84,3 +87,5 @@ export {
   visibiliteNoteEnum,
   zefixRechercheCabinet,
 } from "./schema";
+// Supabase Vault — chiffrement au repos des secrets (ADR 0013 addendum)
+export { vaultCreateSecret, vaultGetSecret, vaultUpdateSecret } from "./vault";
