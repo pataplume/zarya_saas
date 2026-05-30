@@ -1,16 +1,96 @@
 ---
 status: actionable
 owner: founder
-last_updated: 2026-05-28
+last_updated: 2026-05-30
 type: handoff
 context: response to retro-sessions-claude.md (Phase 3 addendum, 28 mai 2026)
 priority: critical
 supersedes: HANDOFF.md (27 mai 2026)
+sequencing_superseded_by: ADR 0012 (séquence canonique v1.0, 30 mai 2026)
+llm_layer_superseded_by: ADR 0010 (Infomaniak — remplace Bedrock)
 ---
 
 # Handoff Founder → Claude Code v2
 
 > Réponse à ta rétrospective Phase 3 (`retro-sessions-claude.md` mis à jour 28 mai 2026). Ce document **remplace** le HANDOFF.md précédent. Lis-le **en entier** avant ta prochaine session. Contient les décisions stratégiques, les corrections de trajectoire, et les sprints à venir.
+
+> ⚠️ **Lis la § 0 d'abord.** Deux pans de ce document (la « séquence officielle » § 2.3 et la § 6 Bedrock) sont **périmés** depuis le 30 mai 2026. La § 0 dit ce qui fait foi aujourd'hui ; le reste est conservé pour l'historique.
+
+---
+
+## 0. Mise à jour 30 mai 2026 — ce qui fait foi aujourd'hui
+
+> Cette section a été ajoutée après deux décisions structurantes prises depuis la
+> rédaction initiale (28 mai). En cas de contradiction avec le reste du document,
+> **la § 0 gagne.**
+
+### 0.1 — Couche IA : Bedrock → Infomaniak (ADR 0010)
+
+Le branchement « Bedrock » décrit en § 2.3, § 6 et § 7.2 est **abandonné**. Toute la
+couche IA passe désormais par **Infomaniak AI Services** (souveraineté suisse, API
+OpenAI-compatible, model_ids résolus au runtime par catégorie). Cf. **ADR 0010**.
+Conséquence : les sprints « Phase 4.0 Bedrock » du § 6 sont caducs ; il faut lire
+« classification via `InfomaniakClassifier` ».
+
+**État réel au 30 mai** : la classification *live* Infomaniak est **branchée et
+validée** sur texte OCR réel (golden set n=56 : type 100 %, catégorie 100 %,
+exact-match 96.4 %, hallucination 0 %, sur-confiance 0 %). `EXTRACTION_MODE=stub`
+reste le défaut en prod. OCR vision + embeddings/RAG restent différés (modules
+Facture/Search pas construits).
+
+### 0.2 — Séquencement : ADR 0012 remplace la « séquence officielle » § 2.3
+
+La liste « Phase 4.1 Calendar / 4.2 Facture / 4.3 Search / 4.4 Salaire » du § 2.3 est
+**remplacée** par la séquence canonique de l'**ADR 0012**. Motif : on empilait des
+modules sur un CRM incomplet (5 tables sur ~20), avec des « FK fantômes » pointant
+vers des tables inexistantes. On pose donc **d'abord la fondation CRM complète**, puis
+les modules **verticalement, en ordre de dépendance**, chacun fini avant le suivant.
+
+**Séquence canonique figée (Blocs 0→H)** — détail et prérequis dans l'ADR 0012 :
+
+| Bloc | Périmètre | État |
+|----|-----------|------|
+| 0 | Gouvernance (ADR 0012 + réconciliation doc) | ✅ fait |
+| **A** | **Fondation CRM v1.0** — les ~20 tables `crm.*` (+ RLS, triggers, vues, seeds), reconnexion des FK fantômes | 🚧 en cours |
+| B | **Doc** fini (OCR vision prod, classif live, MAJ `document_attendu`) | à faire |
+| C | **Calendar** fini (génération auto échéances, UI) | à faire |
+| D | **Microsoft Graph** (OAuth + Graph) | à faire |
+| E | **Facture** (extraction structurée, QR-bill) | à faire |
+| F | **onboarding-client + dashboard-client** | à faire |
+| G | **Salaire** | à faire |
+| H | **embeddings/pgvector + Search** | à faire |
+
+**Découpage du Bloc A (runs A1→A10)** — c'est la liste exhaustive des runs de la
+fondation CRM :
+
+- **A1** — enrichir `crm.client` ✅ **livré** (migration 0009, PR #38)
+- **A2** — `crm.contact` + `crm.adresse` (le **canton** arrive au niveau client ici) ← **prochain run**
+- **A3** — `crm.service` + `crm.param_comptable` (régime TVA)
+- **A4** — `crm.document_attendu` + **reconnexion des FK fantômes** Calendar
+- **A5** — `crm.relation` + `crm.mandat` + `crm.banque` (IBAN chiffré)
+- **A6** — `crm.salaire_config` (schéma seulement)
+- **A7** — `crm.risque` (+ trigger recalc) + `crm.evenement` + `crm.note`
+- **A8** — `crm.standard_*` + seeds + `cabinet_integration` + `modele_*`
+- **A9** — vues + fonctions
+- **A10** — UI fiche client
+
+> Les runs des Blocs **B→H** ne sont **pas** encore découpés : chaque module sera
+> décomposé en runs au moment de son démarrage (même méthode que les Runs Calendar,
+> cf. ADR 0011). La seule liste de runs exhaustive à ce jour est A1→A10 ci-dessus.
+
+### 0.3 — Definition of Done par run (anti-bancal, ADR 0012)
+
+Aucun run n'est « fini » sans : migration + RLS + triggers de cohérence `cabinet_id`
++ **tests d'isolation multi-tenant ET anti-fuite cross-tenant** verts en CI (bloquants)
++ UI quand applicable + tests nominal/erreur + **zéro FK fantôme** + zéro TODO sans
+ticket. Runs **forward-only et additifs** ; un numéro n'est jamais réutilisé.
+
+### 0.4 — Phases historiques bouclées depuis le 28 mai
+
+- ✅ Phase 3.6 (tests server action authentifiée) — en prod
+- ✅ Phase 4.0 (migration IA → Infomaniak, périmètre classification) — classif live validée
+- ✅ Bloc 0 (ADR 0012)
+- 🚧 Bloc A (fondation CRM) — A1 livré, A2 en cours
 
 ---
 
@@ -76,6 +156,10 @@ Ces 2 problèmes deviennent la **priorité absolue** avant toute nouvelle featur
 - Risque de réputation si un cabinet pilote découvre que la "classification IA" est une regex sur nom de fichier
 
 ### 2.3 — Drift accepté du plan dev
+
+> ⛔ **PÉRIMÉ depuis le 30 mai 2026.** La « Nouvelle séquence officielle » ci-dessous
+> (Phase 4.1 Calendar … 4.4 Salaire) est remplacée par la séquence canonique de
+> l'**ADR 0012** (Blocs 0→H). Voir § 0.2. Section conservée pour l'historique.
 
 **Constat** : la séquence réelle a divergé du plan initial.
 
@@ -454,6 +538,11 @@ Tes 5 recommandations sont validées, mais l'ordre est révisé :
 ---
 
 ## 6. Phase 4.0 — Branchement Bedrock (dépend AWS)
+
+> ⛔ **PÉRIMÉ depuis le 30 mai 2026.** Bedrock est abandonné au profit d'**Infomaniak**
+> (ADR 0010). La classification *live* est déjà branchée et validée via
+> `InfomaniakClassifier`. Voir § 0.1. Section conservée pour l'historique (le
+> raisonnement « stub-derrière-contrat » reste valable, seul le provider change).
 
 **Trigger** : notification AWS confirmant quotas Bedrock débloqués.
 
