@@ -37,7 +37,7 @@
 | Bloc | Périmètre | Prérequis | État |
 |----|-----------|-----------|------|
 | **A** | **Fondation CRM v1.0** (~20 tables `crm.*` + RLS + triggers + vues + seeds) | — | ✅ **SCELLÉ** (A1→A10 + fix AVS) |
-| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS (prochain)** |
+| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 prochain) |
 | **C** | **Calendar fini** — génération auto échéances, envoi relances, UI | A3, A4 | à faire (Runs 1-5 déjà livrés) |
 | **D** | **Microsoft Graph** — OAuth + wrapper Graph (producteur transverse) | — | à faire (package vide) |
 | **E** | **Facture** — décodage QR-bill + extraction IA + export | B, A3, A5, **D** | à faire (ADR QR-bill à ouvrir) |
@@ -122,17 +122,27 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
 
 ### BLOC B — Doc fini (producteur racine). Prérequis : A4.
 
-- [ ] **B1 — Classification live sur texte réel (sortie du stub)**
+- [x] **B1 — Classification live sur texte réel (sortie du stub)** ✅ **clôturé (2026-05-30)**
   Livrable : bascule `StubClassifier`→`InfomaniakClassifier` sur texte OCR réel, contexte
-  `classification_doc`, derrière `EXTRACTION_MODE=live` ; output type+catégorie+client
-  probable+période+anomalies. · Surface : `packages/extraction` (`getClassifier`, prompts),
+  `classification_doc`, derrière `EXTRACTION_MODE=live` ; output type+catégorie+période+anomalies.
+  · Surface : `packages/extraction` (`getClassifier`, prompts),
   `packages/integrations/infomaniak`, `doc.proposition_classement`, `extraction.invocation`
   (catégorie `chat_small`). · Prérequis : OCR (#5-9), wrapper IK. · Done : trace invocation
   (status/coût/tokens/prompt_version) ; mapping erreurs 429/timeout/validation ; **stub reste
   le défaut** tant que non validé.
-- [ ] **B2 — Rattachement client multi-signal + seuils de confiance**
+  > **Réalisé** : cœur construit + validé en Phase 4.0 (golden set : type 100 %, cat 100 %,
+  > exact 96.4 %, halluc 0 %). Clôture B1 = garde-fou CI du pipeline live
+  > (`tests/integration/extraction/classify-document-live-trace.test.ts` : preuve que la
+  > persistance trace model/tokens/coût/prompt_version + mapping 429). **`EXTRACTION_MODE=stub`
+  > inchangé en prod** (bascule prod = décision founder après B1–B7).
+  > ⚠️ **« client probable » entièrement déféré à B2** (arbitré founder 2026-05-30) : aucune
+  > détection/écriture `doc.proposition_classement.client_id_propose` en B1 — c'est le périmètre
+  > détaillé de B2 (multi-signal + seuils ⚠️#4 + top-3 + anti-fuite).
+- [ ] **B2 — Rattachement client multi-signal + seuils de confiance** ← **prochain**
   Livrable : détection client par priorité (signal explicite → contenu IA/IDE → domaine
-  expéditeur `crm.client.domaines_emails` → sémantique) + paliers de confiance. · Surface :
+  expéditeur `crm.client.domaines_emails` → sémantique) + paliers de confiance.
+  **Inclut l'output « client probable » déféré de B1** (écriture
+  `doc.proposition_classement.client_id_propose`). · Surface :
   `packages/extraction`, `crm.client`, `crm.contact`, `doc.proposition_classement`. ·
   ⚠️ **Seuils incohérents** : `doc.md` §5.2 (90/60) vs `flow-a` §4 (0.95/0.80) → trancher.
   « Entité spéciale cabinet lui-même » (doc §5.3) sans table identifiée → trancher. · Done :
