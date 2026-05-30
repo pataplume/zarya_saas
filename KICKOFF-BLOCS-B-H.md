@@ -220,13 +220,17 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
 
 ### BLOC C — Calendar fini. Prérequis : A3, A4. *(Runs 1-5 déjà livrés)*
 
-- [ ] **C1 (Run 6) — Génération automatique des échéances**
-  Livrable : création auto des échéances récurrentes depuis `crm.service` + régime TVA
-  (`crm.param_comptable`) via templates ; job pg_cron. · Surface : `calendar.template_echeance`
-  (globaux `cabinet_id IS NULL` + overrides), `crm.echeance`, pg_cron. · Prérequis : A3, A4
-  (bloqueur « extension CRM » désormais **levé**). · Done : génération **idempotente** (pas de
-  doublon période) ; spécificités cantonales (`canton_specifique[]`) ; régimes TVA effectif/
-  forfait respectés.
+- [x] **C1 (Run 6) — Génération automatique des échéances** ✅ (migration 0023 ; PR à arbitrer)
+  Livrable : création auto des échéances récurrentes depuis `crm.service` + régime TVA via
+  templates ; job pg_cron quotidien. · Surface : `calendar.template_echeance` (globaux
+  `cabinet_id IS NULL` + overrides `herite_de_id`), `crm.echeance`, pg_cron. · Prérequis : A3,
+  A4 (levés). · **Livré** : fonction système `calendar.fn_generer_echeances()` (PL/pgSQL +
+  pg_cron, ADR 0016) ; génération **idempotente** (NOT EXISTS sur (client, template, date)) ;
+  `canton_specifique[]` (canton fiscal résolu depuis `crm.adresse` — siège prioritaire, le
+  schéma scellé n'a pas `crm.client.canton` ; addendum ADR 0011 §9) ; `regime_tva[]` lu dans
+  `crm.service.parametres->>'regime_tva'` (addendum ADR 0011 §10 — `param_comptable` scellé
+  sans colonne TVA) ; 8 tests d'intégration. Hors surface tenant (`REVOKE PUBLIC`). Zéro
+  reshape Bloc A (insère dans `crm.echeance` existante → pas de nouvelle table métier).
 - [ ] **C2 (Run 7) — Pipeline d'envoi des relances**
   Livrable : envoi relances validées via Graph `sendMail` depuis l'adresse cabinet ; modes
   A/B/C (défaut MVP = **Mode A**, validation humaine) ; throttle ~30/min, plafond 50. ·
