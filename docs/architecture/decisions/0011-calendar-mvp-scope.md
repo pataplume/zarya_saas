@@ -138,3 +138,50 @@ Les 12 décisions de cadrage sont actées comme suit pour le MVP Calendar.
 - ADR 0005 (multi-tenant natif) + addendum (le db applicatif bypasse la RLS)
 - ADR 0007 (validation granulaire) — Mode A relances
 - ADR 0010 (couche IA via Infomaniak) — `chat_small` pour la surcouche IA des relances
+
+---
+
+## Addendum 2026-05-30 — Découpage canonique des « runs » d'implémentation
+
+Le corps de cet ADR et les commentaires de schéma (`crm.ts`, `calendar.ts`)
+référencent des numéros de « run » de manière **ad hoc et divergente** (« Run 4 =
+email », « Run 7 = Outlook », « Runs 5/6 », etc.). Ces numéros se sont contredits au
+fil de l'implémentation. Cet addendum **fige la numérotation canonique** ci-dessous.
+Toute référence numérotée antérieure dans le code ou la doc est **caduque** et doit
+pointer vers cette table.
+
+| Run | Périmètre | État | Bloqueur |
+|----|-----------|------|----------|
+| 1 | Schéma `crm.echeance` + `crm.relance` (enums, RLS, trigger cohérence cabinet) | ✅ livré | — |
+| 2 | `calendar.*` : `template_echeance`, `modele_relance`, `cabinet_config`, `pause_client` (+ seed templates/modèles FR/DE/IT) | ✅ livré | — |
+| 3 | Moteur de transitions de statut (`calendar.fn_transition_statuts_echeances` + pg_cron horaire) | ✅ livré | — |
+| 4 | **Cet addendum** + seed des échéances **fédérales** (lignes globales `template_echeance`) | ⏳ en cours | — |
+| 5 | Rendu des relances (Handlebars : modèle → texte) | à faire | dépendance npm Handlebars à justifier |
+| 6 | Génération automatique des échéances (à partir des services/régime TVA du client) | à faire | **extension CRM** absente (attributs client hors Phase 4.0) |
+| 7 | Pipeline d'envoi email des relances | à faire | intégration Microsoft Graph (Phase 4+) |
+| 8 | Synchronisation Outlook (déplacements côté ZARYA) | à faire | Phase 2 (Q7/Q8 ré-ouvrables) |
+| 9 | UI Calendar (vue échéances, file de relances) | à faire | wireframes |
+
+Règles : les runs sont **forward-only et additifs** ; un run bloqué ne réordonne pas
+les suivants non bloqués (ex. Run 5 peut précéder Run 6). Tout nouveau périmètre
+calendar s'insère dans cette table par un nouvel addendum, jamais par un numéro
+réutilisé.
+
+## Addendum 2026-05-30 (bis) — Les échéances fédérales/cantonales sont des lignes seed globales
+
+Clarification du **décision #9** (« échéances cantonales = table seed interne
+versionnée »). Il n'y a **pas** de nouvelle table. Les échéances réglementaires
+récurrentes (fédérales aujourd'hui, cantonales ensuite) sont matérialisées comme des
+**lignes globales de `calendar.template_echeance`** (`cabinet_id IS NULL`), lisibles
+par tous les tenants via la policy RLS de catalogue global (`cabinet_id =
+current_cabinet_id() OR cabinet_id IS NULL`). Les colonnes `canton_specifique text[]`
+et `date_specifique date` (cf. `echeance-schema.md` §3) portent la spécificité
+cantonale/ponctuelle. Un cabinet peut surcharger un template global par une ligne
+propre (`cabinet_id` renseigné), conformément au pattern catalogue global
+(`packages/db/CLAUDE.md` §1).
+
+Le seed fédéral du Run 4 reste **conservateur** : seules les échéances explicitement
+énumérées dans `docs/modules/calendar.md` (certificats de salaire annuels §, décomptes
+annuels AVS/LPP/AC/IS §, cotisations AVS trimestrielles §) sont semées, avec un jour-du-
+mois prudent et un commentaire de provenance. Les dates précises et le périmètre
+cantonal restent à valider avec le founder / un expert métier (condition de révision).

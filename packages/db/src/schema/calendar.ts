@@ -17,8 +17,10 @@ import { cabinet, client, typeEcheanceEnum } from "./crm";
 //   - calendar.modele_relance    : formulation des relances Handlebars (catalogue global + overrides cabinet)
 //   - calendar.cabinet_config    : paramètres calendrier par cabinet
 //   - calendar.pause_client      : pauses de relance par client
-// Différés (Run 7) : calendar.evenement_outlook + colonnes Outlook sur crm.echeance/relance,
-// vues calendar.v_*, jobs pg_cron de génération/transition/escalade (runs ultérieurs).
+// Le moteur de transitions de statut (job pg_cron horaire) est livré au Run 3
+// (migration 0007), hors schéma Drizzle. Découpage canonique des runs : addendum
+// 2026-05-30 de l'ADR 0011. Différés : génération auto (Run 6), pipeline email
+// (Run 7), calendar.evenement_outlook + colonnes Outlook + vues v_* (Run 8).
 export const calendarSchema = pgSchema("calendar");
 
 // ─── Enums (types Postgres natifs) ───────────────────────────────────────────

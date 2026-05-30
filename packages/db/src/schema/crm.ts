@@ -68,10 +68,12 @@ export const statutClientEnum = crmSchema.enum("statut_client", [
   "archive",
 ]);
 
-// ── Module Calendar (Phase 4.1+, Run 1) — échéances & relances ───────────────
+// ── Module Calendar (Run 1) — échéances & relances ───────────────────────────
 // Périmètre Run 1 (ADR 0011) : tables opérationnelles de base crm.echeance et
-// crm.relance. Différés : calendar.* (templates, config, pauses, sync Outlook),
-// colonnes d'extension Outlook/escalade/pipeline d'envoi (Runs 3/5/6/7).
+// crm.relance. Le découpage canonique des runs est figé dans l'addendum
+// 2026-05-30 de l'ADR 0011 (toute numérotation antérieure est caduque). Différés :
+// rendu Handlebars (Run 5), génération auto (Run 6), pipeline d'envoi email
+// (Run 7), sync Outlook (Run 8).
 
 export const typeEcheanceEnum = crmSchema.enum("type_echeance", [
   "fiscale",
@@ -357,8 +359,9 @@ export const echeance = crmSchema.table(
 );
 
 // ─── crm.relance — Relances clients liées à une échéance / un document ───────
-// Colonnes de base (crm-schema.md § 16). Le pipeline d'envoi (modèle email,
-// validation Mode A, Microsoft Graph) est différé (Runs 5/6).
+// Colonnes de base (crm-schema.md § 16). Le rendu Handlebars (Run 5) puis le
+// pipeline d'envoi (validation Mode A, Microsoft Graph — Run 7) sont différés.
+// Découpage canonique : addendum 2026-05-30 de l'ADR 0011.
 
 export const relance = crmSchema.table(
   "relance",
