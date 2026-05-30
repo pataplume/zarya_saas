@@ -43,6 +43,7 @@ import {
   propositionClassement,
   relance,
   relation,
+  salaireConfig,
   service,
   sessionOnboardingFiduciaire,
   templateEcheance,
@@ -74,6 +75,7 @@ import {
   seedProposition,
   seedRelance,
   seedRelation,
+  seedSalaireConfig,
   seedService,
   seedTemplateEcheance,
   seedTwoCabinets,
@@ -178,6 +180,14 @@ const METIER_TABLES: MetierTableSpec[] = [
     table: banque,
     scopeCol: banque.cabinet_id,
     idCol: banque.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  // salaire_config est 1-1 avec client → sa PK est client_id (pas d'id propre).
+  {
+    name: "crm.salaire_config",
+    table: salaireConfig,
+    scopeCol: salaireConfig.cabinet_id,
+    idCol: salaireConfig.client_id,
     noopSet: { cabinet_id: NIL_UUID },
   },
   {
@@ -297,6 +307,7 @@ const RLS_TABLES = [
   ["crm", "relation"],
   ["crm", "mandat"],
   ["crm", "banque"],
+  ["crm", "salaire_config"],
   ["crm", "invitation_membre"],
   ["crm", "zefix_recherche_cabinet"],
   ["crm", "session_onboarding_fiduciaire"],
@@ -363,6 +374,10 @@ beforeAll(async () => {
   const [banqueA, banqueB] = [
     await seedBanque(sql, cabinetA.id, clientA.id),
     await seedBanque(sql, cabinetB.id, clientB.id),
+  ];
+  const [salConfA, salConfB] = [
+    await seedSalaireConfig(sql, cabinetA.id, clientA.id),
+    await seedSalaireConfig(sql, cabinetB.id, clientB.id),
   ];
   const [invA, invB] = [
     await seedInvitation(sql, cabinetA.id),
@@ -433,6 +448,7 @@ beforeAll(async () => {
     "crm.relation": relationA.client_id,
     "crm.mandat": mandatA.id,
     "crm.banque": banqueA.id,
+    "crm.salaire_config": salConfA.client_id,
     "crm.invitation_membre": invA.id,
     "crm.zefix_recherche_cabinet": zA.id,
     "crm.session_onboarding_fiduciaire": sessA,
@@ -460,6 +476,7 @@ beforeAll(async () => {
     "crm.relation": relationB.client_id,
     "crm.mandat": mandatB.id,
     "crm.banque": banqueB.id,
+    "crm.salaire_config": salConfB.client_id,
     "crm.invitation_membre": invB.id,
     "crm.zefix_recherche_cabinet": zB.id,
     "crm.session_onboarding_fiduciaire": sessB,
