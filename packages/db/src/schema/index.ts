@@ -18,10 +18,15 @@ export {
   contact,
   crmSchema,
   echeance,
+  frequenceServiceEnum,
   invitationMembre,
+  logicielComptableEnum,
+  modeTransmissionEnum,
+  paramComptable,
   planTarifaireEnum,
   relance,
   roleMembreEnum,
+  service,
   sessionOnboardingFiduciaire,
   statutClientEnum,
   statutEcheanceEnum,
@@ -30,6 +35,7 @@ export {
   statutSessionOnboardingFiduciaireEnum,
   typeAdresseEnum,
   typeEcheanceEnum,
+  typeServiceEnum,
   zefixRechercheCabinet,
 } from "./crm";
 export {

@@ -35,9 +35,11 @@ import {
   invitationMembre,
   invocation,
   modeleRelance,
+  paramComptable,
   pauseClient,
   propositionClassement,
   relance,
+  service,
   sessionOnboardingFiduciaire,
   templateEcheance,
   uploadBrut,
@@ -60,9 +62,11 @@ import {
   seedInvitation,
   seedInvocation,
   seedModeleRelance,
+  seedParamComptable,
   seedPauseClient,
   seedProposition,
   seedRelance,
+  seedService,
   seedTemplateEcheance,
   seedTwoCabinets,
   seedUploadBrut,
@@ -122,6 +126,21 @@ const METIER_TABLES: MetierTableSpec[] = [
     table: adresse,
     scopeCol: adresse.cabinet_id,
     idCol: adresse.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "crm.service",
+    table: service,
+    scopeCol: service.cabinet_id,
+    idCol: service.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  // param_comptable est 1-1 avec client → sa PK est client_id (pas d'id propre).
+  {
+    name: "crm.param_comptable",
+    table: paramComptable,
+    scopeCol: paramComptable.cabinet_id,
+    idCol: paramComptable.client_id,
     noopSet: { cabinet_id: NIL_UUID },
   },
   {
@@ -235,6 +254,8 @@ const RLS_TABLES = [
   ["crm", "client"],
   ["crm", "contact"],
   ["crm", "adresse"],
+  ["crm", "service"],
+  ["crm", "param_comptable"],
   ["crm", "invitation_membre"],
   ["crm", "zefix_recherche_cabinet"],
   ["crm", "session_onboarding_fiduciaire"],
@@ -277,6 +298,14 @@ beforeAll(async () => {
   const [adresseA, adresseB] = [
     await seedAdresse(sql, cabinetA.id, clientA.id),
     await seedAdresse(sql, cabinetB.id, clientB.id),
+  ];
+  const [serviceA, serviceB] = [
+    await seedService(sql, cabinetA.id, clientA.id),
+    await seedService(sql, cabinetB.id, clientB.id),
+  ];
+  const [paramA, paramB] = [
+    await seedParamComptable(sql, cabinetA.id, clientA.id),
+    await seedParamComptable(sql, cabinetB.id, clientB.id),
   ];
   const [invA, invB] = [
     await seedInvitation(sql, cabinetA.id),
@@ -341,6 +370,8 @@ beforeAll(async () => {
     "crm.client": clientA.id,
     "crm.contact": contactA.id,
     "crm.adresse": adresseA.id,
+    "crm.service": serviceA.id,
+    "crm.param_comptable": paramA.client_id,
     "crm.invitation_membre": invA.id,
     "crm.zefix_recherche_cabinet": zA.id,
     "crm.session_onboarding_fiduciaire": sessA,
@@ -362,6 +393,8 @@ beforeAll(async () => {
     "crm.client": clientB.id,
     "crm.contact": contactB.id,
     "crm.adresse": adresseB.id,
+    "crm.service": serviceB.id,
+    "crm.param_comptable": paramB.client_id,
     "crm.invitation_membre": invB.id,
     "crm.zefix_recherche_cabinet": zB.id,
     "crm.session_onboarding_fiduciaire": sessB,
