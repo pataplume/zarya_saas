@@ -6,6 +6,7 @@ export type { DbForCabinet } from "./client";
 export { db, getDbForCabinet } from "./client";
 // Schémas et enums
 export {
+  acteurTypeEvenementEnum,
   adresse,
   banque,
   cabinet,
@@ -23,6 +24,7 @@ export {
   document,
   documentAttendu,
   echeance,
+  evenement,
   extractionContextEnum,
   extractionInputTypeEnum,
   extractionSchema,
@@ -40,6 +42,8 @@ export {
   mandat,
   modeleRelance,
   modeTransmissionEnum,
+  niveauRisqueEnum,
+  note,
   paramComptable,
   pauseClient,
   planTarifaireEnum,
@@ -47,6 +51,7 @@ export {
   propositionClassement,
   relance,
   relation,
+  risque,
   roleMembreEnum,
   salaireConfig,
   service,
@@ -64,8 +69,10 @@ export {
   templateEcheance,
   typeAdresseEnum,
   typeEcheanceEnum,
+  typeEvenementEnum,
   typeServiceEnum,
   uploadBrut,
   usageBanqueEnum,
+  visibiliteNoteEnum,
   zefixRechercheCabinet,
 } from "./schema";
