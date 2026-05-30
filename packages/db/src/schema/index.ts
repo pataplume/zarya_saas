@@ -10,6 +10,7 @@ export {
 } from "./calendar";
 export {
   adresse,
+  banque,
   cabinet,
   cabinetMembre,
   cabinetStatutEnum,
@@ -43,6 +44,7 @@ export {
   typeAdresseEnum,
   typeEcheanceEnum,
   typeServiceEnum,
+  usageBanqueEnum,
   zefixRechercheCabinet,
 } from "./crm";
 export {

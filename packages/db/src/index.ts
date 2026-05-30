@@ -7,6 +7,7 @@ export { db, getDbForCabinet } from "./client";
 // Schémas et enums
 export {
   adresse,
+  banque,
   cabinet,
   cabinetMembre,
   cabinetStatutEnum,
@@ -62,5 +63,6 @@ export {
   typeEcheanceEnum,
   typeServiceEnum,
   uploadBrut,
+  usageBanqueEnum,
   zefixRechercheCabinet,
 } from "./schema";
