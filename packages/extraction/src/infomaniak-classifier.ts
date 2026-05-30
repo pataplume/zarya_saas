@@ -79,6 +79,17 @@ function libelleParDefaut(nom: string): string {
 
 // Valide + normalise la sortie brute du modèle vers une ClassificationProposal sûre.
 // Retourne null si la structure de base est inexploitable (déclenche le fallback/erreur).
+// Chaînes que le modèle peut renvoyer pour signifier « pas de période » au lieu
+// d'un null JSON. Comparées en minuscules après trim.
+const PERIODE_NULL_SENTINELS: ReadonlySet<string> = new Set([
+  "null",
+  "none",
+  "n/a",
+  "na",
+  "-",
+  "—",
+]);
+
 function toProposal(raw: unknown, input: ClassificationInput): ClassificationProposal | null {
   if (typeof raw !== "object" || raw === null) return null;
   const r = raw as Partial<ClassifyDocRaw>;
@@ -99,8 +110,13 @@ function toProposal(raw: unknown, input: ClassificationInput): ClassificationPro
       ? r.libelle.trim()
       : libelleParDefaut(input.nom_fichier);
 
+  // Le modèle émet parfois une période absente comme une chaîne sentinelle
+  // ("null", "—", "n/a"…) plutôt qu'un null JSON. Sans coercition, cette chaîne
+  // se retrouverait stockée telle quelle dans doc.proposition_classement.periode_proposee
+  // et affichée au validateur. On la ramène à un vrai null.
+  const periodeRaw = typeof r.periode === "string" ? r.periode.trim() : "";
   const periode =
-    typeof r.periode === "string" && r.periode.trim() !== "" ? r.periode.trim() : null;
+    periodeRaw !== "" && !PERIODE_NULL_SENTINELS.has(periodeRaw.toLowerCase()) ? periodeRaw : null;
 
   const anomalies = Array.isArray(r.anomalies)
     ? r.anomalies.filter((a): a is string => typeof a === "string")
