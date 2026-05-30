@@ -58,6 +58,9 @@ export {
   typeEvenementEnum,
   typeServiceEnum,
   usageBanqueEnum,
+  vClientDashboard,
+  vDocumentsManquants,
+  vEcheancesAVenir,
   visibiliteNoteEnum,
   zefixRechercheCabinet,
 } from "./crm";

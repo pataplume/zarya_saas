@@ -77,6 +77,9 @@ export {
   typeServiceEnum,
   uploadBrut,
   usageBanqueEnum,
+  vClientDashboard,
+  vDocumentsManquants,
+  vEcheancesAVenir,
   visibiliteNoteEnum,
   zefixRechercheCabinet,
 } from "./schema";
