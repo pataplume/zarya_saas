@@ -121,12 +121,36 @@ Quand possible (PDF natif), chaque champ extrait pointe vers sa position dans le
 
 UX bénéfique : lors de la validation, surlignage du PDF → l'utilisateur voit immédiatement d'où vient chaque chiffre.
 
-### 4.4 Cas QR-facture suisse
-Format standard suisse depuis 2022. Très structuré :
-- QR code en bas de la facture avec toutes les infos
-- Décodage direct (pas besoin d'IA) → fiabilité ~100%
+### 4.4 Cas QR-facture suisse (Swiss QR-bill)
+Format standard suisse depuis 2022 (remplace les BVR/ISR), normé par **SIX** (« Swiss
+Implementation Guidelines QR-bill »). C'est la donnée la plus structurée et la plus fiable
+d'une facture CH — tous les logiciels comptables suisses la décodent, et c'est gratuit.
 
-ZARYA détecte la présence d'un QR-facture en priorité. Si trouvé : décodage direct, IA appelée uniquement pour les champs hors QR (catégorie, etc.).
+**Principe directeur : décodage déterministe AVANT tout LLM pour les données de paiement.**
+Le payload de paiement (IBAN/QR-IBAN, créancier, montant, devise, débiteur, référence) ne
+doit jamais dépendre d'une transcription IA quand un QR-bill est présent : on le lit
+directement, fiabilité ~100%, zéro coût, zéro hallucination. L'IA n'intervient que pour les
+champs hors QR (catégorie comptable, n° de commande interne, etc.).
+
+**Détection** : le QR-bill porte une **croix suisse** au centre du QR code (marqueur normé).
+On la détecte pour distinguer un QR-bill d'un QR générique.
+
+**Payload SIX (Swico)** : structure texte à champs fixes séparés par `\n`, en-tête
+`SPC` (Swiss Payments Code), version, IBAN/QR-IBAN du créancier, bloc créancier (nom,
+adresse), montant + devise (`CHF`/`EUR`), bloc débiteur, **type + référence**
+(`QRR` = référence QR 27 chiffres avec checksum mod-10 récursif / `SCOR` = référence
+Creditor ISO 11649 / `NON` = sans référence), puis communication libre.
+
+**Validations déterministes** (avant proposition) : checksum IBAN (mod-97), checksum
+référence QRR (mod-10 récursif), cohérence QR-IBAN ↔ type de référence.
+
+ZARYA détecte la présence d'un QR-bill **en priorité**. Si trouvé : décodage direct, l'IA
+n'est appelée que pour compléter les champs hors QR.
+
+> **Statut** : conception. Pas d'implémentation en Phase 4.x (module Facture pas démarré ;
+> le périmètre IA courant se limite à la classification — ADR 0010). Un **ADR dédié**
+> (décodage QR-bill SIX, lib de décodage, détection croix suisse) sera ouvert au démarrage
+> du module Facture. Voir question ouverte §16 et backlog ci-dessous.
 
 ## 5. Détection d'anomalies
 

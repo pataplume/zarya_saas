@@ -38,6 +38,8 @@ export function mapErrorToInvocationStatus(err: unknown): InvocationStatus {
         return "timeout";
       case "VALIDATION_FAILED":
         return "validation_error";
+      case "OCR_FAILED":
+        return "ocr_failed";
       default:
         return "unknown_error"; // CONFIG, LLM_ERROR
     }

@@ -10,7 +10,9 @@ export {
 export type {
   IkChatCompletionParams,
   IkChatCompletionResponse,
+  IkChatContentPart,
   IkChatMessage,
+  IkChatResponseMessage,
   IkChatRole,
   IkJsonSchema,
   IkModel,

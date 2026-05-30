@@ -70,7 +70,13 @@ export class ExtractionNotImplementedError extends Error {
 // Erreur typée du chemin d'extraction live (LLM). Catch ciblé côté pipeline.
 export class ExtractionError extends Error {
   constructor(
-    public readonly code: "CONFIG" | "LLM_ERROR" | "TIMEOUT" | "RATE_LIMIT" | "VALIDATION_FAILED",
+    public readonly code:
+      | "CONFIG"
+      | "LLM_ERROR"
+      | "TIMEOUT"
+      | "RATE_LIMIT"
+      | "VALIDATION_FAILED"
+      | "OCR_FAILED",
     message: string,
     public readonly originalCause?: unknown,
   ) {

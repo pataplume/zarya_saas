@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@zarya/auth";
 import { db, fichierPhysique, uploadBrut } from "@zarya/db";
-import { classifyDocument } from "@zarya/extraction";
+import { classifyDocument, ocrDocument, resolveExtractionMode } from "@zarya/extraction";
 import { and, eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -177,7 +177,49 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Échec de l'enregistrement du fichier" }, { status: 500 });
   }
 
-  // 8. Classification IA → proposition en attente de validation (ADR 0007).
+  // 8. OCR (Phase 4.1) — texte natif PDF (gratuit) ou vision Infomaniak (images).
+  // Uniquement en mode live : en stub (défaut prod), comportement inchangé
+  // (classification sur le nom de fichier). L'OCR est best-effort et NON bloquant :
+  // un échec (ex. live sans credentials IK, rate-limit) laisse le document
+  // classable sur son nom, sans perdre le fichier. Le texte extrait alimente la
+  // classification en aval. Les bytes sont déjà en mémoire (pas de re-download).
+  let ocr_text: string | null = null;
+  if (resolveExtractionMode() === "live") {
+    try {
+      const ocr = await ocrDocument({
+        cabinet_id,
+        fichier_physique_id: fichier.id,
+        bytes,
+        type_mime,
+        taille_octets,
+        invoked_by_user_id: user.id,
+      });
+      ocr_text = ocr.ocr_text;
+      await db
+        .update(fichierPhysique)
+        .set({
+          ocr_done: ocr.source === "pdf_natif" || ocr.source === "vision",
+          ocr_text: ocr.ocr_text,
+          ocr_invocation_id: ocr.invocation_id,
+          ...(ocr.nb_pages != null ? { nb_pages: ocr.nb_pages } : {}),
+        })
+        // Scope cabinet_id en plus de l'id (le db applicatif bypasse la RLS —
+        // sécurité multi-tenant = filtre cabinet_id discipliné, addendum ADR 0005).
+        .where(and(eq(fichierPhysique.id, fichier.id), eq(fichierPhysique.cabinet_id, cabinet_id)));
+    } catch (err) {
+      // OCR best-effort : on logge (contexte cabinet_id, jamais de PII) et on
+      // poursuit la classification sans texte OCR.
+      // biome-ignore lint/suspicious/noConsole: observabilité serveur, capté par Vercel Runtime Logs
+      console.error("[doc.upload] OCR échoué", {
+        cabinet_id,
+        upload_brut_id: upload.id,
+        fichier_physique_id: fichier.id,
+        error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+      });
+    }
+  }
+
+  // 9. Classification IA → proposition en attente de validation (ADR 0007).
   // Un échec de classification ne perd pas le fichier : il reste 'recu',
   // reclassable plus tard. On ne bloque donc pas la réponse d'upload.
   try {
@@ -187,6 +229,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       nom_fichier,
       taille_octets,
       type_mime,
+      ocr_text,
       invoked_by_user_id: user.id,
     });
     await db.update(uploadBrut).set({ statut: "a_valider" }).where(eq(uploadBrut.id, upload.id));
