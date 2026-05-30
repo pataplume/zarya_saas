@@ -69,6 +69,11 @@ export interface TestBanque {
   client_id: string;
 }
 
+export interface TestSalaireConfig {
+  client_id: string;
+  cabinet_id: string;
+}
+
 export interface TestFichierPhysique {
   id: string;
   cabinet_id: string;
@@ -362,6 +367,23 @@ export async function seedBanque(
   return { id, cabinet_id, client_id };
 }
 
+/**
+ * Crée la ligne crm.salaire_config d'un client (1-1, client_id = PK).
+ * Idempotent : ON CONFLICT DO NOTHING pour pouvoir re-seeder sans casser.
+ */
+export async function seedSalaireConfig(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestSalaireConfig> {
+  await sql`
+    INSERT INTO crm.salaire_config (client_id, cabinet_id, frequence_paie)
+    VALUES (${client_id}, ${cabinet_id}, 'mensuelle')
+    ON CONFLICT (client_id) DO NOTHING
+  `;
+  return { client_id, cabinet_id };
+}
+
 /** Crée un extraction.invocation de test (mode stub) pour un cabinet donné. */
 export async function seedInvocation(
   sql: postgres.Sql,
@@ -622,6 +644,8 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   await sql`DELETE FROM crm.relation                WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc A6 (banque, enfant de crm.client)
   await sql`DELETE FROM crm.banque                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // Bloc A7 (salaire_config, enfant de crm.client ; contact_rh_id SET NULL)
+  await sql`DELETE FROM crm.salaire_config          WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc A3 (service / param_comptable, enfants de crm.client)
   await sql`DELETE FROM crm.service                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.param_comptable         WHERE cabinet_id = ANY(${arr}::uuid[])`;

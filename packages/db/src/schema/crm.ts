@@ -181,6 +181,30 @@ export const usageBanqueEnum = crmSchema.enum("usage_banque", [
   "tva",
 ]);
 
+// ── Bloc A7 — crm.salaire_config (§14) ───────────────────────────────────────
+
+// Fréquence de paie du client (config salaires). Distinct de frequence_service :
+// la paie a sa propre cadence (quinzomadaire / hebdomadaire) hors du référentiel
+// des services comptables.
+export const frequencePaieEnum = crmSchema.enum("frequence_paie", [
+  "mensuelle",
+  "quinzomadaire",
+  "hebdomadaire",
+]);
+
+// Logiciel de paie utilisé par le client (référentiel distinct du logiciel
+// comptable : un client peut tenir sa compta sur bexio et ses salaires sur Swissdec).
+export const logicielPaieEnum = crmSchema.enum("logiciel_paie", [
+  "bexio_payroll",
+  "cresus_salaires",
+  "winbiz_salaires",
+  "abacus_lohn",
+  "officemaker_staff",
+  "swissdec",
+  "autre",
+  "aucun",
+]);
+
 // ── Module Calendar (Run 1) — échéances & relances ───────────────────────────
 // Périmètre Run 1 (ADR 0011) : tables opérationnelles de base crm.echeance et
 // crm.relance. Le découpage canonique des runs est figé dans l'addendum
@@ -645,6 +669,44 @@ export const banque = crmSchema.table(
   (t) => [
     index("idx_banque_cabinet").on(t.cabinet_id, t.archived_at),
     index("idx_banque_client").on(t.cabinet_id, t.client_id),
+  ],
+);
+
+// ─── crm.salaire_config — Paramétrage salaires d'un client (Bloc A7) ─────────
+// crm-schema.md § 14. 1-1 avec le client (client_id = PK), rempli si le service
+// salaires est actif. cabinet_id dénormalisé pour la RLS, cohérence garantie par
+// trg_check_client_cabinet_salaire_config (migration 0015). `contact_rh_id` est une
+// vraie FK vers crm.contact (existe depuis A2) ; sa cohérence cabinet est garantie
+// applicativement (le contact appartient au même client, donc au même cabinet) et
+// vérifiée en test.
+
+export const salaireConfig = crmSchema.table(
+  "salaire_config",
+  {
+    client_id: uuid("client_id")
+      .primaryKey()
+      .references(() => client.id, { onDelete: "restrict" }),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    nombre_employes: integer("nombre_employes"),
+    frequence_paie: frequencePaieEnum("frequence_paie").notNull().default("mensuelle"),
+    date_validation_jour_du_mois: integer("date_validation_jour_du_mois"),
+    contact_rh_id: uuid("contact_rh_id").references(() => contact.id, { onDelete: "set null" }),
+    logiciel_paie: logicielPaieEnum("logiciel_paie"),
+    caisse_avs: text("caisse_avs"),
+    caisse_lpp: text("caisse_lpp"),
+    assurance_accidents: text("assurance_accidents"),
+    assurance_ijm: text("assurance_ijm"),
+    documents_attendus_par_periode: jsonb("documents_attendus_par_periode"),
+    envoi_automatique_relance: boolean("envoi_automatique_relance").notNull().default(false),
+    derniere_validation_recue: date("derniere_validation_recue"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_salaire_config_cabinet").on(t.cabinet_id),
+    index("idx_salaire_config_contact_rh").on(t.contact_rh_id),
   ],
 );
 
