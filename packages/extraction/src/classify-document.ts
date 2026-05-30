@@ -10,6 +10,7 @@
 import { db, invocation, propositionClassement } from "@zarya/db";
 import {
   type ClassificationInput,
+  type Classifier,
   ExtractionError,
   type ExtractionMode,
   getClassifier,
@@ -62,11 +63,12 @@ export interface ClassifyDocumentResult {
   proposition_id: string;
 }
 
+// `classifier` est injectable pour les tests (mode live mocké, sans réseau) ;
+// en prod il est résolu par getClassifier() selon EXTRACTION_MODE (défaut stub).
 export async function classifyDocument(
   input: ClassifyDocumentInput,
+  classifier: Classifier = getClassifier(),
 ): Promise<ClassifyDocumentResult> {
-  const classifier = getClassifier();
-
   const classificationInput: ClassificationInput = {
     nom_fichier: input.nom_fichier,
     ocr_text: input.ocr_text ?? null,
