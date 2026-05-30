@@ -155,17 +155,25 @@ pointer vers cette table.
 | 1 | Schéma `crm.echeance` + `crm.relance` (enums, RLS, trigger cohérence cabinet) | ✅ livré | — |
 | 2 | `calendar.*` : `template_echeance`, `modele_relance`, `cabinet_config`, `pause_client` (+ seed templates/modèles FR/DE/IT) | ✅ livré | — |
 | 3 | Moteur de transitions de statut (`calendar.fn_transition_statuts_echeances` + pg_cron horaire) | ✅ livré | — |
-| 4 | **Cet addendum** + seed des échéances **fédérales** (lignes globales `template_echeance`) | ⏳ en cours | — |
-| 5 | Rendu des relances (Handlebars : modèle → texte) | à faire | dépendance npm Handlebars à justifier |
+| 4 | **Cet addendum** + seed des échéances **fédérales** (lignes globales `template_echeance`) | ✅ livré | — |
+| 5 | Rendu des relances (`@zarya/calendar` : `renderRelance`, Handlebars logic-less : modèle → texte) | ✅ livré | — |
 | 6 | Génération automatique des échéances (à partir des services/régime TVA du client) | à faire | **extension CRM** absente (attributs client hors Phase 4.0) |
 | 7 | Pipeline d'envoi email des relances | à faire | intégration Microsoft Graph (Phase 4+) |
 | 8 | Synchronisation Outlook (déplacements côté ZARYA) | à faire | Phase 2 (Q7/Q8 ré-ouvrables) |
 | 9 | UI Calendar (vue échéances, file de relances) | à faire | wireframes |
 
 Règles : les runs sont **forward-only et additifs** ; un run bloqué ne réordonne pas
-les suivants non bloqués (ex. Run 5 peut précéder Run 6). Tout nouveau périmètre
+les suivants non bloqués (ex. Run 5 a précédé Run 6, bloqué). Tout nouveau périmètre
 calendar s'insère dans cette table par un nouvel addendum, jamais par un numéro
 réutilisé.
+
+**Dépendance npm `handlebars` (Run 5)** — ajoutée à `@zarya/calendar`, justifiée par la
+décision #2 de cet ADR (templates logic-less). Rationale sécurité : les modèles de
+relance peuvent être **rédigés par les cabinets** (overrides `modele_relance` avec
+`cabinet_id` renseigné) ; un moteur logic-less interprète `{{var}}` sans jamais exécuter
+de code arbitraire issu d'un template utilisateur, contrairement à une interpolation par
+template literals / `eval`. Rendu en `noEscape` (relances MVP en texte brut) ; l'échappement
+sera réactivé le jour d'un canal HTML (Run 7+).
 
 ## Addendum 2026-05-30 (bis) — Les échéances fédérales/cantonales sont des lignes seed globales
 
