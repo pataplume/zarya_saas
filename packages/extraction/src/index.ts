@@ -49,6 +49,19 @@ export {
   type ClassifyDocRaw,
 } from "./prompts/classification-doc";
 export {
+  type ClientCandidat,
+  type ClientPalier,
+  type ClientResolution,
+  type ClientRow,
+  type ClientSignals,
+  type ContactRow,
+  extractIde,
+  resolveClientCandidates,
+  SEUIL_RATTACHEMENT_AUTO,
+  SEUIL_RATTACHEMENT_PROPOSER,
+  scoreClients,
+} from "./resolve-client";
+export {
   type ChampsProposition,
   type ChampValidation,
   diffValidation,

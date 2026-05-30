@@ -141,6 +141,13 @@ Solution : le pipeline crée **N propositions** pour un même email/document par
 - **Confiance 60-90%** → proposition avec validation 1-clic
 - **Confiance < 60%** → file "à classer manuellement"
 
+> **Seuils canoniques (ADR 0014)** : ces paliers (0.90 / 0.60, en décimales) régissent la
+> **confiance du rattachement client** et sont la source de vérité de B2. Ne pas les
+> confondre avec les seuils de `flow-a` §4 (0.95 / 0.80), qui régissent la **politique
+> d'auto-classement** (saut de validation) — inactive en MVP `strict`. « Rattachement
+> auto » signifie ici *`client_id_propose` pré-rempli pour confirmation 1-clic*, pas un
+> saut de la validation humaine (qui reste obligatoire, ADR 0007).
+
 ### 5.3 Cas particuliers
 - **Plusieurs clients matchent** (homonymes, holding) → propose les top 3, validation humaine
 - **Document concerne le cabinet** (facture fournisseur du cabinet) → rattachement au "cabinet lui-même" (entité spéciale)

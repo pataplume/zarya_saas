@@ -37,7 +37,7 @@
 | Bloc | Périmètre | Prérequis | État |
 |----|-----------|-----------|------|
 | **A** | **Fondation CRM v1.0** (~20 tables `crm.*` + RLS + triggers + vues + seeds) | — | ✅ **SCELLÉ** (A1→A10 + fix AVS) |
-| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 prochain) |
+| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 ✅ ; B3 prochain) |
 | **C** | **Calendar fini** — génération auto échéances, envoi relances, UI | A3, A4 | à faire (Runs 1-5 déjà livrés) |
 | **D** | **Microsoft Graph** — OAuth + wrapper Graph (producteur transverse) | — | à faire (package vide) |
 | **E** | **Facture** — décodage QR-bill + extraction IA + export | B, A3, A5, **D** | à faire (ADR QR-bill à ouvrir) |
@@ -138,15 +138,16 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   > ⚠️ **« client probable » entièrement déféré à B2** (arbitré founder 2026-05-30) : aucune
   > détection/écriture `doc.proposition_classement.client_id_propose` en B1 — c'est le périmètre
   > détaillé de B2 (multi-signal + seuils ⚠️#4 + top-3 + anti-fuite).
-- [ ] **B2 — Rattachement client multi-signal + seuils de confiance** ← **prochain**
-  Livrable : détection client par priorité (signal explicite → contenu IA/IDE → domaine
-  expéditeur `crm.client.domaines_emails` → sémantique) + paliers de confiance.
+- [x] **B2 — Rattachement client multi-signal + seuils de confiance** ✅ (ADR 0014)
+  Livrable : détection client par priorité (IDE → email contact → email client →
+  raison sociale/nom court dans le texte) + paliers de confiance.
   **Inclut l'output « client probable » déféré de B1** (écriture
-  `doc.proposition_classement.client_id_propose`). · Surface :
+  `doc.proposition_classement.client_id_propose` + `client_candidats` top-3). · Surface :
   `packages/extraction`, `crm.client`, `crm.contact`, `doc.proposition_classement`. ·
-  ⚠️ **Seuils incohérents** : `doc.md` §5.2 (90/60) vs `flow-a` §4 (0.95/0.80) → trancher.
-  « Entité spéciale cabinet lui-même » (doc §5.3) sans table identifiée → trancher. · Done :
-  top-3 homonymes ; anti-fuite (jamais de rattachement cross-cabinet).
+  ✅ **Seuils tranchés** (ADR 0014) : `doc.md` §5.2 (0.90/0.60) = canonique rattachement ;
+  `flow-a` §4 (0.95/0.80) = politique auto-classement, inactive en MVP `strict` (différée).
+  Signal domaine expéditeur (`domaines_emails`) et « entité cabinet lui-même » différés
+  (ADR 0014 §4). · Done : top-3 homonymes ; anti-fuite (jamais de rattachement cross-cabinet).
 - [ ] **B3 — Détection période + MAJ `crm.document_attendu`** *(cœur cible ADR 0012)*
   Livrable : détection période (mois/trim/année/ponctuel) + passage `document_attendu` à
   `recu`/`en_retard` à la validation. · Surface : `doc.document`, `crm.document_attendu`,
@@ -452,7 +453,9 @@ Colonnes concernées (ADR 0013) : `crm.param_comptable.acces_logiciel_externe` (
    recommandation : run **F0** en tête de F.
 3. **Phase I (chiffrement) vs 1er write-path E/F/G** (ADR 0013) → ré-arbitrer en arrivant
    à E/F/G ; **ne pas écrire d'IBAN/AVS/credentials en clair**.
-4. **Seuils de confiance Doc** : `doc.md` (90/60) vs `flow-a` (0.95/0.80) → trancher (B2).
+4. ~~**Seuils de confiance Doc** : `doc.md` (90/60) vs `flow-a` (0.95/0.80) → trancher (B2).~~
+   ✅ **Tranché (ADR 0014)** : axes distincts, pas un conflit — 0.90/0.60 = paliers de
+   rattachement client (canonique) ; 0.95/0.80 = politique d'auto-classement (différée, MVP `strict`).
 5. **ADR QR-bill** à ouvrir avant E2 (lib décodage SIX + détection croix suisse).
 6. **Formats d'export** Facture/Salaire « à valider en interview » ; **API Bexio = Phase 2**
    → MVP = fichier + Excel humain (E6, G6).
