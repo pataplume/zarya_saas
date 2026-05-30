@@ -52,6 +52,17 @@ export interface TestDocumentAttendu {
   client_id: string;
 }
 
+export interface TestRelation {
+  client_id: string;
+  cabinet_id: string;
+}
+
+export interface TestMandat {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+
 export interface TestFichierPhysique {
   id: string;
   cabinet_id: string;
@@ -293,6 +304,37 @@ export async function seedDocumentAttendu(
   await sql`
     INSERT INTO crm.document_attendu (id, cabinet_id, client_id, type_document, frequence)
     VALUES (${id}, ${cabinet_id}, ${client_id}, ${`Relevé bancaire ${id.slice(0, 8)}`}, 'mensuelle')
+  `;
+  return { id, cabinet_id, client_id };
+}
+
+/**
+ * Crée la ligne crm.relation d'un client (1-1, client_id = PK).
+ * Idempotent : ON CONFLICT DO NOTHING pour pouvoir re-seeder sans casser.
+ */
+export async function seedRelation(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestRelation> {
+  await sql`
+    INSERT INTO crm.relation (client_id, cabinet_id, honoraires_modele)
+    VALUES (${client_id}, ${cabinet_id}, 'forfait')
+    ON CONFLICT (client_id) DO NOTHING
+  `;
+  return { client_id, cabinet_id };
+}
+
+/** Crée un crm.mandat de test pour un client donné (service role). */
+export async function seedMandat(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestMandat> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.mandat (id, cabinet_id, client_id, date_signature, date_effet, statut)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, current_date, current_date, 'actif')
   `;
   return { id, cabinet_id, client_id };
 }
@@ -552,6 +594,9 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   await sql`DELETE FROM crm.adresse                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc A4 (document_attendu, enfant de crm.client ; FK service ON DELETE SET NULL)
   await sql`DELETE FROM crm.document_attendu        WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // Bloc A5 (relation / mandat, enfants de crm.client ; mandat.document_id SET NULL)
+  await sql`DELETE FROM crm.mandat                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM crm.relation                WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc A3 (service / param_comptable, enfants de crm.client)
   await sql`DELETE FROM crm.service                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.param_comptable         WHERE cabinet_id = ANY(${arr}::uuid[])`;

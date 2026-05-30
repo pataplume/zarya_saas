@@ -35,11 +35,13 @@ import {
   fichierPhysique,
   invitationMembre,
   invocation,
+  mandat,
   modeleRelance,
   paramComptable,
   pauseClient,
   propositionClassement,
   relance,
+  relation,
   service,
   sessionOnboardingFiduciaire,
   templateEcheance,
@@ -63,11 +65,13 @@ import {
   seedFichierPhysique,
   seedInvitation,
   seedInvocation,
+  seedMandat,
   seedModeleRelance,
   seedParamComptable,
   seedPauseClient,
   seedProposition,
   seedRelance,
+  seedRelation,
   seedService,
   seedTemplateEcheance,
   seedTwoCabinets,
@@ -150,6 +154,21 @@ const METIER_TABLES: MetierTableSpec[] = [
     table: documentAttendu,
     scopeCol: documentAttendu.cabinet_id,
     idCol: documentAttendu.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  // relation est 1-1 avec client → sa PK est client_id (pas d'id propre).
+  {
+    name: "crm.relation",
+    table: relation,
+    scopeCol: relation.cabinet_id,
+    idCol: relation.client_id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "crm.mandat",
+    table: mandat,
+    scopeCol: mandat.cabinet_id,
+    idCol: mandat.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
   {
@@ -266,6 +285,8 @@ const RLS_TABLES = [
   ["crm", "service"],
   ["crm", "param_comptable"],
   ["crm", "document_attendu"],
+  ["crm", "relation"],
+  ["crm", "mandat"],
   ["crm", "invitation_membre"],
   ["crm", "zefix_recherche_cabinet"],
   ["crm", "session_onboarding_fiduciaire"],
@@ -320,6 +341,14 @@ beforeAll(async () => {
   const [docAttA, docAttB] = [
     await seedDocumentAttendu(sql, cabinetA.id, clientA.id),
     await seedDocumentAttendu(sql, cabinetB.id, clientB.id),
+  ];
+  const [relationA, relationB] = [
+    await seedRelation(sql, cabinetA.id, clientA.id),
+    await seedRelation(sql, cabinetB.id, clientB.id),
+  ];
+  const [mandatA, mandatB] = [
+    await seedMandat(sql, cabinetA.id, clientA.id),
+    await seedMandat(sql, cabinetB.id, clientB.id),
   ];
   const [invA, invB] = [
     await seedInvitation(sql, cabinetA.id),
@@ -387,6 +416,8 @@ beforeAll(async () => {
     "crm.service": serviceA.id,
     "crm.param_comptable": paramA.client_id,
     "crm.document_attendu": docAttA.id,
+    "crm.relation": relationA.client_id,
+    "crm.mandat": mandatA.id,
     "crm.invitation_membre": invA.id,
     "crm.zefix_recherche_cabinet": zA.id,
     "crm.session_onboarding_fiduciaire": sessA,
@@ -411,6 +442,8 @@ beforeAll(async () => {
     "crm.service": serviceB.id,
     "crm.param_comptable": paramB.client_id,
     "crm.document_attendu": docAttB.id,
+    "crm.relation": relationB.client_id,
+    "crm.mandat": mandatB.id,
     "crm.invitation_membre": invB.id,
     "crm.zefix_recherche_cabinet": zB.id,
     "crm.session_onboarding_fiduciaire": sessB,
