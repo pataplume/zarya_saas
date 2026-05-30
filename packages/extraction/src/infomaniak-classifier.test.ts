@@ -94,6 +94,34 @@ describe("InfomaniakClassifier — chemin json_schema (vérifié)", () => {
     expect(res.proposal.confiance_globale).toBe(1);
     expect(res.proposal.confiance_par_champ.type).toBe(0);
   });
+
+  it.each([
+    "null",
+    "NULL",
+    "none",
+    "N/A",
+    "na",
+    "-",
+    "—",
+    "  ",
+  ])("ramène une période sentinelle %j à un vrai null (jamais stockée telle quelle)", async (sentinelle) => {
+    // Le modèle renvoie parfois une période absente comme chaîne ("null", "—"…)
+    // au lieu d'un null JSON. Sans coercition, elle polluerait
+    // doc.proposition_classement.periode_proposee affichée au validateur.
+    const chat = vi.fn<ChatModelClient["chatCompletion"]>(async () =>
+      chatResponse({ ...VALID_RAW, periode: sentinelle }),
+    );
+    const res = await new InfomaniakClassifier(makeClient(chat)).classify(INPUT);
+    expect(res.proposal.periode).toBeNull();
+  });
+
+  it("conserve une période réelle non sentinelle", async () => {
+    const chat = vi.fn<ChatModelClient["chatCompletion"]>(async () =>
+      chatResponse({ ...VALID_RAW, periode: "2026-Q1" }),
+    );
+    const res = await new InfomaniakClassifier(makeClient(chat)).classify(INPUT);
+    expect(res.proposal.periode).toBe("2026-Q1");
+  });
 });
 
 describe("InfomaniakClassifier — fallback (parité Beta non garantie)", () => {
