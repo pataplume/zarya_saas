@@ -1,6 +1,12 @@
 // @zarya/extraction — Phase 2 : pipeline IA générique (proposition → validation → entité)
 
 export {
+  buildNomStandardise,
+  type NomStandardise,
+  type NomStandardiseInput,
+  slugify,
+} from "./build-nom-standardise";
+export {
   type CategorieDocument,
   type ClassificationInput,
   type ClassificationProposal,

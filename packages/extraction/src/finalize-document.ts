@@ -6,7 +6,9 @@
 //
 // Centralise les effets B3 pour qu'ils restent identiques quelle que soit l'origine :
 //  1. appariement à une attente crm.document_attendu (scopé cabinet+client, anti-fuite) ;
-//  2. INSERT doc.document (le trigger fn_check_client_cabinet vérifie l'appartenance) ;
+//  2. INSERT doc.document (le trigger fn_check_client_cabinet vérifie l'appartenance),
+//     avec nom_fichier_standardise (B6, doc.md §8) — convention ZARYA imposée, nom
+//     logique seul (pas de déplacement physique du blob) ;
 //  3. l'attente couverte passe à `recu` (le balayage manquant→en_retard relève de
 //     Calendar/Bloc C, pas de la finalisation) ;
 //  4. recalcul du risque client crm.risque (B5, ADR 0015) — applicatif (pas trigger,
@@ -14,8 +16,19 @@
 //  5. événement crm.evenement `document_recu` (toujours émis) ;
 //  6. événement `score_recalcule` uniquement si le niveau de risque change (anti-bruit).
 
-import { db, document, documentAttendu, echeance, evenement, risque } from "@zarya/db";
+import { randomUUID } from "node:crypto";
+import {
+  client,
+  db,
+  document,
+  documentAttendu,
+  echeance,
+  evenement,
+  fichierPhysique,
+  risque,
+} from "@zarya/db";
 import { and, eq, isNull, sql } from "drizzle-orm";
+import { buildNomStandardise } from "./build-nom-standardise";
 import type { CategorieDocument } from "./classifier";
 import { computeScoreRisque, type RisqueSignals } from "./compute-risque";
 import { type AttenduRow, matchDocumentAttendu } from "./match-document-attendu";
@@ -73,9 +86,16 @@ export async function finaliserDocument(
   );
 
   // 2. Création de l'entité finale doc.document.
+  // Nom standardisé (B6, doc.md §8) : logique seul — le blob physique reste opaque (clé de
+  // dédup), le nom est appliqué à l'export/download. L'id est généré côté app pour alimenter
+  // le suffixe anti-collision AVANT l'insert (un seul INSERT, pas d'UPDATE de rattrapage).
+  const documentId = randomUUID();
+  const nomStandardise = await buildNomFichierStandardise(input, documentId);
+
   const [doc] = await db
     .insert(document)
     .values({
+      id: documentId,
       cabinet_id: input.cabinet_id,
       client_id: input.client_id,
       fichier_physique_id: input.fichier_physique_id,
@@ -85,6 +105,7 @@ export async function finaliserDocument(
       document_attendu_id: attenduId,
       periode: input.periode,
       libelle: input.libelle,
+      nom_fichier_standardise: nomStandardise,
       statut_classement: input.statut_classement,
       confiance_classement: input.confiance_classement,
       cree_par: input.cree_par,
@@ -224,4 +245,48 @@ async function countRisqueSignals(cabinet_id: string, client_id: string): Promis
     nb_documents_en_retard: docs?.en_retard ?? 0,
     nb_documents_manquants: docs?.manquant ?? 0,
   };
+}
+
+// Résout le nom de fichier standardisé (B6) : récupère le nom court du client et
+// l'extension du blob (toutes deux scopées cabinet_id, anti-fuite) puis délègue au cœur
+// pur. Tolérant : si le client ou le fichier est introuvable, on retombe sur des
+// fallbacks déterministes plutôt que d'échouer la finalisation (le nom est de la
+// métadonnée d'affichage, pas une donnée critique).
+async function buildNomFichierStandardise(
+  input: FinaliserDocumentInput,
+  documentId: string,
+): Promise<string> {
+  const [cli] = await db
+    .select({ nom_court: client.nom_court, raison_sociale: client.raison_sociale })
+    .from(client)
+    .where(and(eq(client.id, input.client_id), eq(client.cabinet_id, input.cabinet_id)))
+    .limit(1);
+
+  const [fichier] = await db
+    .select({ storage_path: fichierPhysique.storage_path })
+    .from(fichierPhysique)
+    .where(
+      and(
+        eq(fichierPhysique.id, input.fichier_physique_id),
+        eq(fichierPhysique.cabinet_id, input.cabinet_id),
+      ),
+    )
+    .limit(1);
+
+  const { nom_fichier } = buildNomStandardise({
+    type: input.type,
+    periode: input.periode,
+    client_nom: cli?.nom_court ?? cli?.raison_sociale ?? "",
+    libelle: input.libelle,
+    extension: extensionDepuisPath(fichier?.storage_path),
+    document_id: documentId,
+  });
+  return nom_fichier;
+}
+
+// Extrait l'extension d'un storage_path (`{cabinet}/{upload}.{ext}`, posé à l'upload).
+// Pas de point ou chemin absent → "" (le cœur pur retombe sur "bin").
+function extensionDepuisPath(storagePath: string | undefined): string {
+  if (!storagePath?.includes(".")) return "";
+  return storagePath.split(".").pop() ?? "";
 }

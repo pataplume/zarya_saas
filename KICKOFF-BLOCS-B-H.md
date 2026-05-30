@@ -37,7 +37,7 @@
 | Bloc | Périmètre | Prérequis | État |
 |----|-----------|-----------|------|
 | **A** | **Fondation CRM v1.0** (~20 tables `crm.*` + RLS + triggers + vues + seeds) | — | ✅ **SCELLÉ** (A1→A10 + fix AVS) |
-| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 ✅ ; B3 ✅ ; B4 ✅ ; B5 ✅ ; B6 prochain) |
+| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 ✅ ; B3 ✅ ; B4 ✅ ; B5 ✅ ; B6 ✅ ; B7 prochain) |
 | **C** | **Calendar fini** — génération auto échéances, envoi relances, UI | A3, A4 | à faire (Runs 1-5 déjà livrés) |
 | **D** | **Microsoft Graph** — OAuth + wrapper Graph (producteur transverse) | — | à faire (package vide) |
 | **E** | **Facture** — décodage QR-bill + extraction IA + export | B, A3, A5, **D** | à faire (ADR QR-bill à ouvrir) |
@@ -185,11 +185,20 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   `trg_touch_derniere_activite` (0018) propage `derniere_activite`. AUCUN couplage FK consommateur
   (E/G/H absents). Aucune migration (signaux déjà matérialisés Bloc A). Tests : unit barème +
   intégration (barème, anti-bruit, anti-fuite, score 0).
-- [ ] **B6 — Renommage standardisé + rangement Storage**
+- [x] **B6 — Renommage standardisé + rangement Storage** ✅ **Réalisé**
   Livrable : convention de nommage cabinet (`{annee}/{mois}/{type}/{client_nom_court}`…) +
   arborescence Storage. · Surface : `doc.document`, `doc.fichier_physique`. · ⚠️ NAS différé
   (`nas-ingestion.md` hors périmètre) ; convention imposée vs libre non tranchée (doc §17) →
   **MVP = Storage natif**. · Done : nom déterministe, pas de collision.
+  **Réalisé** : cœur pur `buildNomStandardise` (convention ZARYA **imposée** v1 — `cabinet_convention_nommage`
+  par cabinet différée Phase 4 ; **arbitré founder** : nom logique seul + suffixe id court).
+  Nom déterministe `{annee}-{mois}_{type}_{client}_{libelle}__{id6}.{ext}` + chemin logique
+  `{annee}/{mois}/{type}/{client}` (slugify accents/espaces, fallbacks anti-`//`/`__`). Câblé dans
+  `finaliserDocument` : id généré côté app → remplit `doc.document.nom_fichier_standardise` à l'INSERT
+  (résout nom court client + extension via `storage_path`, scopé cabinet). **Nom LOGIQUE seul** : le blob
+  physique (clé de dédup) n'est PAS déplacé ; nom appliqué à l'export/download. **Aucune migration**
+  (colonne `nom_fichier_standardise` déjà au schéma). Tests : 12 unit + 4 intégration (convention,
+  anti-collision, storage_path inchangé).
 - [ ] **B7 — File de validation + corrections + lot (UI)**
   Livrable : inbox « à valider », validation 1-clic, modal correction (client/type/période/
   note = feedback), validation en lot (confirmation >20), raccourcis J/V/C/N. · Surface : UI
