@@ -22,6 +22,13 @@ export {
 } from "./classify-document";
 export { type ChatModelClient, InfomaniakClassifier } from "./infomaniak-classifier";
 export {
+  type AttenduRow,
+  type DocumentSignals,
+  type FrequenceAttendu,
+  matchDocumentAttendu,
+  periodeFrequence,
+} from "./match-document-attendu";
+export {
   type ExtractTextInput,
   type ExtractTextOptions,
   type ExtractTextResult,
