@@ -24,6 +24,7 @@ import {
   and,
   banque,
   cabinet,
+  cabinetIntegration,
   cabinetMembre,
   calendarCabinetConfig,
   client,
@@ -62,6 +63,7 @@ import {
   getSessionId,
   seedAdresse,
   seedBanque,
+  seedCabinetIntegration,
   seedCalendarConfig,
   seedClient,
   seedContact,
@@ -219,6 +221,13 @@ const METIER_TABLES: MetierTableSpec[] = [
     noopSet: { cabinet_id: NIL_UUID },
   },
   {
+    name: "crm.cabinet_integration",
+    table: cabinetIntegration,
+    scopeCol: cabinetIntegration.cabinet_id,
+    idCol: cabinetIntegration.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
     name: "crm.invitation_membre",
     table: invitationMembre,
     scopeCol: invitationMembre.cabinet_id,
@@ -339,6 +348,7 @@ const RLS_TABLES = [
   ["crm", "risque"],
   ["crm", "evenement"],
   ["crm", "note"],
+  ["crm", "cabinet_integration"],
   ["crm", "invitation_membre"],
   ["crm", "zefix_recherche_cabinet"],
   ["crm", "session_onboarding_fiduciaire"],
@@ -422,6 +432,10 @@ beforeAll(async () => {
     await seedNote(sql, cabinetA.id, clientA.id),
     await seedNote(sql, cabinetB.id, clientB.id),
   ];
+  const [integA, integB] = [
+    await seedCabinetIntegration(sql, cabinetA.id),
+    await seedCabinetIntegration(sql, cabinetB.id),
+  ];
   const [invA, invB] = [
     await seedInvitation(sql, cabinetA.id),
     await seedInvitation(sql, cabinetB.id),
@@ -495,6 +509,7 @@ beforeAll(async () => {
     "crm.risque": risqueA.client_id,
     "crm.evenement": eventA.id,
     "crm.note": noteA.id,
+    "crm.cabinet_integration": integA.id,
     "crm.invitation_membre": invA.id,
     "crm.zefix_recherche_cabinet": zA.id,
     "crm.session_onboarding_fiduciaire": sessA,
@@ -526,6 +541,7 @@ beforeAll(async () => {
     "crm.risque": risqueB.client_id,
     "crm.evenement": eventB.id,
     "crm.note": noteB.id,
+    "crm.cabinet_integration": integB.id,
     "crm.invitation_membre": invB.id,
     "crm.zefix_recherche_cabinet": zB.id,
     "crm.session_onboarding_fiduciaire": sessB,

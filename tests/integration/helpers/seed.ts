@@ -91,6 +91,11 @@ export interface TestNote {
   client_id: string;
 }
 
+export interface TestCabinetIntegration {
+  id: string;
+  cabinet_id: string;
+}
+
 export interface TestFichierPhysique {
   id: string;
   cabinet_id: string;
@@ -449,6 +454,23 @@ export async function seedNote(
   return { id, cabinet_id, client_id };
 }
 
+/**
+ * Crée une crm.cabinet_integration de test (Bloc D1). `vault_secret_id` NULL par
+ * défaut (état 'en_attente', avant 1er échange OAuth) — suffisant pour les tests
+ * d'isolation/anti-fuite qui ne touchent pas au contenu chiffré.
+ */
+export async function seedCabinetIntegration(
+  sql: postgres.Sql,
+  cabinet_id: string,
+): Promise<TestCabinetIntegration> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.cabinet_integration (id, cabinet_id, provider, statut)
+    VALUES (${id}, ${cabinet_id}, 'microsoft_graph', 'en_attente')
+  `;
+  return { id, cabinet_id };
+}
+
 /** Crée un extraction.invocation de test (mode stub) pour un cabinet donné. */
 export async function seedInvocation(
   sql: postgres.Sql,
@@ -720,6 +742,8 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   await sql`DELETE FROM crm.service                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.param_comptable         WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.client                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // Bloc D1 (cabinet_integration, enfant direct de crm.cabinet — pas de client_id)
+  await sql`DELETE FROM crm.cabinet_integration    WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // CRM existant
   await sql`DELETE FROM crm.zefix_recherche_cabinet WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.invitation_membre       WHERE cabinet_id = ANY(${arr}::uuid[])`;

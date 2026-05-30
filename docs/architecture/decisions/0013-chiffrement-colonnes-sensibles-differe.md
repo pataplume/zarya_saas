@@ -104,3 +104,49 @@ Deux faits de cadrage :
 - `docs/architecture/security-and-audit.md`
 - `docs/data-model/crm-schema.md` §8 (relation), §11 (param_comptable), §12 (banque)
 - ADR 0005 (multi-tenant), ADR 0012 (séquence canonique v1.0)
+
+---
+
+## Addendum (2026-05-30) — Mécanisme tranché pour les tokens OAuth Microsoft (1er write-path, Bloc D1)
+
+### Déclencheur
+Le **Bloc D1** (OAuth Microsoft Graph, ADR 0016) ouvre le **premier chemin d'écriture réel**
+vers une donnée ultra-sensible : les tokens OAuth (`access_token`, `refresh_token`) du cabinet,
+écrits dans la **nouvelle** table `crm.cabinet_integration`. La *Condition de révision* de cette
+ADR (« premier write-path → trancher le mécanisme + câbler le chiffrement + test anti-clair
+**avant merge** ») est donc déclenchée. Décision prise avec le founder (arbitrage explicite).
+
+### Décision
+1. **Mécanisme pour les tokens d'intégration = Supabase Vault** (`vault.create_secret` /
+   `vault.update_secret` / vue `vault.decrypted_secrets` — extension `supabase_vault` 0.3.1,
+   vérifiée présente sur l'instance partagée). Justifié par la **faible cardinalité** :
+   `crm.cabinet_integration` porte **une ligne par cabinet** (~100 cabinets max, ADR 0004) —
+   exactement le cas d'usage de Vault (« secrets peu nombreux, peu cardinaux »). L'objection
+   cardinalité de cette ADR (§Contexte fait 2) **ne s'applique pas** à ce cas.
+
+2. **Portée stricte.** Ce choix vaut **uniquement** pour les tokens d'intégration tierce
+   (low cardinality, 1/cabinet). Il **ne pré-décide PAS** le mécanisme des colonnes métier à
+   **forte** cardinalité (`crm.banque.iban` 1/compte, `crm.param_comptable.acces_logiciel_externe`
+   1/client, `crm.relation.iban_facturation`) : celles-ci restent **ouvertes** (pressenti AEAD
+   applicatif) et seront tranchées à **leur** premier write-path (Blocs E/F/G).
+
+3. **Modèle de stockage (jamais de token en clair).** `crm.cabinet_integration` ne contient
+   **aucune** colonne de token en clair. Le secret (JSON `{access_token, refresh_token, …}`) est
+   créé via `vault.create_secret()` ; seul son `uuid` (`vault_secret_id`) est gardé dans la ligne.
+   Lecture via `vault.decrypted_secrets` (service role serveur **uniquement**). Rotation au refresh
+   via `vault.update_secret()`. Les données **non** sensibles (tenant_id, UPN, région tenant,
+   `expires_at`, `scope`, statut) vivent en `parametres jsonb` en clair.
+
+4. **Garde-fous (bloquants CI).** (a) test anti-clair prouvant que la ligne ne stocke aucun token
+   en clair (pas de colonne credentials ; seul `vault_secret_id` présent) et que `decrypted_secrets`
+   restitue bien le token ; (b) `pino redact` sur `*_token` dans tous les logs ; (c) secrets Azure
+   (`client_secret`) en env serveur, jamais committés ni exposés client ; (d) `COMMENT ON COLUMN`
+   rappelant l'exigence sur `vault_secret_id`.
+
+### Cohérence avec le placement « Phase I » du chiffrement
+Le founder avait placé l'enforcement chiffrement en **Phase I** (après H) pour les colonnes
+IBAN/AVS **sans write-path**. Cet addendum **avance l'enforcement pour les tokens uniquement**,
+ce qui est **exactement** ce que cette ADR prévoyait : « l'enforcement est porté par la feature
+qui ouvre le premier chemin d'écriture, pas par le run de schéma ». Le write-path tokens existe
+maintenant (D1) ⇒ on chiffre maintenant. Aucune contradiction ; les colonnes IBAN/AVS (toujours
+sans write-path) restent en Phase I.
