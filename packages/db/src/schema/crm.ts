@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   date,
@@ -66,6 +67,28 @@ export const statutClientEnum = crmSchema.enum("statut_client", [
   "actif",
   "inactif",
   "archive",
+]);
+
+// ── Enrichissement crm.client (Bloc A1, ADR 0012) ────────────────────────────
+// Nature du client. Conditionne le parcours métier (un indépendant n'a pas les
+// mêmes obligations qu'une PME, un privé n'a pas de salaires, etc.).
+export const clientTypeEnum = crmSchema.enum("client_type", [
+  "pme",
+  "independant",
+  "prive",
+  "association",
+]);
+
+// Langue de correspondance du client. Enum propre à crm (foncier) ; distinct de
+// calendar.langue (fr/de/it) car le client peut correspondre en anglais.
+export const langueClientEnum = crmSchema.enum("langue", ["fr", "de", "it", "en"]);
+
+// Canal de communication préféré pour les relances et notifications.
+export const canalPrefereEnum = crmSchema.enum("canal_prefere", [
+  "email",
+  "courrier",
+  "telephone",
+  "dashboard",
 ]);
 
 // ── Module Calendar (Run 1) — échéances & relances ───────────────────────────
@@ -182,8 +205,15 @@ export const cabinetMembre = crmSchema.table(
 );
 
 // ─── crm.client — Clients (PME) gérés par le cabinet ─────────────────────────
-// Version minimale (Phase 3) : juste assez pour rattacher des documents.
-// Sera enrichie en Phase 4 (CRM complet : contacts, risque, échéances, etc.).
+// Fondation CRM v1.0 (Bloc A1, ADR 0012 + crm-schema.md §5). Le schéma client est
+// le contrat sur lequel s'appuient Doc, Calendar, Facture, Salaire : on le pose
+// complet une fois, on ne le « reshape » plus.
+//
+// Divergences ASSUMÉES vs crm-schema.md §5 (documentées, non oublis) :
+//  - `statut` garde son DEFAULT historique 'actif' (et non 'prospect' du doc cible)
+//    pour ne pas changer le comportement du flux clients/onboarding existant ;
+//  - `onboarding_session_id` / `onboarding_termine` sont DIFFÉRÉS au Bloc F : la
+//    table `onboarding_client.session` n'existe pas encore (anti-FK-fantôme).
 
 export const client = crmSchema.table(
   "client",
@@ -192,9 +222,26 @@ export const client = crmSchema.table(
     cabinet_id: uuid("cabinet_id")
       .notNull()
       .references(() => cabinet.id, { onDelete: "restrict" }),
+    type: clientTypeEnum("type").notNull().default("pme"),
     raison_sociale: text("raison_sociale").notNull(),
+    nom_court: text("nom_court"), // Alias d'affichage UI + rattachement Doc
     ide: text("ide"), // CHE-XXX.XXX.XXX
+    numero_tva: text("numero_tva"),
+    forme_juridique: text("forme_juridique"), // SA, Sàrl, raison individuelle…
+    langue: langueClientEnum("langue").notNull().default("fr"),
+    canal_prefere: canalPrefereEnum("canal_prefere").notNull().default("email"),
     statut: statutClientEnum("statut").notNull().default("actif"),
+    // Collaborateur référent dans le cabinet. Cohérence cabinet garantie par
+    // trigger trg_check_responsable_cabinet_client (cf. migration 0009).
+    responsable_id: uuid("responsable_id").references(() => cabinetMembre.id, {
+      onDelete: "set null",
+    }),
+    date_creation: date("date_creation").notNull().default(sql`CURRENT_DATE`),
+    date_debut_relation: date("date_debut_relation"),
+    date_fin_relation: date("date_fin_relation"),
+    source_acquisition: text("source_acquisition"),
+    tags: text("tags").array(),
+    notes_commerciales: text("notes_commerciales"),
     email_contact: text("email_contact"),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -202,6 +249,10 @@ export const client = crmSchema.table(
   },
   (t) => [
     index("idx_client_cabinet").on(t.cabinet_id, t.archived_at),
+    index("idx_client_cabinet_statut").on(t.cabinet_id, t.statut),
+    index("idx_client_cabinet_responsable").on(t.cabinet_id, t.responsable_id),
+    // Recherche par nom (autocomplete, barre de recherche) — GIN trigram.
+    index("idx_client_raison_trgm").using("gin", sql`${t.raison_sociale} gin_trgm_ops`),
     unique("uniq_client_ide_per_cabinet").on(t.cabinet_id, t.ide),
   ],
 );
