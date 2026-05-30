@@ -841,6 +841,67 @@ export const note = crmSchema.table(
   ],
 );
 
+// ── Bloc A9 — Catalogues globaux crm.standard_* (§20) ────────────────────────
+//
+// EXCEPTION DOCUMENTÉE à la règle multi-tenant (packages/db/CLAUDE.md §1,
+// crm-schema.md §20/§22.3) : tables de référence partagées par TOUS les cabinets,
+// donc SANS `cabinet_id`, en LECTURE SEULE pour les cabinets. RLS DÉSACTIVÉE
+// (lecture publique pour les rôles authentifiés) ; ces tables ne figurent donc PAS
+// dans METIER_TABLES ni RLS_TABLES du test anti-fuite (elles n'ont pas de tenant à
+// isoler). Données de seed permanentes, posées dans la migration 0017.
+//
+// Override par cabinet (§20.2) : différé — un cabinet voulant un type custom créera
+// plus tard une crm.cabinet_type_document scopée ; la résolution fusionnera standards
+// + custom. Hors périmètre A9 (fondation des catalogues globaux uniquement).
+
+// Catégories standard de documents (aligné sur doc.categorie_document).
+export const standardCategorieDocument = crmSchema.table("standard_categorie_document", {
+  code: text("code").primaryKey(),
+  libelle: text("libelle").notNull(),
+  ordre: integer("ordre").notNull().default(0),
+  actif: boolean("actif").notNull().default(true),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Types standard de documents ZARYA (slugs du vocabulaire de classification).
+export const standardTypeDocument = crmSchema.table(
+  "standard_type_document",
+  {
+    code: text("code").primaryKey(),
+    libelle: text("libelle").notNull(),
+    categorie_code: text("categorie_code")
+      .notNull()
+      .references(() => standardCategorieDocument.code, { onDelete: "restrict" }),
+    ordre: integer("ordre").notNull().default(0),
+    actif: boolean("actif").notNull().default(true),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_standard_type_document_categorie").on(t.categorie_code)],
+);
+
+// Cantons suisses (code à 2 lettres = PK ; noms multilingues FR/DE/IT).
+export const standardCantonCh = crmSchema.table("standard_canton_ch", {
+  code: text("code").primaryKey(),
+  nom_fr: text("nom_fr").notNull(),
+  nom_de: text("nom_de").notNull(),
+  nom_it: text("nom_it"),
+  numero: integer("numero").notNull(),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Caisses de compensation AVS (référentiel ; seed = 26 caisses cantonales).
+export const standardCaisseAvs = crmSchema.table("standard_caisse_avs", {
+  code: text("code").primaryKey(),
+  nom: text("nom").notNull(),
+  type: text("type"),
+  actif: boolean("actif").notNull().default(true),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ─── crm.session_onboarding_fiduciaire — Suivi wizard d'onboarding ───────────
 
 export const sessionOnboardingFiduciaire = crmSchema.table(
