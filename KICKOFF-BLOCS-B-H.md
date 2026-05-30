@@ -37,7 +37,7 @@
 | Bloc | Périmètre | Prérequis | État |
 |----|-----------|-----------|------|
 | **A** | **Fondation CRM v1.0** (~20 tables `crm.*` + RLS + triggers + vues + seeds) | — | ✅ **SCELLÉ** (A1→A10 + fix AVS) |
-| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 ✅ ; B3 ✅ ; B4 ✅ ; B5 prochain) |
+| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 ✅ ; B3 ✅ ; B4 ✅ ; B5 ✅ ; B6 prochain) |
 | **C** | **Calendar fini** — génération auto échéances, envoi relances, UI | A3, A4 | à faire (Runs 1-5 déjà livrés) |
 | **D** | **Microsoft Graph** — OAuth + wrapper Graph (producteur transverse) | — | à faire (package vide) |
 | **E** | **Facture** — décodage QR-bill + extraction IA + export | B, A3, A5, **D** | à faire (ADR QR-bill à ouvrir) |
@@ -173,11 +173,18 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   > cabinet). Tests : 8 unitaires (`decide-auto-classement.test.ts`) + 5 intégration réels
   > (`classify-document-auto.test.ts`). **Pas de nouvelle table métier** (colonne sur `crm.cabinet`,
   > racine tenant) ⇒ aucun changement `METIER_TABLES`/`RLS_TABLES`.
-- [ ] **B5 — Effets de bord en chaîne (émission d'événements)**
+- [x] **B5 — Effets de bord en chaîne (émission d'événements)** ✅ **Réalisé**
   Livrable : à la validation, hooks (flow A §7) : `crm.evenement`, recalcul `crm.risque`,
   **signaux** vers Calendar/Facture/Salaire/Search. · ⚠️ Les consommateurs (E/G/H) n'existent
   pas → **émission d'événements, AUCUN couplage FK en dur** (sinon FK fantôme). · Done :
   événements tracés ; recalcul risque testé.
+  **Réalisé** : cœur pur `computeScoreRisque` (barème ADR 0015 `v1` — voir §7 #9, provisoire)
+  câblé dans le chemin partagé `finaliserDocument` (humain + IA). Upsert `crm.risque` à chaque
+  finalisation (applicatif, cohérent B3) ; événement `document_recu` (toujours) + `score_recalcule`
+  **uniquement si le niveau change** (anti-bruit). Recalcul AVANT l'événement pour que
+  `trg_touch_derniere_activite` (0018) propage `derniere_activite`. AUCUN couplage FK consommateur
+  (E/G/H absents). Aucune migration (signaux déjà matérialisés Bloc A). Tests : unit barème +
+  intégration (barème, anti-bruit, anti-fuite, score 0).
 - [ ] **B6 — Renommage standardisé + rangement Storage**
   Livrable : convention de nommage cabinet (`{annee}/{mois}/{type}/{client_nom_court}`…) +
   arborescence Storage. · Surface : `doc.document`, `doc.fichier_physique`. · ⚠️ NAS différé
@@ -477,6 +484,10 @@ Colonnes concernées (ADR 0013) : `crm.param_comptable.acces_logiciel_externe` (
 7. **Tables non confirmées** : `salaire.session_onboarding`, « entité spéciale cabinet
    lui-même » (doc §5.3), `doc.regle_auto_classement` (Phase 2) → ne pas créer sans décision.
 8. **Dimension/chunk embeddings** (H1) à confirmer selon modèle IK.
+9. **Barème de scoring risque (ADR 0015, B5) = PROVISOIRE `v1`** : poids 25/20/10 +
+   seuils (`critique`≥50) = heuristique MVP non calibrée (acceptée founder « OK tant que
+   noté »). **À recalibrer** sur données réelles / retour fiduciaire ; facteur `relance`
+   à ajouter quand C4 atterrit (`facteurs.version` permet l'évolution sans migration).
 
 ---
 

@@ -9,11 +9,15 @@
 //  2. INSERT doc.document (le trigger fn_check_client_cabinet vérifie l'appartenance) ;
 //  3. l'attente couverte passe à `recu` (le balayage manquant→en_retard relève de
 //     Calendar/Bloc C, pas de la finalisation) ;
-//  4. événement crm.evenement `document_recu` (toujours émis).
+//  4. recalcul du risque client crm.risque (B5, ADR 0015) — applicatif (pas trigger,
+//     cohérent B3), upsert ; barème provisoire v1 (cf. ADR 0015) ;
+//  5. événement crm.evenement `document_recu` (toujours émis) ;
+//  6. événement `score_recalcule` uniquement si le niveau de risque change (anti-bruit).
 
-import { db, document, documentAttendu, evenement } from "@zarya/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { db, document, documentAttendu, echeance, evenement, risque } from "@zarya/db";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { CategorieDocument } from "./classifier";
+import { computeScoreRisque, type RisqueSignals } from "./compute-risque";
 import { type AttenduRow, matchDocumentAttendu } from "./match-document-attendu";
 
 export interface FinaliserDocumentInput {
@@ -104,8 +108,48 @@ export async function finaliserDocument(
       );
   }
 
-  // 4. Événement d'activité `document_recu` (crm-schema.md §18, doc-schema.md §14.3).
-  // Effets de bord en chaîne (recalcul risque, signaux modules) différés au Bloc B5.
+  // 4. Recalcul du risque client (B5, ADR 0015). Applicatif (pas trigger DB, cohérent B3),
+  // chemin partagé humain/IA. Upsert : provisionne la ligne crm.risque à la 1ʳᵉ finalisation.
+  // Fait AVANT l'événement document_recu pour que le trigger trg_touch_derniere_activite
+  // (0018) trouve la ligne et propage derniere_activite dès la 1ʳᵉ finalisation.
+  const now = new Date();
+  const [prev] = await db
+    .select({ niveau: risque.niveau })
+    .from(risque)
+    .where(eq(risque.client_id, input.client_id))
+    .limit(1);
+  const niveauAvant = prev?.niveau ?? null;
+
+  const signals = await countRisqueSignals(input.cabinet_id, input.client_id);
+  const r = computeScoreRisque(signals, now);
+
+  await db
+    .insert(risque)
+    .values({
+      client_id: input.client_id,
+      cabinet_id: input.cabinet_id,
+      score: r.score,
+      niveau: r.niveau,
+      facteurs: r.facteurs,
+      drapeau_critique: r.drapeau_critique,
+      drapeau_motif: r.drapeau_motif,
+      dernier_calcul: now,
+      updated_at: now,
+    })
+    .onConflictDoUpdate({
+      target: risque.client_id,
+      set: {
+        score: r.score,
+        niveau: r.niveau,
+        facteurs: r.facteurs,
+        drapeau_critique: r.drapeau_critique,
+        drapeau_motif: r.drapeau_motif,
+        dernier_calcul: now,
+        updated_at: now,
+      },
+    });
+
+  // 5. Événement d'activité `document_recu` (crm-schema.md §18, doc-schema.md §14.3).
   await db.insert(evenement).values({
     cabinet_id: input.cabinet_id,
     client_id: input.client_id,
@@ -123,5 +167,61 @@ export async function finaliserDocument(
     },
   });
 
+  // 6. Événement `score_recalcule` UNIQUEMENT si le niveau de risque change (anti-bruit :
+  // sinon chaque document en émettrait un). null→niveau au 1er calcul compte comme un
+  // changement (une trace par client à l'activation du suivi, puis seulement les transitions).
+  if (niveauAvant !== r.niveau) {
+    await db.insert(evenement).values({
+      cabinet_id: input.cabinet_id,
+      client_id: input.client_id,
+      type: "score_recalcule",
+      acteur_type: input.acteur_type,
+      acteur_id: input.acteur_id,
+      ressource_type: "crm.risque",
+      ressource_id: input.client_id,
+      description: `Risque ${niveauAvant ?? "—"} → ${r.niveau} (score ${r.score})`,
+      metadata: { niveau_avant: niveauAvant, ...r.facteurs },
+    });
+  }
+
   return { document_id: doc.id, document_attendu_id: attenduId };
+}
+
+// Compte les signaux de risque (B5) scopés cabinet + client (anti-fuite : jamais
+// cross-cabinet). Une requête agrégée par table source ; `::int` coerce le bigint de
+// count() en number pour le cœur pur.
+async function countRisqueSignals(cabinet_id: string, client_id: string): Promise<RisqueSignals> {
+  const [docs] = await db
+    .select({
+      en_retard: sql<number>`count(*) filter (where ${documentAttendu.statut_periode_courante} = 'en_retard')::int`,
+      manquant: sql<number>`count(*) filter (where ${documentAttendu.statut_periode_courante} = 'manquant')::int`,
+    })
+    .from(documentAttendu)
+    .where(
+      and(
+        eq(documentAttendu.cabinet_id, cabinet_id),
+        eq(documentAttendu.client_id, client_id),
+        eq(documentAttendu.actif, true),
+        isNull(documentAttendu.archived_at),
+      ),
+    );
+
+  const [ech] = await db
+    .select({
+      en_retard: sql<number>`count(*) filter (where ${echeance.statut} = 'en_retard')::int`,
+    })
+    .from(echeance)
+    .where(
+      and(
+        eq(echeance.cabinet_id, cabinet_id),
+        eq(echeance.client_id, client_id),
+        isNull(echeance.archived_at),
+      ),
+    );
+
+  return {
+    nb_echeances_en_retard: ech?.en_retard ?? 0,
+    nb_documents_en_retard: docs?.en_retard ?? 0,
+    nb_documents_manquants: docs?.manquant ?? 0,
+  };
 }
