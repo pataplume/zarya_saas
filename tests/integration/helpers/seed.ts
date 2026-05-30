@@ -35,6 +35,17 @@ export interface TestAdresse {
   client_id: string;
 }
 
+export interface TestService {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+
+export interface TestParamComptable {
+  client_id: string;
+  cabinet_id: string;
+}
+
 export interface TestFichierPhysique {
   id: string;
   cabinet_id: string;
@@ -233,6 +244,37 @@ export async function seedAdresse(
     VALUES (${id}, ${cabinet_id}, ${client_id}, 'siege', ${`Rue ${id.slice(0, 8)} 1`}, 'Lausanne', 'VD')
   `;
   return { id, cabinet_id, client_id };
+}
+
+/** Crée un crm.service de test pour un client donné (service role). */
+export async function seedService(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestService> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.service (id, cabinet_id, client_id, type, frequence)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, 'comptabilite', 'mensuelle')
+  `;
+  return { id, cabinet_id, client_id };
+}
+
+/**
+ * Crée la ligne crm.param_comptable d'un client (1-1, client_id = PK).
+ * Idempotent : ON CONFLICT DO NOTHING pour pouvoir re-seeder sans casser.
+ */
+export async function seedParamComptable(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestParamComptable> {
+  await sql`
+    INSERT INTO crm.param_comptable (client_id, cabinet_id, logiciel)
+    VALUES (${client_id}, ${cabinet_id}, 'bexio')
+    ON CONFLICT (client_id) DO NOTHING
+  `;
+  return { client_id, cabinet_id };
 }
 
 /** Crée un extraction.invocation de test (mode stub) pour un cabinet donné. */
@@ -488,6 +530,9 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   // Bloc A2 (contact / adresse, enfants de crm.client)
   await sql`DELETE FROM crm.contact                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.adresse                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // Bloc A3 (service / param_comptable, enfants de crm.client)
+  await sql`DELETE FROM crm.service                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM crm.param_comptable         WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.client                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // CRM existant
   await sql`DELETE FROM crm.zefix_recherche_cabinet WHERE cabinet_id = ANY(${arr}::uuid[])`;

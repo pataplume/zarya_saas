@@ -4,6 +4,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgSchema,
   text,
   timestamp,
@@ -96,6 +97,48 @@ export const canalPrefereEnum = crmSchema.enum("canal_prefere", [
 // Type d'adresse d'un client. `siege` = adresse légale (RC) ; `facturation` =
 // destinataire des factures ; `postale` = courrier opérationnel.
 export const typeAdresseEnum = crmSchema.enum("type_adresse", ["postale", "facturation", "siege"]);
+
+// ── Bloc A3 (ADR 0012) — services & paramétrage comptable du client ──────────
+// Prestations souscrites par un client auprès du cabinet. Conditionne les
+// échéances générées, les modules actifs, la facturation.
+export const typeServiceEnum = crmSchema.enum("type_service", [
+  "comptabilite",
+  "fiscalite",
+  "salaires",
+  "tva",
+  "bouclement",
+  "conseil",
+]);
+
+// Cadence d'un service (distincte de calendar.frequence_echeance : un service peut
+// être semestriel ou ponctuel, ce que le calendrier d'échéances ne couvre pas).
+export const frequenceServiceEnum = crmSchema.enum("frequence_service", [
+  "mensuelle",
+  "trimestrielle",
+  "semestrielle",
+  "annuelle",
+  "ponctuelle",
+]);
+
+// Logiciel comptable utilisé par le client (pour la reprise/synchro des données).
+export const logicielComptableEnum = crmSchema.enum("logiciel_comptable", [
+  "bexio",
+  "abacus",
+  "cresus",
+  "winbiz",
+  "banana",
+  "excel",
+  "officemaker",
+  "autre",
+]);
+
+// Mode de transmission des pièces comptables du client vers le cabinet.
+export const modeTransmissionEnum = crmSchema.enum("mode_transmission", [
+  "email",
+  "nas_partage",
+  "connecteur_logiciel",
+  "physique",
+]);
 
 // ── Module Calendar (Run 1) — échéances & relances ───────────────────────────
 // Périmètre Run 1 (ADR 0011) : tables opérationnelles de base crm.echeance et
@@ -341,6 +384,80 @@ export const adresse = crmSchema.table(
       .on(t.client_id)
       .where(sql`${t.est_principale} AND ${t.archived_at} IS NULL`),
   ],
+);
+
+// ─── crm.service — Prestations souscrites par un client (Bloc A3, ADR 0012) ──
+// cabinet_id dénormalisé pour la RLS, cohérence garantie par
+// trg_check_client_cabinet_service (migration 0011). `parametres` jsonb : config
+// libre par service (ex. taux TVA, jour de paie…). Au plus un service ACTIF de
+// chaque type par client (index unique partiel — historisation possible après
+// désactivation). Divergence assumée vs crm-schema.md §10 qui écrit UNIQUE(client_id,
+// type) « strict » : on choisit le partiel pour coller à l'intention « au plus une
+// instance ACTIVE » et permettre l'historique sans reshaper le contrat.
+
+export const service = crmSchema.table(
+  "service",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    type: typeServiceEnum("type").notNull(),
+    actif: boolean("actif").notNull().default(true),
+    date_activation: date("date_activation").notNull().default(sql`CURRENT_DATE`),
+    date_desactivation: date("date_desactivation"),
+    frequence: frequenceServiceEnum("frequence"),
+    parametres: jsonb("parametres"),
+    notes: text("notes"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_service_cabinet").on(t.cabinet_id, t.archived_at),
+    index("idx_service_client").on(t.cabinet_id, t.client_id),
+    // Au plus 1 service actif de chaque type par client (archivés exclus).
+    uniqueIndex("uniq_service_actif_per_client_type")
+      .on(t.client_id, t.type)
+      .where(sql`${t.actif} AND ${t.archived_at} IS NULL`),
+  ],
+);
+
+// ─── crm.param_comptable — Paramétrage comptable du client (Bloc A3) ─────────
+// 1-1 avec le client (client_id = PK). cabinet_id dénormalisé pour la RLS,
+// cohérence garantie par trg_check_client_cabinet_param_comptable (migration 0011).
+//
+// ⚠️ SÉCURITÉ : `acces_logiciel_externe` contient des credentials d'accès au
+// logiciel comptable du client → champ ULTRA-SENSIBLE. Tout écriture DOIT chiffrer
+// le contenu via Supabase Vault (cf. CLAUDE.md §2). Aucun chemin d'écriture n'existe
+// encore (table de contrat) ; l'enforcement du chiffrement est porté par la feature
+// qui peuplera cette colonne (Bloc ultérieur), pas par ce run de schéma.
+
+export const paramComptable = crmSchema.table(
+  "param_comptable",
+  {
+    client_id: uuid("client_id")
+      .primaryKey()
+      .references(() => client.id, { onDelete: "restrict" }),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    logiciel: logicielComptableEnum("logiciel"),
+    logiciel_autre: text("logiciel_autre"),
+    plan_comptable: text("plan_comptable"),
+    date_debut_exercice: date("date_debut_exercice"),
+    date_bouclement: date("date_bouclement"),
+    mode_transmission: modeTransmissionEnum("mode_transmission"),
+    // Chiffré via Vault à l'écriture (voir avertissement ci-dessus).
+    acces_logiciel_externe: jsonb("acces_logiciel_externe"),
+    derniere_synchronisation: timestamp("derniere_synchronisation", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_param_comptable_cabinet").on(t.cabinet_id)],
 );
 
 // ─── crm.session_onboarding_fiduciaire — Suivi wizard d'onboarding ───────────
