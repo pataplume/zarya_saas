@@ -37,7 +37,7 @@
 | Bloc | Périmètre | Prérequis | État |
 |----|-----------|-----------|------|
 | **A** | **Fondation CRM v1.0** (~20 tables `crm.*` + RLS + triggers + vues + seeds) | — | ✅ **SCELLÉ** (A1→A10 + fix AVS) |
-| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 ✅ ; B3 ✅ ; B4 prochain) |
+| **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | 🚧 **EN COURS** (B1 ✅ ; B2 ✅ ; B3 ✅ ; B4 ✅ ; B5 prochain) |
 | **C** | **Calendar fini** — génération auto échéances, envoi relances, UI | A3, A4 | à faire (Runs 1-5 déjà livrés) |
 | **D** | **Microsoft Graph** — OAuth + wrapper Graph (producteur transverse) | — | à faire (package vide) |
 | **E** | **Facture** — décodage QR-bill + extraction IA + export | B, A3, A5, **D** | à faire (ADR QR-bill à ouvrir) |
@@ -158,11 +158,21 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   temporel Calendar/Bloc C) ; effets de bord applicatifs (pas trigger, cohérent avec l'exception
   doc.document) ; appariement intelligent (type_document texte libre ≠ slug). · Done : doc validé
   couvre la bonne période ; transition + no-match + scope autre client testés ; événement créé.
-- [ ] **B4 — Décision auto-classement vs file (politique cabinet)**
+- [x] **B4 — Décision auto-classement vs file (politique cabinet)** ✅ **clôturé (2026-05-30)**
   Livrable : application `crm.cabinet.politique_classement` (strict/hybride/aggressive) +
   audit IA (`crm.evenement` `acteur_type='ia'`). · ⚠️ **Hors-scope** : règle apprise
   `doc.regle_auto_classement` = Phase 2 (ne pas implémenter). · Done : 3 politiques routent
   correctement ; auto-classement auditable.
+  > **Réalisé** (arbitré founder 2026-05-30 « chemin complet + refactor partagé ») : migration
+  > 0021 (`crm.politique_classement` enum + colonne `crm.cabinet.politique_classement` DEFAULT
+  > `strict`). Cœur pur `decideAutoClassement` (strict→jamais ; hybride `>0.95` sans anomalie ;
+  > aggressive `>0.80` ; **auto exige un client rattaché**). `finaliserDocument` extrait comme
+  > **chemin partagé** entre la validation humaine (`validerPropositionAction`) et l'auto-classement
+  > (`classifyDocument`, acteur `ia`, `statut_classement='auto'`, proposition terminale `valide`).
+  > `EXTRACTION_MODE=stub` + `strict` par défaut ⇒ **comportement MVP inchangé** (auto = opt-in
+  > cabinet). Tests : 8 unitaires (`decide-auto-classement.test.ts`) + 5 intégration réels
+  > (`classify-document-auto.test.ts`). **Pas de nouvelle table métier** (colonne sur `crm.cabinet`,
+  > racine tenant) ⇒ aucun changement `METIER_TABLES`/`RLS_TABLES`.
 - [ ] **B5 — Effets de bord en chaîne (émission d'événements)**
   Livrable : à la validation, hooks (flow A §7) : `crm.evenement`, recalcul `crm.risque`,
   **signaux** vers Calendar/Facture/Salaire/Search. · ⚠️ Les consommateurs (E/G/H) n'existent

@@ -7,7 +7,8 @@
 // L'entité finale doc.document n'est PAS créée ici : elle naît à la validation
 // humaine (Sprint 3.4), jamais automatiquement (doc.md § 11.1).
 
-import { db, invocation, propositionClassement } from "@zarya/db";
+import { cabinet, db, invocation, propositionClassement } from "@zarya/db";
+import { eq } from "drizzle-orm";
 import {
   type ClassificationInput,
   type Classifier,
@@ -16,6 +17,8 @@ import {
   getClassifier,
   STUB_PROMPT_VERSION,
 } from "./classifier";
+import { decideAutoClassement, type PolitiqueClassement } from "./decide-auto-classement";
+import { finaliserDocument } from "./finalize-document";
 import { CLASSIFY_DOC_PROMPT_VERSION } from "./prompts/classification-doc";
 import { resolveClientCandidates } from "./resolve-client";
 
@@ -65,6 +68,11 @@ export interface ClassifyDocumentInput {
 export interface ClassifyDocumentResult {
   invocation_id: string;
   proposition_id: string;
+  // B4 — `true` si la proposition a été auto-classée (doc.document créé sans validation
+  // humaine), selon la politique du cabinet. `false` ⇒ file de validation (défaut MVP).
+  auto_classe: boolean;
+  // Id du doc.document créé quand auto_classe ; null sinon.
+  document_id: string | null;
 }
 
 // `classifier` est injectable pour les tests (mode live mocké, sans réseau) ;
@@ -163,7 +171,63 @@ export async function classifyDocument(
     throw new Error("Échec de l'enregistrement de la proposition");
   }
 
-  return { invocation_id: inv.id, proposition_id: proposition.id };
+  // 3. Décision auto-classement vs file de validation (B4, flow-a §4). La politique
+  // vit sur le cabinet ; `strict` (défaut MVP) renvoie toujours en file → comportement
+  // inchangé. L'auto exige un client rattaché (doc.document.client_id NOT NULL).
+  const [cab] = await db
+    .select({ politique: cabinet.politique_classement })
+    .from(cabinet)
+    .where(eq(cabinet.id, input.cabinet_id))
+    .limit(1);
+  const politique = (cab?.politique ?? "strict") as PolitiqueClassement;
+
+  const auto = decideAutoClassement({
+    politique,
+    confiance_globale: proposal.confiance_globale,
+    nb_anomalies: proposal.anomalies.length,
+    has_client: clientRes.client_id_propose != null,
+  });
+
+  if (!auto || clientRes.client_id_propose == null) {
+    return {
+      invocation_id: inv.id,
+      proposition_id: proposition.id,
+      auto_classe: false,
+      document_id: null,
+    };
+  }
+
+  // Auto-classement : création directe de l'entité finale (acteur ia, audité). Réutilise
+  // le chemin de finalisation partagé avec la validation humaine (B3 + appariement attente).
+  const fin = await finaliserDocument({
+    cabinet_id: input.cabinet_id,
+    client_id: clientRes.client_id_propose,
+    fichier_physique_id: input.fichier_physique_id,
+    proposition_classement_id: proposition.id,
+    type: proposal.type,
+    categorie: proposal.categorie,
+    periode: proposal.periode,
+    libelle: proposal.libelle,
+    statut_classement: "auto",
+    confiance_classement: proposal.confiance_globale.toFixed(2),
+    acteur_type: "ia",
+    acteur_id: null,
+    cree_par: null,
+  });
+
+  // La proposition est terminale (pas de validation humaine) : `valide`, liée au document.
+  // valide_par reste null (acteur ia) — l'audit de l'acteur vit dans crm.evenement.
+  await db
+    .update(propositionClassement)
+    .set({ statut: "valide", date_validation: new Date(), document_id: fin.document_id })
+    .where(eq(propositionClassement.id, proposition.id));
+
+  return {
+    invocation_id: inv.id,
+    proposition_id: proposition.id,
+    auto_classe: true,
+    document_id: fin.document_id,
+  };
 }
 
 // Écrit une ligne extraction.invocation en échec (best-effort). model_used /

@@ -1,22 +1,9 @@
 "use server";
 
 import { requireAuth } from "@zarya/auth";
-import {
-  db,
-  document,
-  documentAttendu,
-  evenement,
-  fichierPhysique,
-  propositionClassement,
-  uploadBrut,
-} from "@zarya/db";
-import {
-  type AttenduRow,
-  type ChampsProposition,
-  diffValidation,
-  matchDocumentAttendu,
-} from "@zarya/extraction";
-import { and, eq, isNull } from "drizzle-orm";
+import { db, fichierPhysique, propositionClassement, uploadBrut } from "@zarya/db";
+import { type ChampsProposition, diffValidation, finaliserDocument } from "@zarya/extraction";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -113,54 +100,24 @@ export async function validerPropositionAction(
   };
   const diff = diffValidation(propose, champsRetenus);
 
-  // B3 — Appariement à une attente `crm.document_attendu` (doc.md §6.3). Scopé
-  // cabinet_id + client_id (anti-fuite) ; appariement déterministe (extraction).
-  const attendus: AttenduRow[] = await db
-    .select({
-      id: documentAttendu.id,
-      type_document: documentAttendu.type_document,
-      categorie: documentAttendu.categorie,
-      frequence: documentAttendu.frequence,
-    })
-    .from(documentAttendu)
-    .where(
-      and(
-        eq(documentAttendu.cabinet_id, cabinet_id),
-        eq(documentAttendu.client_id, retenu.client_id),
-        eq(documentAttendu.actif, true),
-        isNull(documentAttendu.archived_at),
-      ),
-    );
-  const attenduId = matchDocumentAttendu(
-    {
-      type: retenu.type,
-      categorie: retenu.categorie,
-      libelle: retenu.libelle,
-      periode: retenu.periode ?? null,
-    },
-    attendus,
-  );
-
-  // Le trigger doc.fn_check_client_cabinet vérifie l'appartenance du client au cabinet.
-  const [doc] = await db
-    .insert(document)
-    .values({
-      cabinet_id,
-      client_id: retenu.client_id,
-      fichier_physique_id: prop.fichier_physique_id,
-      proposition_classement_id: prop.id,
-      type: retenu.type,
-      categorie: retenu.categorie,
-      document_attendu_id: attenduId,
-      periode: retenu.periode ?? null,
-      libelle: retenu.libelle,
-      statut_classement: diff.corrige ? "corrige_humain" : "valide_humain",
-      confiance_classement: prop.confiance_globale,
-      cree_par: user.id,
-    })
-    .returning({ id: document.id });
-
-  if (!doc) return { error: "Échec de la création du document" };
+  // Finalisation : création doc.document + appariement attente (B3) + événement
+  // `document_recu`. Chemin partagé avec l'auto-classement (B4) — acteur cabinet_membre
+  // ici. Le trigger doc.fn_check_client_cabinet vérifie l'appartenance client↔cabinet.
+  const fin = await finaliserDocument({
+    cabinet_id,
+    client_id: retenu.client_id,
+    fichier_physique_id: prop.fichier_physique_id,
+    proposition_classement_id: prop.id,
+    type: retenu.type,
+    categorie: retenu.categorie,
+    periode: retenu.periode ?? null,
+    libelle: retenu.libelle,
+    statut_classement: diff.corrige ? "corrige_humain" : "valide_humain",
+    confiance_classement: prop.confiance_globale,
+    acteur_type: "cabinet_membre",
+    acteur_id: user.id,
+    cree_par: user.id,
+  });
 
   await db
     .update(propositionClassement)
@@ -168,45 +125,10 @@ export async function validerPropositionAction(
       statut: "valide",
       valide_par: user.id,
       date_validation: new Date(),
-      document_id: doc.id,
+      document_id: fin.document_id,
       corrections_apportees: diff.corrige ? diff.corrections : null,
     })
     .where(eq(propositionClassement.id, prop.id));
-
-  // B3 — L'attente couverte passe à `recu` (doc.md §6.3). Le balayage temporel
-  // manquant→en_retard (période passée NON reçue) relève de Calendar (Bloc C),
-  // pas de la validation. derniere_periode_recue trace la période effectivement reçue.
-  if (attenduId) {
-    await db
-      .update(documentAttendu)
-      .set({
-        statut_periode_courante: "recu",
-        derniere_reception: new Date().toISOString().slice(0, 10),
-        derniere_periode_recue: retenu.periode ?? null,
-        updated_at: new Date(),
-      })
-      .where(and(eq(documentAttendu.id, attenduId), eq(documentAttendu.cabinet_id, cabinet_id)));
-  }
-
-  // B3 — Événement d'activité `document_recu` (crm-schema.md §18, doc-schema.md §14.3).
-  // Émis à chaque réception classée ; les effets de bord en chaîne (recalcul risque,
-  // signaux modules) sont différés au Bloc B5.
-  await db.insert(evenement).values({
-    cabinet_id,
-    client_id: retenu.client_id,
-    type: "document_recu",
-    acteur_type: "cabinet_membre",
-    acteur_id: user.id,
-    ressource_type: "doc.document",
-    ressource_id: doc.id,
-    description: retenu.libelle,
-    metadata: {
-      type: retenu.type,
-      categorie: retenu.categorie,
-      periode: retenu.periode ?? null,
-      document_attendu_id: attenduId,
-    },
-  });
 
   // Refléter l'issue sur la trace d'upload (inbox /app/documents).
   if (prop.fichier_physique_id) {
