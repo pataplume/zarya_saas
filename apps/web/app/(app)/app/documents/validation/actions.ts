@@ -3,15 +3,19 @@
 import { requireAuth } from "@zarya/auth";
 import { db, fichierPhysique, propositionClassement, uploadBrut } from "@zarya/db";
 import { type ChampsProposition, diffValidation, finaliserDocument } from "@zarya/extraction";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 // Validation humaine d'une proposition de classement (pattern proposition →
 // validation → entité finale, ADR 0007). L'entité doc.document est créée ici en
 // code applicatif (pas par trigger DB) : extraction-ia.md § 8.
-// L'auto-classement (statut_classement 'auto') n'est pas implémenté au MVP :
-// toute proposition passe par une validation humaine explicite (doc.md § 11.1).
+//
+// B7 — file de validation (doc.md §7) :
+//  • validation 1-clic / en lot = `validerLotAction` (valeurs proposées telles quelles) ;
+//  • correction = `validerPropositionAction` (FormData, champs corrigés + note interne) ;
+//  • la « note interne = feedback » (doc.md §7.3) est repliée sous la clé `note_interne`
+//    de `corrections_apportees` (jsonb existant) — pas de colonne dédiée.
 
 // Rôle lecteur = lecture seule ; les autres rôles peuvent valider.
 const ROLES_VALIDATION = new Set(["responsable", "gestionnaire_salaires", "collaborateur"]);
@@ -25,7 +29,119 @@ const CATEGORIES = [
   "autre",
 ] as const;
 
+type Categorie = (typeof CATEGORIES)[number];
+
 export type ValidationState = { error?: string; success?: boolean };
+export type LotState = { error?: string; valides?: number; ignores?: number };
+
+// Champs proposés chargés depuis la proposition (projection partagée).
+type PropositionRow = {
+  id: string;
+  fichier_physique_id: string;
+  type_propose: string | null;
+  categorie_proposee: Categorie | null;
+  periode_proposee: string | null;
+  libelle_propose: string | null;
+  client_id_propose: string | null;
+  confiance_globale: string | null;
+};
+
+const SELECT_PROPOSITION = {
+  id: propositionClassement.id,
+  fichier_physique_id: propositionClassement.fichier_physique_id,
+  type_propose: propositionClassement.type_propose,
+  categorie_proposee: propositionClassement.categorie_proposee,
+  periode_proposee: propositionClassement.periode_proposee,
+  libelle_propose: propositionClassement.libelle_propose,
+  client_id_propose: propositionClassement.client_id_propose,
+  confiance_globale: propositionClassement.confiance_globale,
+} as const;
+
+type ChampsRetenus = {
+  client_id: string;
+  type: string;
+  categorie: Categorie;
+  periode: string | null;
+  libelle: string;
+};
+
+// Cœur PARTAGÉ : finalise une proposition déjà chargée (validation simple, lot, ou
+// correction). Crée doc.document (finaliserDocument B4 — appariement attente, risque,
+// événements), journalise le diff + la note interne, marque la proposition `valide` et
+// reflète l'issue sur l'upload. N'effectue PAS l'auth ni le chargement (l'appelant scope
+// déjà cabinet_id + statut a_valider).
+async function finaliserUneProposition(
+  cabinet_id: string,
+  userId: string,
+  prop: PropositionRow,
+  retenu: ChampsRetenus,
+  note?: string,
+): Promise<void> {
+  const propose: ChampsProposition = {
+    client_id: prop.client_id_propose,
+    type: prop.type_propose,
+    categorie: prop.categorie_proposee,
+    periode: prop.periode_proposee,
+    libelle: prop.libelle_propose,
+  };
+  const champsRetenus: ChampsProposition = {
+    client_id: retenu.client_id,
+    type: retenu.type,
+    categorie: retenu.categorie,
+    periode: retenu.periode,
+    libelle: retenu.libelle,
+  };
+  const diff = diffValidation(propose, champsRetenus);
+
+  // Finalisation : création doc.document + appariement attente (B3) + risque (B5) +
+  // événement `document_recu`. Chemin partagé avec l'auto-classement (B4) — acteur
+  // cabinet_membre ici. Le trigger doc.fn_check_client_cabinet vérifie l'appartenance.
+  const fin = await finaliserDocument({
+    cabinet_id,
+    client_id: retenu.client_id,
+    fichier_physique_id: prop.fichier_physique_id,
+    proposition_classement_id: prop.id,
+    type: retenu.type,
+    categorie: retenu.categorie,
+    periode: retenu.periode,
+    libelle: retenu.libelle,
+    statut_classement: diff.corrige ? "corrige_humain" : "valide_humain",
+    confiance_classement: prop.confiance_globale,
+    acteur_type: "cabinet_membre",
+    acteur_id: userId,
+    cree_par: userId,
+  });
+
+  // Note interne (feedback, doc.md §7.3) repliée dans corrections_apportees.note_interne.
+  const baseCorrections = diff.corrige ? diff.corrections : null;
+  const corrections_apportees = note
+    ? { ...(baseCorrections ?? {}), note_interne: note }
+    : baseCorrections;
+
+  await db
+    .update(propositionClassement)
+    .set({
+      statut: "valide",
+      valide_par: userId,
+      date_validation: new Date(),
+      document_id: fin.document_id,
+      corrections_apportees,
+    })
+    .where(eq(propositionClassement.id, prop.id));
+
+  // Refléter l'issue sur la trace d'upload (inbox /app/documents).
+  const [fichier] = await db
+    .select({ upload_brut_id: fichierPhysique.upload_brut_id })
+    .from(fichierPhysique)
+    .where(eq(fichierPhysique.id, prop.fichier_physique_id))
+    .limit(1);
+  if (fichier?.upload_brut_id) {
+    await db
+      .update(uploadBrut)
+      .set({ statut: "valide" })
+      .where(eq(uploadBrut.id, fichier.upload_brut_id));
+  }
+}
 
 const ValiderSchema = z.object({
   proposition_id: z.string().uuid(),
@@ -34,8 +150,10 @@ const ValiderSchema = z.object({
   categorie: z.enum(CATEGORIES, { errorMap: () => ({ message: "Catégorie invalide" }) }),
   periode: z.string().max(40).optional(),
   libelle: z.string().min(1, "Libellé requis").max(300),
+  note: z.string().max(2000).optional(),
 });
 
+// Validation avec correction (modal, doc.md §7.3). FormData : champs retenus + note.
 export async function validerPropositionAction(
   _prev: ValidationState,
   formData: FormData,
@@ -54,24 +172,16 @@ export async function validerPropositionAction(
     categorie: formData.get("categorie"),
     periode: formData.get("periode") ?? undefined,
     libelle: formData.get("libelle"),
+    note: formData.get("note") ?? undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
   }
   const retenu = parsed.data;
 
-  // Charger la proposition encore en attente, scoping cabinet (defense-in-depth en plus de la RLS).
+  // Charger la proposition encore en attente, scoping cabinet (defense-in-depth + RLS).
   const [prop] = await db
-    .select({
-      id: propositionClassement.id,
-      fichier_physique_id: propositionClassement.fichier_physique_id,
-      type_propose: propositionClassement.type_propose,
-      categorie_proposee: propositionClassement.categorie_proposee,
-      periode_proposee: propositionClassement.periode_proposee,
-      libelle_propose: propositionClassement.libelle_propose,
-      client_id_propose: propositionClassement.client_id_propose,
-      confiance_globale: propositionClassement.confiance_globale,
-    })
+    .select(SELECT_PROPOSITION)
     .from(propositionClassement)
     .where(
       and(
@@ -84,70 +194,76 @@ export async function validerPropositionAction(
 
   if (!prop) return { error: "Proposition introuvable ou déjà traitée" };
 
-  const propose: ChampsProposition = {
-    client_id: prop.client_id_propose,
-    type: prop.type_propose,
-    categorie: prop.categorie_proposee,
-    periode: prop.periode_proposee,
-    libelle: prop.libelle_propose,
-  };
-  const champsRetenus: ChampsProposition = {
-    client_id: retenu.client_id,
-    type: retenu.type,
-    categorie: retenu.categorie,
-    periode: retenu.periode ?? null,
-    libelle: retenu.libelle,
-  };
-  const diff = diffValidation(propose, champsRetenus);
-
-  // Finalisation : création doc.document + appariement attente (B3) + événement
-  // `document_recu`. Chemin partagé avec l'auto-classement (B4) — acteur cabinet_membre
-  // ici. Le trigger doc.fn_check_client_cabinet vérifie l'appartenance client↔cabinet.
-  const fin = await finaliserDocument({
+  await finaliserUneProposition(
     cabinet_id,
-    client_id: retenu.client_id,
-    fichier_physique_id: prop.fichier_physique_id,
-    proposition_classement_id: prop.id,
-    type: retenu.type,
-    categorie: retenu.categorie,
-    periode: retenu.periode ?? null,
-    libelle: retenu.libelle,
-    statut_classement: diff.corrige ? "corrige_humain" : "valide_humain",
-    confiance_classement: prop.confiance_globale,
-    acteur_type: "cabinet_membre",
-    acteur_id: user.id,
-    cree_par: user.id,
-  });
-
-  await db
-    .update(propositionClassement)
-    .set({
-      statut: "valide",
-      valide_par: user.id,
-      date_validation: new Date(),
-      document_id: fin.document_id,
-      corrections_apportees: diff.corrige ? diff.corrections : null,
-    })
-    .where(eq(propositionClassement.id, prop.id));
-
-  // Refléter l'issue sur la trace d'upload (inbox /app/documents).
-  if (prop.fichier_physique_id) {
-    const [fichier] = await db
-      .select({ upload_brut_id: fichierPhysique.upload_brut_id })
-      .from(fichierPhysique)
-      .where(eq(fichierPhysique.id, prop.fichier_physique_id))
-      .limit(1);
-    if (fichier?.upload_brut_id) {
-      await db
-        .update(uploadBrut)
-        .set({ statut: "valide" })
-        .where(eq(uploadBrut.id, fichier.upload_brut_id));
-    }
-  }
+    user.id,
+    prop,
+    {
+      client_id: retenu.client_id,
+      type: retenu.type,
+      categorie: retenu.categorie,
+      periode: retenu.periode ?? null,
+      libelle: retenu.libelle,
+    },
+    retenu.note?.trim() || undefined,
+  );
 
   revalidatePath("/app/documents/validation");
   revalidatePath("/app/documents");
   return { success: true };
+}
+
+const LotSchema = z.object({
+  proposition_ids: z.array(z.string().uuid()).min(1).max(500),
+});
+
+// Validation 1-clic / en lot (doc.md §7.2 & §7.4). Applique les valeurs PROPOSÉES
+// telles quelles (pas de correction). Une proposition incomplète (sans client, type ou
+// libellé proposé) ne peut pas être validée à l'aveugle → ignorée (à corriger à la main).
+// Les ids hors cabinet ou déjà traités sont filtrés (anti-fuite) et comptés en ignorés.
+export async function validerLotAction(propositionIds: string[]): Promise<LotState> {
+  const user = await requireAuth();
+  const cabinet_id = user.app_metadata.cabinet_id as string | undefined;
+  if (!cabinet_id) return { error: "Cabinet non configuré" };
+
+  const role = (user.app_metadata.role as string | undefined) ?? "lecteur";
+  if (!ROLES_VALIDATION.has(role)) return { error: "Action non autorisée pour votre rôle" };
+
+  const parsed = LotSchema.safeParse({ proposition_ids: propositionIds });
+  if (!parsed.success) return { error: "Sélection invalide" };
+  const ids = parsed.data.proposition_ids;
+
+  const props = await db
+    .select(SELECT_PROPOSITION)
+    .from(propositionClassement)
+    .where(
+      and(
+        eq(propositionClassement.cabinet_id, cabinet_id),
+        eq(propositionClassement.statut, "a_valider"),
+        inArray(propositionClassement.id, ids),
+      ),
+    );
+
+  let valides = 0;
+  let ignores = ids.length - props.length; // introuvables / hors cabinet / déjà traités
+  for (const prop of props) {
+    if (!prop.client_id_propose || !prop.type_propose || !prop.libelle_propose) {
+      ignores += 1;
+      continue;
+    }
+    await finaliserUneProposition(cabinet_id, user.id, prop, {
+      client_id: prop.client_id_propose,
+      type: prop.type_propose,
+      categorie: prop.categorie_proposee ?? "autre",
+      periode: prop.periode_proposee,
+      libelle: prop.libelle_propose,
+    });
+    valides += 1;
+  }
+
+  revalidatePath("/app/documents/validation");
+  revalidatePath("/app/documents");
+  return { valides, ignores };
 }
 
 const RejeterSchema = z.object({

@@ -1,13 +1,14 @@
 import { getCurrentUser } from "@zarya/auth";
-import { client, db, fichierPhysique, propositionClassement, uploadBrut } from "@zarya/db";
+import { client, db, vInboxAValider } from "@zarya/db";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PropositionCard } from "./validation-client";
+import { type InboxItem, ValidationInbox } from "./validation-client";
 
-// File de validation — module Doc (doc.md § 5 & § 7). L'IA propose, l'humain
-// valide (UX principle § 1). Chaque proposition 'a_valider' devient un
-// doc.document après validation, ou est rejetée.
+// File de validation — module Doc (doc.md § 5 & § 7, Bloc B7). L'IA propose,
+// l'humain valide (UX principle § 1). La page lit la vue dénormalisée
+// doc.v_inbox_a_valider (migration 0022) scopée cabinet_id (frontière de
+// sécurité réelle sur le chemin service-role — ADR 0005 addendum).
 
 export default async function ValidationPage() {
   const user = await getCurrentUser();
@@ -19,30 +20,22 @@ export default async function ValidationPage() {
   const role = (user?.app_metadata.role as string | undefined) ?? "lecteur";
   const peutValider = role !== "lecteur";
 
-  const [propositions, clients] = await Promise.all([
+  const [rows, clients] = await Promise.all([
     db
       .select({
-        id: propositionClassement.id,
-        type_propose: propositionClassement.type_propose,
-        categorie_proposee: propositionClassement.categorie_proposee,
-        periode_proposee: propositionClassement.periode_proposee,
-        libelle_propose: propositionClassement.libelle_propose,
-        client_id_propose: propositionClassement.client_id_propose,
-        confiance_globale: propositionClassement.confiance_globale,
-        anomalies: propositionClassement.anomalies_detectees,
-        created_at: propositionClassement.created_at,
-        nom_fichier: uploadBrut.nom_fichier_original,
+        proposition_id: vInboxAValider.proposition_id,
+        type_propose: vInboxAValider.type_propose,
+        categorie_proposee: vInboxAValider.categorie_proposee,
+        periode_proposee: vInboxAValider.periode_proposee,
+        libelle_propose: vInboxAValider.libelle_propose,
+        client_id_propose: vInboxAValider.client_id_propose,
+        client_nom: vInboxAValider.client_nom,
+        confiance_globale: vInboxAValider.confiance_globale,
+        anomalies: vInboxAValider.anomalies_detectees,
+        nom_fichier: vInboxAValider.nom_fichier_original,
       })
-      .from(propositionClassement)
-      .innerJoin(fichierPhysique, eq(fichierPhysique.id, propositionClassement.fichier_physique_id))
-      .leftJoin(uploadBrut, eq(uploadBrut.id, fichierPhysique.upload_brut_id))
-      .where(
-        and(
-          eq(propositionClassement.cabinet_id, cabinet_id),
-          eq(propositionClassement.statut, "a_valider"),
-        ),
-      )
-      .orderBy(asc(propositionClassement.created_at))
+      .from(vInboxAValider)
+      .where(eq(vInboxAValider.cabinet_id, cabinet_id))
       .limit(100),
     db
       .select({ id: client.id, raison_sociale: client.raison_sociale })
@@ -50,6 +43,19 @@ export default async function ValidationPage() {
       .where(and(eq(client.cabinet_id, cabinet_id), isNull(client.archived_at)))
       .orderBy(asc(client.raison_sociale)),
   ]);
+
+  const propositions: InboxItem[] = rows.map((r) => ({
+    proposition_id: r.proposition_id,
+    type_propose: r.type_propose,
+    categorie_proposee: r.categorie_proposee,
+    periode_proposee: r.periode_proposee,
+    libelle_propose: r.libelle_propose,
+    client_id_propose: r.client_id_propose,
+    client_nom: r.client_nom,
+    confiance_globale: r.confiance_globale,
+    anomalies: r.anomalies ?? [],
+    nom_fichier: r.nom_fichier,
+  }));
 
   return (
     <div className="px-4 py-8 sm:px-6 lg:px-8">
@@ -92,26 +98,7 @@ export default async function ValidationPage() {
               pour pouvoir valider.
             </div>
           )}
-          <ul className="space-y-3">
-            {propositions.map((p) => (
-              <li key={p.id}>
-                <PropositionCard
-                  proposition={{
-                    id: p.id,
-                    type_propose: p.type_propose,
-                    categorie_proposee: p.categorie_proposee,
-                    periode_proposee: p.periode_proposee,
-                    libelle_propose: p.libelle_propose,
-                    client_id_propose: p.client_id_propose,
-                    confiance_globale: p.confiance_globale,
-                    anomalies: p.anomalies ?? [],
-                    nom_fichier: p.nom_fichier,
-                  }}
-                  clients={clients}
-                />
-              </li>
-            ))}
-          </ul>
+          <ValidationInbox propositions={propositions} clients={clients} />
         </>
       )}
     </div>

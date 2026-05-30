@@ -80,6 +80,7 @@ export {
   vClientDashboard,
   vDocumentsManquants,
   vEcheancesAVenir,
+  vInboxAValider,
   visibiliteNoteEnum,
   zefixRechercheCabinet,
 } from "./schema";
