@@ -85,9 +85,44 @@ describe("Catalogues globaux crm.standard_* (A9)", () => {
     expect(vd?.nom_de).toBe("Waadt");
   });
 
-  test("standard_caisse_avs : 26 caisses cantonales seedées", async () => {
-    const rows = await db.select({ code: standardCaisseAvs.code }).from(standardCaisseAvs);
-    expect(rows.length).toBeGreaterThanOrEqual(26);
+  test("standard_caisse_avs : caisses AVS officielles keyées par numéro (cantonales + fédérales + professionnelles)", async () => {
+    const rows = await db
+      .select({
+        code: standardCaisseAvs.code,
+        type: standardCaisseAvs.type,
+        canton: standardCaisseAvs.canton,
+      })
+      .from(standardCaisseAvs);
+
+    // 26 cantonales + 2 fédérales + 61 professionnelles (source ahv-iv.ch).
+    expect(rows.length).toBeGreaterThanOrEqual(89);
+
+    const byCode = new Map(rows.map((r) => [r.code, r]));
+    // Numéros officiels : Zurich = 1, CFC = 26.1, CSC = 27, FER CIAM = 106.1.
+    expect(byCode.get("1")?.type).toBe("cantonale");
+    expect(byCode.get("1")?.canton).toBe("ZH");
+    expect(byCode.get("26.1")?.type).toBe("federale");
+    expect(byCode.get("27")?.type).toBe("federale");
+    expect(byCode.get("106.1")?.type).toBe("professionnelle");
+
+    // Les 26 cantonales sont rattachées à un canton ; les autres non.
+    const cantonales = rows.filter((r) => r.type === "cantonale");
+    expect(cantonales).toHaveLength(26);
+    expect(cantonales.every((r) => r.canton !== null)).toBe(true);
+    expect(rows.filter((r) => r.type !== "cantonale").every((r) => r.canton === null)).toBe(true);
+  });
+
+  test("standard_caisse_avs : intégrité référentielle — chaque canton rattaché existe", async () => {
+    const caisses = await db
+      .select({ canton: standardCaisseAvs.canton })
+      .from(standardCaisseAvs)
+      .where(eq(standardCaisseAvs.type, "cantonale"));
+    const cantons = await db.select({ code: standardCantonCh.code }).from(standardCantonCh);
+    const cantonCodes = new Set(cantons.map((c) => c.code));
+    for (const c of caisses) {
+      expect(c.canton).not.toBeNull();
+      expect(cantonCodes.has(c.canton as string)).toBe(true);
+    }
   });
 
   // ─── Exception multi-tenant documentée (§20/§22.3) ──────────────────────────
