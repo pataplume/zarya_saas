@@ -13,6 +13,9 @@ export default defineConfig({
         new URL("./packages/integrations/src/index.ts", import.meta.url),
       ),
       "@zarya/db": fileURLToPath(new URL("./packages/db/src/index.ts", import.meta.url)),
+      "@zarya/calendar": fileURLToPath(
+        new URL("./packages/calendar/src/index.ts", import.meta.url),
+      ),
       // Sous-chemin admin (helper createTestUser) : à déclarer AVANT "@zarya/auth"
       // car Vite matche les alias string par préfixe. admin.ts ne tire pas next/headers.
       "@zarya/auth/admin": fileURLToPath(new URL("./packages/auth/src/admin.ts", import.meta.url)),
