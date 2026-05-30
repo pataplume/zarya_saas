@@ -1,0 +1,5 @@
+# Fixtures OCR locales : ce sont des documents RÉELS → PII. Jamais committées.
+# Le dossier reste versionné vide (.gitkeep) ; on dépose ses fixtures en local.
+*
+!.gitkeep
+!.gitignore
