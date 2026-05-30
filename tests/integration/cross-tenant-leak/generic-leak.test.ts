@@ -23,6 +23,7 @@ import {
   and,
   cabinet,
   cabinetMembre,
+  calendarCabinetConfig,
   client,
   db,
   document,
@@ -31,9 +32,12 @@ import {
   fichierPhysique,
   invitationMembre,
   invocation,
+  modeleRelance,
+  pauseClient,
   propositionClassement,
   relance,
   sessionOnboardingFiduciaire,
+  templateEcheance,
   uploadBrut,
   zefixRechercheCabinet,
 } from "@zarya/db";
@@ -44,14 +48,18 @@ import { createServiceClient } from "../helpers/rls";
 import {
   cleanupCabinets,
   getSessionId,
+  seedCalendarConfig,
   seedClient,
   seedDocument,
   seedEcheance,
   seedFichierPhysique,
   seedInvitation,
   seedInvocation,
+  seedModeleRelance,
+  seedPauseClient,
   seedProposition,
   seedRelance,
+  seedTemplateEcheance,
   seedTwoCabinets,
   seedUploadBrut,
   seedZefixRecherche,
@@ -168,6 +176,37 @@ const METIER_TABLES: MetierTableSpec[] = [
     idCol: relance.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
+  // calendar.template_echeance / modele_relance sont des CATALOGUES GLOBAUX
+  // (cabinet_id NULL lisible par tous). On enregistre ici l'override SCOPÉ cabinet :
+  // un filtre cabinet_id = A ne doit jamais retourner l'override du cabinet B.
+  {
+    name: "calendar.template_echeance",
+    table: templateEcheance,
+    scopeCol: templateEcheance.cabinet_id,
+    idCol: templateEcheance.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "calendar.modele_relance",
+    table: modeleRelance,
+    scopeCol: modeleRelance.cabinet_id,
+    idCol: modeleRelance.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "calendar.cabinet_config",
+    table: calendarCabinetConfig,
+    scopeCol: calendarCabinetConfig.cabinet_id,
+    idCol: calendarCabinetConfig.cabinet_id,
+    noopSet: { delai_alerte_defaut_jours: 0 },
+  },
+  {
+    name: "calendar.pause_client",
+    table: pauseClient,
+    scopeCol: pauseClient.cabinet_id,
+    idCol: pauseClient.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
 ];
 
 // Tables dont la RLS doit rester ACTIVÉE en DB (défense en profondeur).
@@ -186,6 +225,10 @@ const RLS_TABLES = [
   ["doc", "document"],
   ["crm", "echeance"],
   ["crm", "relance"],
+  ["calendar", "template_echeance"],
+  ["calendar", "modele_relance"],
+  ["calendar", "cabinet_config"],
+  ["calendar", "pause_client"],
 ] as const;
 
 let sql: postgres.Sql;
@@ -248,6 +291,21 @@ beforeAll(async () => {
     await seedRelance(sql, cabinetA.id, clientA.id, echA.id),
     await seedRelance(sql, cabinetB.id, clientB.id, echB.id),
   ];
+  // Module Calendar Run 2 — overrides cabinet (catalogues globaux ignorés ici).
+  const [tplA, tplB] = [
+    await seedTemplateEcheance(sql, cabinetA.id),
+    await seedTemplateEcheance(sql, cabinetB.id),
+  ];
+  const [modA, modB] = [
+    await seedModeleRelance(sql, cabinetA.id),
+    await seedModeleRelance(sql, cabinetB.id),
+  ];
+  await seedCalendarConfig(sql, cabinetA.id);
+  await seedCalendarConfig(sql, cabinetB.id);
+  const [pauseA, pauseB] = [
+    await seedPauseClient(sql, cabinetA.id, clientA.id),
+    await seedPauseClient(sql, cabinetB.id, clientB.id),
+  ];
 
   Object.assign(idsA, {
     "crm.cabinet": cabinetA.id,
@@ -263,6 +321,10 @@ beforeAll(async () => {
     "doc.document": docA.id,
     "crm.echeance": echA.id,
     "crm.relance": relA.id,
+    "calendar.template_echeance": tplA.id,
+    "calendar.modele_relance": modA.id,
+    "calendar.cabinet_config": cabinetA.id,
+    "calendar.pause_client": pauseA.id,
   });
   Object.assign(idsB, {
     "crm.cabinet": cabinetB.id,
@@ -278,6 +340,10 @@ beforeAll(async () => {
     "doc.document": docB.id,
     "crm.echeance": echB.id,
     "crm.relance": relB.id,
+    "calendar.template_echeance": tplB.id,
+    "calendar.modele_relance": modB.id,
+    "calendar.cabinet_config": cabinetB.id,
+    "calendar.pause_client": pauseB.id,
   });
 });
 

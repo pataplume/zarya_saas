@@ -62,6 +62,26 @@ export interface TestRelance {
   client_id: string;
 }
 
+export interface TestTemplateEcheance {
+  id: string;
+  cabinet_id: string;
+}
+
+export interface TestModeleRelance {
+  id: string;
+  cabinet_id: string;
+}
+
+export interface TestCalendarConfig {
+  cabinet_id: string;
+}
+
+export interface TestPauseClient {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+
 export interface TestCabinet {
   id: string;
   raison_sociale: string;
@@ -300,6 +320,74 @@ export async function seedRelance(
 }
 
 /**
+ * Crée un override cabinet de calendar.template_echeance (service role).
+ * Le catalogue global (cabinet_id NULL) est seedé par la migration 0006 ;
+ * ici on crée une ligne SCOPÉE au cabinet pour les tests d'isolation.
+ */
+export async function seedTemplateEcheance(
+  sql: postgres.Sql,
+  cabinet_id: string,
+): Promise<TestTemplateEcheance> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO calendar.template_echeance
+      (id, cabinet_id, nom, type_echeance, frequence, delai_alerte_jours)
+    VALUES (
+      ${id}, ${cabinet_id}, ${`Override TVA ${id.slice(0, 8)}`}, 'tva', 'trimestrielle', 14
+    )
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée un override cabinet de calendar.modele_relance (service role). */
+export async function seedModeleRelance(
+  sql: postgres.Sql,
+  cabinet_id: string,
+): Promise<TestModeleRelance> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO calendar.modele_relance
+      (id, cabinet_id, type_echeance, langue, nom, objet, corps)
+    VALUES (
+      ${id}, ${cabinet_id}, 'tva', 'fr',
+      ${`Override modèle ${id.slice(0, 8)}`},
+      ${"Rappel — {{echeance_libelle}}"}, ${"Bonjour {{client_nom}}, …"}
+    )
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée la ligne calendar.cabinet_config d'un cabinet (service role). */
+export async function seedCalendarConfig(
+  sql: postgres.Sql,
+  cabinet_id: string,
+): Promise<TestCalendarConfig> {
+  await sql`
+    INSERT INTO calendar.cabinet_config (cabinet_id)
+    VALUES (${cabinet_id})
+    ON CONFLICT (cabinet_id) DO NOTHING
+  `;
+  return { cabinet_id };
+}
+
+/** Crée une calendar.pause_client de test pour un client donné (service role). */
+export async function seedPauseClient(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestPauseClient> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO calendar.pause_client (id, cabinet_id, client_id, date_debut, date_fin, motif)
+    VALUES (
+      ${id}, ${cabinet_id}, ${client_id},
+      now(), now() + interval '14 days', ${`Pause test ${id.slice(0, 8)}`}
+    )
+  `;
+  return { id, cabinet_id, client_id };
+}
+
+/**
  * Supprime toutes les données de test liées aux cabinet_ids fournis.
  * Ordre FK strict : tables enfants avant tables parents.
  */
@@ -315,7 +403,13 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   await sql`DELETE FROM doc.fichier_physique        WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM doc.upload_brut             WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM extraction.invocation       WHERE cabinet_id = ANY(${arr}::uuid[])`;
-  // Module Calendar (ordre FK : relance → echeance, tous deux enfants de crm.client)
+  // Module Calendar Run 2 — schéma calendar.* (overrides cabinet seulement ;
+  // les catalogues globaux cabinet_id NULL sont des données de seed permanentes).
+  await sql`DELETE FROM calendar.pause_client       WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM calendar.cabinet_config     WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM calendar.template_echeance  WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM calendar.modele_relance     WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // Module Calendar Run 1 (ordre FK : relance → echeance, enfants de crm.client)
   await sql`DELETE FROM crm.relance                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.echeance                WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.client                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
