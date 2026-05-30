@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   date,
   index,
@@ -1096,3 +1097,60 @@ export const relance = crmSchema.table(
     index("idx_relance_statut").on(t.cabinet_id, t.statut),
   ],
 );
+
+// ════════════════════════════════════════════════════════════════════════════
+// Bloc A10 — Vues de lecture crm.v_* (§21). Clôture de la fondation CRM (ADR 0012).
+// ════════════════════════════════════════════════════════════════════════════
+// Définies en DB par la migration 0018 (security_invoker = true). Déclarées ici en
+// `.existing()` : Drizzle n'en gère PAS le DDL, il ne fait qu'exposer un type de
+// lecture pour le query-builder. Les vues exposent `cabinet_id` → le consommateur
+// applicatif DOIT filtrer `WHERE cabinet_id = X` (la frontière de sécurité réelle
+// sur le chemin service-role, cf. ADR 0005 addendum). Enums typés en `text` côté
+// vue (lecture seule, pas de contrainte d'écriture).
+
+// crm.v_client_dashboard — listing dénormalisé (client + risque + agrégats).
+export const vClientDashboard = crmSchema
+  .view("v_client_dashboard", {
+    id: uuid("id"),
+    cabinet_id: uuid("cabinet_id"),
+    raison_sociale: text("raison_sociale"),
+    type: text("type"),
+    statut: text("statut"),
+    langue: text("langue"),
+    risque_score: integer("risque_score"),
+    risque_niveau: text("risque_niveau"),
+    prochaine_echeance: date("prochaine_echeance"),
+    nb_documents_manquants: bigint("nb_documents_manquants", { mode: "number" }),
+    derniere_activite: timestamp("derniere_activite", { withTimezone: true }),
+  })
+  .existing();
+
+// crm.v_echeances_a_venir — échéances ouvertes des 30 prochains jours.
+export const vEcheancesAVenir = crmSchema
+  .view("v_echeances_a_venir", {
+    id: uuid("id"),
+    cabinet_id: uuid("cabinet_id"),
+    client_id: uuid("client_id"),
+    raison_sociale: text("raison_sociale"),
+    type: text("type"),
+    libelle: text("libelle"),
+    date_echeance: date("date_echeance"),
+    date_alerte: date("date_alerte"),
+    statut: text("statut"),
+  })
+  .existing();
+
+// crm.v_documents_manquants — documents manquants ou en retard, par cabinet.
+export const vDocumentsManquants = crmSchema
+  .view("v_documents_manquants", {
+    id: uuid("id"),
+    cabinet_id: uuid("cabinet_id"),
+    client_id: uuid("client_id"),
+    raison_sociale: text("raison_sociale"),
+    type_document: text("type_document"),
+    categorie: text("categorie"),
+    frequence: text("frequence"),
+    statut_periode_courante: text("statut_periode_courante"),
+    derniere_periode_recue: text("derniere_periode_recue"),
+  })
+  .existing();
