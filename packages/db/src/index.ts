@@ -1,7 +1,7 @@
 // @zarya/db — Schémas Drizzle ORM, client DB, migrations
 
 // Opérateurs de requête drizzle ré-exportés (le package db possède l'ORM).
-export { and, eq } from "drizzle-orm";
+export { and, eq, isNull } from "drizzle-orm";
 export type { DbForCabinet } from "./client";
 export { db, getDbForCabinet } from "./client";
 // Schémas et enums

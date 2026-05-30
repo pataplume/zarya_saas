@@ -17,6 +17,7 @@ import {
   STUB_PROMPT_VERSION,
 } from "./classifier";
 import { CLASSIFY_DOC_PROMPT_VERSION } from "./prompts/classification-doc";
+import { resolveClientCandidates } from "./resolve-client";
 
 // Statuts d'invocation (extraction.invocation_status, packages/db/src/schema/extraction.ts).
 type InvocationStatus =
@@ -56,6 +57,9 @@ export interface ClassifyDocumentInput {
   ocr_text?: string | null;
   type_mime?: string;
   invoked_by_user_id?: string;
+  // Email de l'expéditeur (flux email entrant) — signal de rattachement client B2.
+  // Absent pour les uploads manuels ; le rattachement retombe alors sur IDE + nom.
+  expediteur_email?: string | null;
 }
 
 export interface ClassifyDocumentResult {
@@ -118,6 +122,15 @@ export async function classifyDocument(
     throw new Error("Échec de l'enregistrement de l'invocation");
   }
 
+  // 1bis. Rattachement client multi-signal (B2, ADR 0014). Déterministe, scopé
+  // cabinet_id (anti-fuite). Renseigne client_id_propose seulement si la confiance
+  // atteint le palier de rattachement (≥ 0.60) ; sinon « à classer manuellement ».
+  const clientRes = await resolveClientCandidates({
+    cabinet_id: input.cabinet_id,
+    texte: `${input.nom_fichier}\n${input.ocr_text ?? ""}`,
+    expediteur_email: input.expediteur_email ?? null,
+  });
+
   // 2. Proposition en attente de validation humaine.
   const [proposition] = await db
     .insert(propositionClassement)
@@ -133,6 +146,16 @@ export async function classifyDocument(
       confiance_globale: proposal.confiance_globale.toFixed(2),
       confiance_par_champ: proposal.confiance_par_champ,
       anomalies_detectees: proposal.anomalies,
+      // Rattachement client B2 : top candidat (si palier ≥ proposer) + top-3 tracés.
+      client_id_propose: clientRes.client_id_propose,
+      client_candidats:
+        clientRes.candidats.length > 0
+          ? {
+              confiance: clientRes.confiance,
+              palier: clientRes.palier,
+              candidats: clientRes.candidats,
+            }
+          : null,
     })
     .returning({ id: propositionClassement.id });
 

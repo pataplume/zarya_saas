@@ -91,6 +91,12 @@ referenced_by: [doc]
 ### Étape 4 — Décision d'auto-classement vs validation humaine
 Selon la politique du cabinet (`crm.cabinet.politique_classement`) :
 
+> **Portée des seuils (ADR 0014)** : les seuils 0.95 / 0.80 ci-dessous portent sur
+> `confiance_globale` et régissent la **politique d'auto-classement** (saut de la
+> validation). Ils sont **inactifs en MVP** (politique `strict` exclusive, Cas A) et
+> distincts des seuils de rattachement *client* (`doc.md` §5.2 : 0.90 / 0.60), produits
+> par B2. Le `< 0.3` de l'Étape 6 est caduc, remplacé par le `< 0.60` de doc.md §5.2.
+
 **Cas A : strict (défaut MVP)**
 - Toutes les propositions vont en file de validation
 - Le collaborateur valide chaque proposition

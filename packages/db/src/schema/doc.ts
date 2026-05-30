@@ -156,6 +156,10 @@ export const propositionClassement = docSchema.table(
     date_document_proposee: date("date_document_proposee"),
     confiance_globale: numeric("confiance_globale", { precision: 3, scale: 2 }),
     confiance_par_champ: jsonb("confiance_par_champ"),
+    // Candidats client classés (top-3 homonymes, doc.md §5.3) — produit par B2.
+    // Forme : { confiance, palier, candidats: [{ client_id, score, raison }] }.
+    // Distinct de confiance_par_champ (confiance par champ de classification). ADR 0014.
+    client_candidats: jsonb("client_candidats"),
     anomalies_detectees: text("anomalies_detectees").array(),
     doublons_potentiels: uuid("doublons_potentiels").array(),
     // ── Validation ──
