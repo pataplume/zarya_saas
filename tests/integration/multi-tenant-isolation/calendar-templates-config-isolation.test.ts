@@ -210,6 +210,28 @@ describe("Multi-tenant isolation — module Calendar (templates, config, pauses)
     ).rejects.toThrow(/Incohérence cabinet\/client/);
   });
 
+  // ─── Seed fédéral (Run 4) : lignes globales lisibles par tout tenant ─────────
+
+  test("les échéances fédérales (seed Run 4) sont des lignes globales lisibles par un tenant", async () => {
+    const federales = [
+      "Certificat de salaire annuel",
+      "Décompte annuel AVS/AC",
+      "Décompte annuel LPP",
+      "Décompte annuel impôt à la source (IS)",
+      "Cotisations AVS trimestrielles",
+    ];
+    const rows = await queryAsTenant(
+      sql,
+      cabinetA.id,
+      (tsql) =>
+        tsql`SELECT nom, cabinet_id FROM calendar.template_echeance WHERE nom = ANY(${federales})`,
+    );
+    // Les 5 échéances fédérales sont visibles…
+    expect(rows.map((r) => r.nom as string).sort()).toEqual([...federales].sort());
+    // …et toutes globales (cabinet_id NULL), jamais rattachées à un cabinet.
+    expect(rows.every((r) => r.cabinet_id === null)).toBe(true);
+  });
+
   // ─── Vérification schéma : RLS activée ───────────────────────────────────────
 
   test("RLS est activée sur les 4 tables calendar.*", async () => {
