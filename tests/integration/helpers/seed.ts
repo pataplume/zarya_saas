@@ -74,6 +74,23 @@ export interface TestSalaireConfig {
   cabinet_id: string;
 }
 
+export interface TestRisque {
+  client_id: string;
+  cabinet_id: string;
+}
+
+export interface TestEvenement {
+  id: string;
+  cabinet_id: string;
+  client_id: string | null;
+}
+
+export interface TestNote {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+
 export interface TestFichierPhysique {
   id: string;
   cabinet_id: string;
@@ -384,6 +401,54 @@ export async function seedSalaireConfig(
   return { client_id, cabinet_id };
 }
 
+/**
+ * Crée la ligne crm.risque d'un client (1-1, client_id = PK).
+ * Idempotent : ON CONFLICT DO NOTHING pour pouvoir re-seeder sans casser.
+ */
+export async function seedRisque(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestRisque> {
+  await sql`
+    INSERT INTO crm.risque (client_id, cabinet_id, niveau)
+    VALUES (${client_id}, ${cabinet_id}, 'ok')
+    ON CONFLICT (client_id) DO NOTHING
+  `;
+  return { client_id, cabinet_id };
+}
+
+/**
+ * Crée un crm.evenement de test (journal). `client_id` optionnel : null pour un
+ * événement cabinet-level (pas rattaché à un client).
+ */
+export async function seedEvenement(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string | null = null,
+): Promise<TestEvenement> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.evenement (id, cabinet_id, client_id, type, acteur_type)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, 'document_recu', 'systeme')
+  `;
+  return { id, cabinet_id, client_id };
+}
+
+/** Crée une crm.note de test pour un client donné (service role). */
+export async function seedNote(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestNote> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.note (id, cabinet_id, client_id, contenu)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${`Note test ${id.slice(0, 8)}`})
+  `;
+  return { id, cabinet_id, client_id };
+}
+
 /** Crée un extraction.invocation de test (mode stub) pour un cabinet donné. */
 export async function seedInvocation(
   sql: postgres.Sql,
@@ -646,6 +711,11 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   await sql`DELETE FROM crm.banque                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc A7 (salaire_config, enfant de crm.client ; contact_rh_id SET NULL)
   await sql`DELETE FROM crm.salaire_config          WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // Bloc A8 (risque / evenement / note, enfants de crm.client ; note.auteur_id SET NULL,
+  // evenement.client_id NULLABLE)
+  await sql`DELETE FROM crm.risque                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM crm.evenement               WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM crm.note                     WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc A3 (service / param_comptable, enfants de crm.client)
   await sql`DELETE FROM crm.service                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.param_comptable         WHERE cabinet_id = ANY(${arr}::uuid[])`;

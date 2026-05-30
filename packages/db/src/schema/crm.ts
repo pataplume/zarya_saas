@@ -205,6 +205,41 @@ export const logicielPaieEnum = crmSchema.enum("logiciel_paie", [
   "aucun",
 ]);
 
+// ── Bloc A8 — crm.risque (§17), crm.evenement (§18), crm.note (§19) ──────────
+
+// Niveau de risque d'un client (synthèse du score 0-100).
+export const niveauRisqueEnum = crmSchema.enum("niveau_risque", ["ok", "surveillance", "critique"]);
+
+// Type d'événement du journal client/cabinet (append-only). Liste extensible :
+// on pose les types connus du MVP (crm-schema.md §18).
+export const typeEvenementEnum = crmSchema.enum("type_evenement", [
+  "document_recu",
+  "document_classe",
+  "relance_envoyee",
+  "echeance_creee",
+  "service_active",
+  "note_ajoutee",
+  "mandat_signe",
+  "anomalie_facture",
+  "score_recalcule",
+  "cabinet_membre_ajoute",
+  "integration_configuree",
+]);
+
+// Nature de l'acteur à l'origine d'un événement.
+export const acteurTypeEvenementEnum = crmSchema.enum("acteur_type_evenement", [
+  "cabinet_membre",
+  "client_contact",
+  "systeme",
+  "ia",
+]);
+
+// Visibilité d'une note client au sein du cabinet.
+export const visibiliteNoteEnum = crmSchema.enum("visibilite_note", [
+  "cabinet",
+  "responsable_seul",
+]);
+
 // ── Module Calendar (Run 1) — échéances & relances ───────────────────────────
 // Périmètre Run 1 (ADR 0011) : tables opérationnelles de base crm.echeance et
 // crm.relance. Le découpage canonique des runs est figé dans l'addendum
@@ -707,6 +742,102 @@ export const salaireConfig = crmSchema.table(
   (t) => [
     index("idx_salaire_config_cabinet").on(t.cabinet_id),
     index("idx_salaire_config_contact_rh").on(t.contact_rh_id),
+  ],
+);
+
+// ─── crm.risque — Score de risque d'un client (Bloc A8) ──────────────────────
+// crm-schema.md § 17. 1-1 avec le client (client_id = PK). cabinet_id dénormalisé
+// pour la RLS, cohérence garantie par trg_check_client_cabinet_risque (0016).
+// `score` 0-100 + `niveau` synthétique ; recalculés par une feature ultérieure.
+// NB vs §17 : created_at/updated_at ajoutés (convention db/CLAUDE.md §2) — divergence
+// assumée.
+
+export const risque = crmSchema.table(
+  "risque",
+  {
+    client_id: uuid("client_id")
+      .primaryKey()
+      .references(() => client.id, { onDelete: "restrict" }),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    score: integer("score").notNull().default(0),
+    niveau: niveauRisqueEnum("niveau"),
+    facteurs: jsonb("facteurs"),
+    drapeau_critique: boolean("drapeau_critique").notNull().default(false),
+    drapeau_motif: text("drapeau_motif"),
+    derniere_activite: timestamp("derniere_activite", { withTimezone: true }),
+    dernier_calcul: timestamp("dernier_calcul", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_risque_cabinet").on(t.cabinet_id, t.niveau)],
+);
+
+// ─── crm.evenement — Journal d'activité append-only (Bloc A8) ────────────────
+// crm-schema.md § 18. cabinet_id dénormalisé pour la RLS ; `client_id` est NULLABLE
+// (événement cabinet-level non rattaché à un client). Le trigger générique
+// trg_check_client_cabinet_evenement (0016) tolère client_id NULL (fn_check_client_
+// cabinet garde `IF NEW.client_id IS NOT NULL`).
+//
+// « Append-only » est une convention applicative (aucun chemin UPDATE/DELETE en prod) :
+// la table reste physiquement mutable pour permettre le cleanup des tests. Pas d'archived_at
+// (journal), pas d'updated_at (lignes immuables).
+
+export const evenement = crmSchema.table(
+  "evenement",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    // NULLABLE : événement cabinet-level possible (pas lié à un client).
+    client_id: uuid("client_id").references(() => client.id, { onDelete: "restrict" }),
+    type: typeEvenementEnum("type").notNull(),
+    acteur_type: acteurTypeEvenementEnum("acteur_type"),
+    // Acteur : référence logique (cabinet_membre / contact / système) sans FK
+    // (polymorphe selon acteur_type) — intégrité applicative.
+    acteur_id: uuid("acteur_id"),
+    ressource_type: text("ressource_type"),
+    ressource_id: uuid("ressource_id"),
+    description: text("description"),
+    metadata: jsonb("metadata"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_evenement_client").on(t.cabinet_id, t.client_id, t.created_at),
+    index("idx_evenement_type").on(t.cabinet_id, t.type),
+  ],
+);
+
+// ─── crm.note — Notes internes du cabinet sur un client (Bloc A8) ─────────────
+// crm-schema.md § 19. cabinet_id dénormalisé pour la RLS, cohérence garantie par
+// trg_check_client_cabinet_note (0016). `auteur_id` = cabinet_membre (cohérence
+// cabinet garantie applicativement, FK ON DELETE SET NULL). `contenu` Markdown.
+
+export const note = crmSchema.table(
+  "note",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    auteur_id: uuid("auteur_id").references(() => cabinetMembre.id, { onDelete: "set null" }),
+    contenu: text("contenu").notNull(),
+    epingle: boolean("epingle").notNull().default(false),
+    visibilite: visibiliteNoteEnum("visibilite").notNull().default("cabinet"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("idx_note_client").on(t.cabinet_id, t.client_id, t.archived_at),
+    index("idx_note_epingle")
+      .on(t.cabinet_id, t.client_id)
+      .where(sql`${t.epingle} AND ${t.archived_at} IS NULL`),
   ],
 );
 

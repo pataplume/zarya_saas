@@ -9,6 +9,7 @@ export {
   templateEcheance,
 } from "./calendar";
 export {
+  acteurTypeEvenementEnum,
   adresse,
   banque,
   cabinet,
@@ -21,6 +22,7 @@ export {
   crmSchema,
   documentAttendu,
   echeance,
+  evenement,
   frequencePaieEnum,
   frequenceServiceEnum,
   honorairesModeleEnum,
@@ -29,10 +31,13 @@ export {
   logicielPaieEnum,
   mandat,
   modeTransmissionEnum,
+  niveauRisqueEnum,
+  note,
   paramComptable,
   planTarifaireEnum,
   relance,
   relation,
+  risque,
   roleMembreEnum,
   salaireConfig,
   service,
@@ -46,8 +51,10 @@ export {
   statutSessionOnboardingFiduciaireEnum,
   typeAdresseEnum,
   typeEcheanceEnum,
+  typeEvenementEnum,
   typeServiceEnum,
   usageBanqueEnum,
+  visibiliteNoteEnum,
   zefixRechercheCabinet,
 } from "./crm";
 export {
