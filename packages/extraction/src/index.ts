@@ -21,6 +21,18 @@ export {
   classifyDocument,
 } from "./classify-document";
 export {
+  BAREME_RISQUE_VERSION,
+  computeScoreRisque,
+  type NiveauRisque,
+  POIDS_DOCUMENT_EN_RETARD,
+  POIDS_DOCUMENT_MANQUANT,
+  POIDS_ECHEANCE_EN_RETARD,
+  type RisqueFacteurs,
+  type RisqueScore,
+  type RisqueSignals,
+  SEUIL_RISQUE_CRITIQUE,
+} from "./compute-risque";
+export {
   type AutoClassementSignals,
   decideAutoClassement,
   type PolitiqueClassement,
