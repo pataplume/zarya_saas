@@ -59,6 +59,21 @@ export const statutClassementEnum = docSchema.enum("statut_classement", [
   "manuel",
 ]);
 
+// Ingestion email Microsoft Graph (Bloc D4a)
+export const statutEmailBrutEnum = docSchema.enum("statut_email_brut", [
+  "recu",
+  "traite",
+  "ignore",
+  "erreur",
+]);
+
+export const statutSubscriptionEnum = docSchema.enum("statut_subscription", [
+  "active",
+  "expiree",
+  "revoquee",
+  "erreur",
+]);
+
 // ─── doc.upload_brut — Uploads manuels (drag & drop, dashboard client) ────────
 
 export const uploadBrut = docSchema.table(
@@ -226,6 +241,67 @@ export const document = docSchema.table(
     index("idx_document_type").on(t.cabinet_id, t.type, t.periode),
     index("idx_document_statut").on(t.cabinet_id, t.statut_classement),
     index("idx_document_reception").on(t.date_reception),
+  ],
+);
+
+// ─── doc.email_subscription — Abonnements Microsoft Graph (Bloc D4a) ──────────
+
+export const emailSubscription = docSchema.table(
+  "email_subscription",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    subscription_id: text("subscription_id").notNull(),
+    resource: text("resource").notNull(),
+    change_type: text("change_type").notNull().default("created"),
+    // Secret partagé renvoyé par Graph (clientState) — aléatoire, jamais le cabinet_id.
+    client_state_secret: text("client_state_secret").notNull(),
+    expiration_at: timestamp("expiration_at", { withTimezone: true }).notNull(),
+    statut: statutSubscriptionEnum("statut").notNull().default("active"),
+    derniere_erreur: text("derniere_erreur"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    unique("uniq_email_subscription_graph_id").on(t.subscription_id),
+    index("idx_email_subscription_cabinet").on(t.cabinet_id, t.archived_at),
+    index("idx_email_subscription_expiration").on(t.expiration_at),
+  ],
+);
+
+// ─── doc.email_brut — Emails entrants (table d'ingestion, Bloc D4a) ───────────
+
+export const emailBrut = docSchema.table(
+  "email_brut",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    message_id: text("message_id").notNull(),
+    internet_message_id: text("internet_message_id"),
+    subscription_id: text("subscription_id"),
+    subject: text("subject"),
+    from_address: text("from_address"),
+    from_name: text("from_name"),
+    received_at: timestamp("received_at", { withTimezone: true }),
+    has_attachments: boolean("has_attachments").notNull().default(false),
+    body_preview: text("body_preview"),
+    web_link: text("web_link"),
+    statut: statutEmailBrutEnum("statut").notNull().default("recu"),
+    traite_at: timestamp("traite_at", { withTimezone: true }),
+    erreur: text("erreur"),
+    metadata: jsonb("metadata").notNull().default({}),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    archived_at: timestamp("archived_at", { withTimezone: true }),
+  },
+  (t) => [
+    unique("uniq_email_brut_message_per_cabinet").on(t.cabinet_id, t.message_id),
+    index("idx_email_brut_cabinet_statut").on(t.cabinet_id, t.statut, t.received_at),
   ],
 );
 
