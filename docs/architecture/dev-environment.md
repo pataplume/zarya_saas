@@ -71,9 +71,15 @@ IK_API_TOKEN=<api token>
 IK_MODEL_CHAT_SMALL=<catégorie chat_small, optionnel — override de la résolution runtime>
 IK_MODEL_CHAT_LARGE=<catégorie chat_large, optionnel — override de la résolution runtime>
 
-# Microsoft Graph (app de test, tenant dev)
-MICROSOFT_CLIENT_ID=<test app>
-MICROSOFT_CLIENT_SECRET=<test secret>
+# Microsoft Graph (app multi-tenant ZARYA — ADR 0018). Noms alignés sur le code (MS_*).
+MS_CLIENT_ID=<app multi-tenant ZARYA>
+MS_CLIENT_SECRET=<client secret>
+MS_REDIRECT_URI=<https://.../api/integrations/microsoft/callback>
+MS_TENANT=common
+# URL publique de l'app (sert à l'URL de notification webhook D4 + redirections)
+NEXT_PUBLIC_APP_URL=<https://app...>
+# Secret du cron de renouvellement des subscriptions (D4c, prod Vercel)
+CRON_SECRET=<chaîne aléatoire>
 
 # Stripe (test mode obligatoire en dev)
 STRIPE_SECRET_KEY=sk_test_...
