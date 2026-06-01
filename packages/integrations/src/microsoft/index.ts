@@ -49,6 +49,13 @@ export {
   type TenantRegionSource,
   type TenantRegionVerdict,
 } from "./region";
+export {
+  applySignature,
+  type SendCabinetEmailOptions,
+  type SendCabinetEmailParams,
+  type SendEmailOutcome,
+  sendCabinetEmail,
+} from "./send-email";
 export { signOAuthState, verifyOAuthState } from "./state";
 export {
   type RenewSubscriptionsOptions,
