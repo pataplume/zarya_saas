@@ -272,10 +272,19 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   `id_token`/`client_secret`/`token`/`secret`, racine + 1 niveau + `req.headers`). Discipline
   d'abord (jamais de secret brut en contexte), redact en filet. 4 call-sites migrés (upload Doc
   ×2, signup, provisioning) → 2 TODO « logger phase 2 » soldés. Test unitaire prouvant la censure.
-- [ ] **D2 — Wrapper `MicrosoftGraphClient` (scopé cabinet_id)**
-  Méthodes : `listEmails/getEmail/downloadAttachment/sendEmail/listEvents/createEvent/…`,
-  refresh transparent. · Done : chaque appel porte le bon `cabinet_id` ; retry/`Retry-After`/
-  throttling ; audit 6 ans ; tests mockés.
+- [x] **D2 — Wrapper `MicrosoftGraphClient` (scopé cabinet_id)** ✅ (migration 0025 ;
+  `microsoft/client.ts` ; `audit.api_externe` ; tests verts)
+  Méthodes : `listEmails/getEmail/downloadAttachment/sendEmail(brut)/listEvents/createEvent`,
+  refresh transparent (via `getValidMicrosoftAccessToken` D1). · Done : chaque appel porte le
+  bon `cabinet_id` ; retry/`Retry-After`/backoff exp (max 3) sur 429/503 + réseau ; audit 6 ans
+  dans `audit.api_externe` ; tests mockés (`fetch` injecté) + intégration isolation/append-only.
+  · **Notes founder** (arbitré AskUserQuestion AVANT code) : (1) **ouverture du schéma
+  `audit.*`** (migration 0025, table minimale `api_externe` seule, append-only via REVOKE +
+  trigger `fn_append_only`, RLS, NON dans METIER_TABLES car update/delete interdits → ajoutée à
+  RLS_TABLES + test dédié) ; (2) **sendEmail BRUT** (identité cabinet + signature = D5) ;
+  (3) **throttling = Retry-After + backoff** ; limiteur interne par cabinet DIFFÉRÉ (stateful).
+  · ⚠️ **Gap connu** : 401 mid-flight → `revoked` (reconnexion) sans re-tentative de refresh
+  forcé ; limiteur RPS interne non implémenté (MVP).
 - [ ] **D3 — Détection région tenant (conformité UE)**
   `GET /me` + `GET /organization` (`countryLetterCode`/`preferredDataLocation`), avertir si
   hors UE. · ⚠️ **Doc à ~70 % de confiance sur l'API** (§3.3) → valider à l'implémentation.

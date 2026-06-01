@@ -363,6 +363,10 @@ const RLS_TABLES = [
   ["calendar", "modele_relance"],
   ["calendar", "cabinet_config"],
   ["calendar", "pause_client"],
+  // Journal d'audit append-only (D2). Absente de METIER_TABLES : son trigger
+  // append-only ferait lever les sous-tests UPDATE/DELETE no-op ; son isolation +
+  // append-only sont couverts par multi-tenant-isolation/audit-api-externe.test.ts.
+  ["audit", "api_externe"],
 ] as const;
 
 let sql: postgres.Sql;

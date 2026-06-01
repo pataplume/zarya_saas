@@ -2,12 +2,16 @@
 
 // Opérateurs de requête drizzle ré-exportés (le package db possède l'ORM).
 export { and, eq, isNull } from "drizzle-orm";
+// Journaux d'audit append-only (security-and-audit §8)
+export { type ApiExterneAuditEntry, recordApiExterne } from "./audit";
 export type { DbForCabinet } from "./client";
 export { db, getDbForCabinet } from "./client";
 // Schémas et enums
 export {
   acteurTypeEvenementEnum,
   adresse,
+  apiExterne,
+  auditSchema,
   banque,
   cabinet,
   cabinetIntegration,
