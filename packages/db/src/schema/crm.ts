@@ -1149,6 +1149,9 @@ export const relance = crmSchema.table(
     reponse_recue_le: timestamp("reponse_recue_le", { withTimezone: true }),
     validee_par: uuid("validee_par").references(() => cabinetMembre.id, { onDelete: "set null" }),
     numero_dans_serie: integer("numero_dans_serie"),
+    // Bloc C2b — tracking de l'envoi Microsoft (ADR 0019, exception additive au sceau A).
+    microsoft_message_id: text("microsoft_message_id"),
+    internet_message_id: text("internet_message_id"),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

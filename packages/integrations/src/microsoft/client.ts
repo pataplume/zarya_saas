@@ -202,6 +202,37 @@ export class MicrosoftGraphClient {
     });
   }
 
+  /**
+   * Envoi TRACÉ (draft+send) : crée un brouillon (POST /me/messages → renvoie l'id +
+   * internetMessageId) puis l'envoie (POST /me/messages/{id}/send). Permet de récupérer
+   * l'identifiant du message — nécessaire au tracking des réponses (C4 / ADR 0019), que
+   * `sendMail` (202 sans corps) ne fournit pas.
+   */
+  async sendEmailTracked(
+    params: SendEmailParams,
+  ): Promise<{ messageId: string; internetMessageId: string | null }> {
+    const draft = await this.request<{ id: string; internetMessageId?: string | null }>(
+      "POST",
+      "/me/messages",
+      {
+        body: {
+          subject: params.subject,
+          body: { contentType: params.bodyType ?? "Text", content: params.body },
+          toRecipients: params.to.map((address) => ({ emailAddress: { address } })),
+          ...(params.cc && params.cc.length > 0
+            ? { ccRecipients: params.cc.map((address) => ({ emailAddress: { address } })) }
+            : {}),
+        },
+        auditEndpoint: "/me/messages",
+      },
+    );
+    await this.request<undefined>("POST", `/me/messages/${encodeURIComponent(draft.id)}/send`, {
+      body: {},
+      auditEndpoint: "/me/messages/{id}/send",
+    });
+    return { messageId: draft.id, internetMessageId: draft.internetMessageId ?? null };
+  }
+
   // ─── Calendrier ────────────────────────────────────────────────────────────
 
   async listEvents(filter: EventFilter = {}): Promise<CalendarEvent[]> {
