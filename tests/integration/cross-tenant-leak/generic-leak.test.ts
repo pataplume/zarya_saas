@@ -33,6 +33,8 @@ import {
   document,
   documentAttendu,
   echeance,
+  emailBrut,
+  emailSubscription,
   eq,
   evenement,
   fichierPhysique,
@@ -70,6 +72,8 @@ import {
   seedDocument,
   seedDocumentAttendu,
   seedEcheance,
+  seedEmailBrut,
+  seedEmailSubscription,
   seedEvenement,
   seedFichierPhysique,
   seedInvitation,
@@ -328,6 +332,20 @@ const METIER_TABLES: MetierTableSpec[] = [
     idCol: pauseClient.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
+  {
+    name: "doc.email_subscription",
+    table: emailSubscription,
+    scopeCol: emailSubscription.cabinet_id,
+    idCol: emailSubscription.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "doc.email_brut",
+    table: emailBrut,
+    scopeCol: emailBrut.cabinet_id,
+    idCol: emailBrut.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
 ];
 
 // Tables dont la RLS doit rester ACTIVÉE en DB (défense en profondeur).
@@ -367,6 +385,9 @@ const RLS_TABLES = [
   // append-only ferait lever les sous-tests UPDATE/DELETE no-op ; son isolation +
   // append-only sont couverts par multi-tenant-isolation/audit-api-externe.test.ts.
   ["audit", "api_externe"],
+  // Ingestion email Microsoft Graph (D4a).
+  ["doc", "email_subscription"],
+  ["doc", "email_brut"],
 ] as const;
 
 let sql: postgres.Sql;
@@ -496,6 +517,14 @@ beforeAll(async () => {
     await seedPauseClient(sql, cabinetA.id, clientA.id),
     await seedPauseClient(sql, cabinetB.id, clientB.id),
   ];
+  const [emailSubA, emailSubB] = [
+    await seedEmailSubscription(sql, cabinetA.id),
+    await seedEmailSubscription(sql, cabinetB.id),
+  ];
+  const [emailBrutA, emailBrutB] = [
+    await seedEmailBrut(sql, cabinetA.id),
+    await seedEmailBrut(sql, cabinetB.id),
+  ];
 
   Object.assign(idsA, {
     "crm.cabinet": cabinetA.id,
@@ -528,6 +557,8 @@ beforeAll(async () => {
     "calendar.modele_relance": modA.id,
     "calendar.cabinet_config": cabinetA.id,
     "calendar.pause_client": pauseA.id,
+    "doc.email_subscription": emailSubA.id,
+    "doc.email_brut": emailBrutA.id,
   });
   Object.assign(idsB, {
     "crm.cabinet": cabinetB.id,
@@ -560,6 +591,8 @@ beforeAll(async () => {
     "calendar.modele_relance": modB.id,
     "calendar.cabinet_config": cabinetB.id,
     "calendar.pause_client": pauseB.id,
+    "doc.email_subscription": emailSubB.id,
+    "doc.email_brut": emailBrutB.id,
   });
 });
 

@@ -471,6 +471,45 @@ export async function seedCabinetIntegration(
   return { id, cabinet_id };
 }
 
+export interface TestEmailSubscription {
+  id: string;
+  cabinet_id: string;
+  subscription_id: string;
+}
+
+/** Crée un doc.email_subscription de test (Bloc D4a). */
+export async function seedEmailSubscription(
+  sql: postgres.Sql,
+  cabinet_id: string,
+): Promise<TestEmailSubscription> {
+  const id = randomUUID();
+  const subscription_id = `sub-${id}`;
+  await sql`
+    INSERT INTO doc.email_subscription
+      (id, cabinet_id, subscription_id, resource, client_state_secret, expiration_at)
+    VALUES (${id}, ${cabinet_id}, ${subscription_id},
+            ${"/me/mailFolders('Inbox')/messages"}, ${"secret-test"}, now() + interval '72 hours')
+  `;
+  return { id, cabinet_id, subscription_id };
+}
+
+export interface TestEmailBrut {
+  id: string;
+  cabinet_id: string;
+  message_id: string;
+}
+
+/** Crée un doc.email_brut de test (Bloc D4a). */
+export async function seedEmailBrut(sql: postgres.Sql, cabinet_id: string): Promise<TestEmailBrut> {
+  const id = randomUUID();
+  const message_id = `msg-${id}`;
+  await sql`
+    INSERT INTO doc.email_brut (id, cabinet_id, message_id, subject, from_address)
+    VALUES (${id}, ${cabinet_id}, ${message_id}, 'Sujet test', 'expediteur@example.ch')
+  `;
+  return { id, cabinet_id, message_id };
+}
+
 /** Crée un extraction.invocation de test (mode stub) pour un cabinet donné. */
 export async function seedInvocation(
   sql: postgres.Sql,
@@ -707,6 +746,8 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   // Note : sql.array(ids) produit un text[] — cast explicite en uuid[] pour la comparaison
   const arr = sql.array(ids);
   // Module Doc (ordre FK : document → proposition → fichier_physique → upload_brut → invocation)
+  await sql`DELETE FROM doc.email_brut              WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM doc.email_subscription      WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM doc.document                WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM doc.proposition_classement  WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM doc.fichier_physique        WHERE cabinet_id = ANY(${arr}::uuid[])`;

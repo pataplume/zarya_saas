@@ -299,11 +299,25 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   · ⚠️ **Gaps notés** : confiance ~70 % du signal assumée (countryLetterCode = pays déclaré
   ≠ région data) ; pas de `GET /me` (UPN) — différé avec l'UI ; wrapper server-action d'accusé
   = fonction `acknowledgeTenantRegion` (le server action Next viendra avec l'écran).
-- [ ] **D4 — Webhooks Graph (subscriptions) ingestion email temps réel**
-  Subscription à la connexion + renouvellement nightly (72h) + endpoint validé (signature,
-  `clientState={cabinet_id}`). · Surface : `/api/integrations/microsoft/webhook`,
-  `doc.email_brut`. · Prérequis : D1, D2 ; consommateur = Bloc B. · ⚠️ Boîtes partagées /
-  multi-boîtes = Phase 2 (MVP simple).
+- [ ] **D4 — Webhooks Graph (subscriptions) ingestion email temps réel** — découpé en 3 PRs
+  (arbitré founder). Surface : `/api/integrations/microsoft/webhook`, `doc.email_brut`. ·
+  Prérequis : D1, D2 ; consommateur = Bloc B. · ⚠️ Boîtes partagées / multi-boîtes = Phase 2.
+  - [x] **D4a — Schéma `doc.email_brut` + `doc.email_subscription`** ✅ (migration 0026 ;
+    tables métier DoD complet ; tests verts)
+    2 tables métier (cabinet_id, PAS de client_id → pas de fn_check_client_cabinet), RLS 4
+    policies, enums `statut_email_brut`/`statut_subscription`. `email_brut` : UNIQUE
+    (cabinet_id, message_id) = idempotence ; envelope + pointeur `message_id` (corps/PJ
+    re-fetchés au traitement). `email_subscription` : `client_state_secret` ALÉATOIRE (pas le
+    cabinet_id), index expiration pour D4c. METIER_TABLES + RLS_TABLES + seeds + test isolation
+    dédié (`email-ingestion-rls.test.ts`). Migration appliquée à la base partagée. DoD vert
+    (biome/typecheck/**556 tests**/build).
+  - [ ] **D4b — Endpoint webhook + création subscription** : handshake `validationToken`
+    (echo text/plain), réception notifications (vérif `client_state_secret`, fetch message via
+    client D2, INSERT `email_brut` idempotent, statut `recu` — **PAS de classif live**),
+    création subscription à la connexion (POST /subscriptions). Route publique `/api/.../webhook`.
+  - [ ] **D4c — Renouvellement (Vercel Cron)** : `vercel.json` (cron quotidien) + route
+    `/api/integrations/microsoft/renew` protégée `CRON_SECRET` qui PATCH les subscriptions
+    proches de l'expiration (72h) via le wrapper D2. (pg_cron impossible : appel Graph tokené.)
 - [ ] **D5 — Pipeline d'envoi (sendMail) + identité cabinet + signature**
   Consommé par C2 (relances) et G5 (notifs salaire). · Done : email part de l'adresse
   cabinet, signature appliquée, statut tracé, gestion 401/révocation.
