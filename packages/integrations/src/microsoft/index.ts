@@ -14,9 +14,13 @@ export {
   parseGraphNotifications,
 } from "./email-ingestion";
 export {
+  type ExpiringSubscription,
   findSubscriptionByGraphId,
+  listExpiringSubscriptions,
+  markSubscriptionError,
   type SubscriptionLookup,
   saveEmailSubscription,
+  updateSubscriptionExpiration,
   upsertEmailBrut,
 } from "./email-store";
 export type { MicrosoftErrorCode } from "./errors";
@@ -46,6 +50,11 @@ export {
   type TenantRegionVerdict,
 } from "./region";
 export { signOAuthState, verifyOAuthState } from "./state";
+export {
+  type RenewSubscriptionsOptions,
+  type RenewSubscriptionsResult,
+  renewExpiringSubscriptions,
+} from "./subscription-renewal";
 export {
   type DetectTenantRegionOptions,
   detectAndPersistTenantRegion,

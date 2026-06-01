@@ -1,7 +1,7 @@
 // Persistance de l'ingestion email Microsoft Graph (Bloc D4b) — tables doc.email_*.
 // Service role serveur uniquement (jamais côté client navigateur).
 
-import { and, db, emailBrut, emailSubscription, eq, isNull } from "@zarya/db";
+import { and, db, emailBrut, emailSubscription, eq, isNull, lte } from "@zarya/db";
 
 export interface SaveSubscriptionInput {
   cabinet_id: string;
@@ -90,4 +90,56 @@ export async function upsertEmailBrut(input: UpsertEmailBrutInput): Promise<bool
     .onConflictDoNothing({ target: [emailBrut.cabinet_id, emailBrut.message_id] })
     .returning({ id: emailBrut.id });
   return rows.length > 0;
+}
+
+// ─── Renouvellement (D4c) ────────────────────────────────────────────────────────
+
+export interface ExpiringSubscription {
+  id: string;
+  cabinet_id: string;
+  subscription_id: string;
+}
+
+/** Subscriptions actives (non archivées) expirant avant `before` — scan de renouvellement
+ *  système (toutes les cabinets ; service role). */
+export async function listExpiringSubscriptions(before: Date): Promise<ExpiringSubscription[]> {
+  return db
+    .select({
+      id: emailSubscription.id,
+      cabinet_id: emailSubscription.cabinet_id,
+      subscription_id: emailSubscription.subscription_id,
+    })
+    .from(emailSubscription)
+    .where(
+      and(
+        eq(emailSubscription.statut, "active"),
+        isNull(emailSubscription.archived_at),
+        lte(emailSubscription.expiration_at, before),
+      ),
+    );
+}
+
+/** Met à jour l'expiration d'une subscription renouvelée (statut → active). */
+export async function updateSubscriptionExpiration(id: string, expiration: Date): Promise<void> {
+  await db
+    .update(emailSubscription)
+    .set({
+      expiration_at: expiration,
+      statut: "active",
+      derniere_erreur: null,
+      updated_at: new Date(),
+    })
+    .where(eq(emailSubscription.id, id));
+}
+
+/** Marque une subscription en erreur/révoquée après un échec de renouvellement. */
+export async function markSubscriptionError(
+  id: string,
+  erreur: string,
+  statut: "erreur" | "revoquee" = "erreur",
+): Promise<void> {
+  await db
+    .update(emailSubscription)
+    .set({ statut, derniere_erreur: erreur, updated_at: new Date() })
+    .where(eq(emailSubscription.id, id));
 }
