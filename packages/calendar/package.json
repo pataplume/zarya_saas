@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@zarya/db": "workspace:*",
     "handlebars": "^4.7.8"
   },
   "devDependencies": {

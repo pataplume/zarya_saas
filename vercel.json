@@ -4,6 +4,10 @@
     {
       "path": "/api/integrations/microsoft/renew",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/calendar/generer-relances",
+      "schedule": "0 5 * * *"
     }
   ]
 }

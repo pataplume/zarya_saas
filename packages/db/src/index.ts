@@ -1,7 +1,7 @@
 // @zarya/db — Schémas Drizzle ORM, client DB, migrations
 
 // Opérateurs de requête drizzle ré-exportés (le package db possède l'ORM).
-export { and, eq, isNull, lte } from "drizzle-orm";
+export { and, eq, isNull, lte, sql } from "drizzle-orm";
 // Journaux d'audit append-only (security-and-audit §8)
 export { type ApiExterneAuditEntry, recordApiExterne } from "./audit";
 export type { DbForCabinet } from "./client";
@@ -93,6 +93,7 @@ export {
   vEcheancesAVenir,
   vInboxAValider,
   visibiliteNoteEnum,
+  vRelancesAValider,
   zefixRechercheCabinet,
 } from "./schema";
 // Supabase Vault — chiffrement au repos des secrets (ADR 0013 addendum)
