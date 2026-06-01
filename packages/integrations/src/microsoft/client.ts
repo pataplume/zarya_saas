@@ -262,6 +262,26 @@ export class MicrosoftGraphClient {
     };
   }
 
+  // ─── Webhooks / subscriptions (D4) ───────────────────────────────────────────
+
+  /** Crée une subscription Graph (POST /subscriptions). Microsoft valide l'URL de
+   *  notification de façon synchrone (handshake validationToken) → l'endpoint doit être
+   *  joignable publiquement. Retourne l'id + l'expiration. */
+  async createSubscription(params: {
+    changeType: string;
+    notificationUrl: string;
+    resource: string;
+    expirationDateTime: string;
+    clientState: string;
+  }): Promise<{ id: string; expirationDateTime: string }> {
+    const res = await this.request<{ id: string; expirationDateTime: string }>(
+      "POST",
+      "/subscriptions",
+      { body: params, auditEndpoint: "/subscriptions" },
+    );
+    return { id: res.id, expirationDateTime: res.expirationDateTime };
+  }
+
   // ─── Cœur transport (auth + audit + retry + throttling) ──────────────────────
 
   private resolveConfig(): MicrosoftOAuthConfig {
