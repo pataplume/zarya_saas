@@ -338,9 +338,18 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     poser dans Vercel** ; vercel.json à la racine (build Vercel depuis la racine). Tests : 1 client
     PATCH + 4 unit orchestrateur + 3 intégration (scan + persistance renouvellement/erreur) + 3
     auth route. DoD vert (biome/typecheck/**578 tests**/build). **→ Bloc D4 COMPLET.**
-- [ ] **D5 — Pipeline d'envoi (sendMail) + identité cabinet + signature**
-  Consommé par C2 (relances) et G5 (notifs salaire). · Done : email part de l'adresse
-  cabinet, signature appliquée, statut tracé, gestion 401/révocation.
+- [x] **D5 — Pipeline d'envoi (sendMail) + identité cabinet + signature** ✅ (`send-email.ts` ;
+  tests verts) — **Bloc D COMPLET**
+  `sendCabinetEmail(cabinet_id, params)` au-dessus de l'envoi brut D2 : identité = boîte
+  connectée déléguée (From = adresse cabinet natif, pas de send-as) ; `applySignature` (pur,
+  HTML/texte) avec signature **fournie en entrée** ; retourne un **statut** (`sent`/`revoked`/
+  `error`) au lieu de lever (les consommateurs tracent + continuent). 401 → `revoked`
+  (reconnexion). Appel sendMail déjà audité (D2). · **Arbitré founder (AskUserQuestion) AVANT
+  code** : (1) signature **en paramètre**, PAS de stockage ni de touche au Bloc A scellé
+  (colonne `crm.cabinet.signature_email` + éditeur WYSIWYG = livrable onboarding-fiduciaire,
+  tracé `PLAN-MVP-BETA`) ; (2) **pas de table** d'envois (audit + table consommatrice
+  C2/G5) ; (3) expéditeur = **boîte connectée déléguée** (send-as / boîtes partagées = Phase 2).
+  · Tests : 7 unit (`send-email.test.ts` : applySignature + 4 statuts). Deps injectables.
   > **Hors-scope v1.0** : SharePoint/Teams/Copilot, Calendar 2-way = Phase 2-3.
 
 ### BLOC E — Facture. Prérequis : B, A3, A5, **D**. *(schéma `facture.*` à créer)*

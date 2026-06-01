@@ -46,6 +46,9 @@ export type {
   MicrosoftTokenSet,
   RenewSubscriptionsOptions,
   RenewSubscriptionsResult,
+  SendCabinetEmailOptions,
+  SendCabinetEmailParams,
+  SendEmailOutcome,
   SendEmailParams,
   SubscriptionLookup,
   TenantRegionResult,
@@ -55,6 +58,7 @@ export type {
 } from "./microsoft";
 export {
   acknowledgeTenantRegion,
+  applySignature,
   buildAuthorizationUrl,
   classifyTenantRegion,
   createEmailSubscription,
@@ -78,6 +82,7 @@ export {
   saveEmailSubscription,
   saveMicrosoftTokens,
   saveTenantRegionVerdict,
+  sendCabinetEmail,
   signOAuthState,
   updateSubscriptionExpiration,
   upsertEmailBrut,
