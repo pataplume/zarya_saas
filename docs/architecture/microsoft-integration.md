@@ -368,9 +368,9 @@ Si l'utilisateur modifie côté Outlook (déplace, annule) → webhook Calendar 
 ## 14. Questions ouvertes
 
 - [ ] **Région exacte de tenant** : confirmer l'API pour la récupérer (`countryLetterCode` vs `preferredDataLocation` vs `OdataContext`)
-- [ ] **Comportement si tenant US** : bloquer complètement ou avertir et laisser passer ?
-- [ ] **Subscriptions** : un cabinet avec 5 boîtes partagées = 5 subscriptions à renouveler. Scalabilité ?
-- [ ] **App Registration** : un seul Azure AD multi-tenant ou un par cabinet (Enterprise) ?
+- [x] **Comportement si tenant hors zone** : **AVERTIR + accusé tracé, PAS de blocage** ; zone OK = UE/EEE + Suisse + pays adéquats (tranché founder, implémenté D3).
+- [ ] **Subscriptions** : un cabinet avec 5 boîtes partagées = 5 subscriptions à renouveler. Scalabilité ? (boîtes partagées = Phase 2)
+- [x] **App Registration** : **une app multi-tenant ZARYA (A) par défaut ; app par cabinet (B) sur demande Enterprise** → **ADR 0018**.
 - [ ] **Coûts Microsoft Graph** : gratuit pour les opérations courantes, mais quid des subscriptions massives ?
 - [ ] **Boîtes partagées vs déléguées** : différences de permissions Graph, à clarifier
 - [ ] **Synchronisation contacts Outlook** ↔ `crm.contact` : utile en Phase 2 ?

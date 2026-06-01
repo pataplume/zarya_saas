@@ -15,6 +15,11 @@
 > + addendum RLS), `docs/modules/*.md`, `docs/flows/*.md`, `CLAUDE.md` racine +
 > `packages/db/CLAUDE.md` + `tests/CLAUDE.md`. **En cas de contradiction, les ADR et
 > ce fichier l'emportent sur les vieux plans (`HANDOFF_V2.md` §2.3, roadmap Phase 4.x).**
+>
+> **Vue d'ensemble « quoi/quand » (Blocs + chantiers transverses hors-Bloc : setup Azure,
+> écran Intégrations, validation E2E Microsoft, DPA, bascule EXTRACTION_MODE…)** :
+> voir **`PLAN-MVP-BETA.md`** (racine). Ce KICKOFF reste l'exécution Bloc par Bloc ;
+> le PLAN situe le reste (pré-requis bêta, différés Phase 2+).
 
 ---
 
