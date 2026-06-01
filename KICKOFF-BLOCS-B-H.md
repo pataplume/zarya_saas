@@ -311,10 +311,17 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     cabinet_id), index expiration pour D4c. METIER_TABLES + RLS_TABLES + seeds + test isolation
     dédié (`email-ingestion-rls.test.ts`). Migration appliquée à la base partagée. DoD vert
     (biome/typecheck/**556 tests**/build).
-  - [ ] **D4b — Endpoint webhook + création subscription** : handshake `validationToken`
-    (echo text/plain), réception notifications (vérif `client_state_secret`, fetch message via
-    client D2, INSERT `email_brut` idempotent, statut `recu` — **PAS de classif live**),
-    création subscription à la connexion (POST /subscriptions). Route publique `/api/.../webhook`.
+  - [x] **D4b — Endpoint webhook + création subscription** ✅ (route `/webhook` ;
+    `email-ingestion.ts` + `email-store.ts` ; câblé callback ; tests verts)
+    Route publique `POST /api/integrations/microsoft/webhook` : handshake `validationToken`
+    (echo text/plain), sinon `parseGraphNotifications` + `ingestEmailNotification` (vérif
+    `client_state_secret`, fetch message via client D2, `upsertEmailBrut` idempotent
+    ON CONFLICT (cabinet,message), statut `recu` — **PAS de classif live**), **répond 202**
+    toujours (anti-rejeu). `createEmailSubscription` (POST /subscriptions, secret aléatoire,
+    TTL 70 h, persiste) câblé **best-effort** au callback (ne bloque pas la connexion).
+    `client.createSubscription` ajouté (audité). Dépendances injectables → testé sans réseau/DB.
+    Tests : 1 client + 7 unit (`email-ingestion.test.ts`) + 3 intégration idempotence réelle.
+    DoD vert (biome/typecheck/**567 tests**/build).
   - [ ] **D4c — Renouvellement (Vercel Cron)** : `vercel.json` (cron quotidien) + route
     `/api/integrations/microsoft/renew` protégée `CRON_SECRET` qui PATCH les subscriptions
     proches de l'expiration (72h) via le wrapper D2. (pg_cron impossible : appel Graph tokené.)

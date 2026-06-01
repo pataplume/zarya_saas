@@ -139,6 +139,25 @@ describe("MicrosoftGraphClient — chemin nominal", () => {
     expect(audits[0]).toMatchObject({ endpoint: "/me/sendMail", method: "POST", ok: true });
   });
 
+  it("createSubscription : POST /subscriptions, retourne id + expiration (D4b)", async () => {
+    const { impl, calls } = queuedFetch([
+      jsonResponse({ id: "graph-sub-1", expirationDateTime: "2026-06-04T10:00:00Z" }),
+    ]);
+    const { client, audits } = makeClient(impl);
+    const res = await client.createSubscription({
+      changeType: "created",
+      notificationUrl: "https://app.zarya.test/api/integrations/microsoft/webhook",
+      resource: "/me/mailFolders('Inbox')/messages",
+      expirationDateTime: "2026-06-04T10:00:00Z",
+      clientState: "SECRET",
+    });
+    expect(res).toEqual({ id: "graph-sub-1", expirationDateTime: "2026-06-04T10:00:00Z" });
+    const sent = JSON.parse(String(calls[0]?.init?.body));
+    expect(sent.clientState).toBe("SECRET");
+    expect(sent.resource).toBe("/me/mailFolders('Inbox')/messages");
+    expect(audits[0]).toMatchObject({ endpoint: "/subscriptions", method: "POST", ok: true });
+  });
+
   it("getTenantRegionSignal : GET /organization, extrait country + dataLocation (D3)", async () => {
     const { impl, calls } = queuedFetch([
       jsonResponse({

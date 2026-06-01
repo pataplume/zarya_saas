@@ -3,6 +3,22 @@ export {
   MicrosoftGraphClient,
   type MicrosoftGraphClientOptions,
 } from "./client";
+export {
+  type CreateEmailSubscriptionOptions,
+  createEmailSubscription,
+  type EmailSubscriptionResult,
+  type GraphNotification,
+  type IngestNotificationOptions,
+  type IngestStatus,
+  ingestEmailNotification,
+  parseGraphNotifications,
+} from "./email-ingestion";
+export {
+  findSubscriptionByGraphId,
+  type SubscriptionLookup,
+  saveEmailSubscription,
+  upsertEmailBrut,
+} from "./email-store";
 export type { MicrosoftErrorCode } from "./errors";
 export { MicrosoftGraphError } from "./errors";
 export type {

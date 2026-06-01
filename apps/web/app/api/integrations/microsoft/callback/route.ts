@@ -1,4 +1,5 @@
 import {
+  createEmailSubscription,
   detectAndPersistTenantRegion,
   exchangeCodeForTokens,
   getMicrosoftOAuthConfig,
@@ -70,6 +71,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       logger.warn(
         { cabinet_id, error: regionErr instanceof Error ? regionErr.message : "inconnu" },
         "[microsoft.callback] détection région tenant échouée (connexion maintenue)",
+      );
+    }
+
+    // D4b — création de la subscription webhook best-effort (ne bloque pas la connexion ;
+    // nécessite que l'endpoint /webhook soit joignable publiquement par Microsoft).
+    try {
+      await createEmailSubscription(cabinet_id);
+    } catch (subErr) {
+      logger.warn(
+        { cabinet_id, error: subErr instanceof Error ? subErr.message : "inconnu" },
+        "[microsoft.callback] création subscription webhook échouée (connexion maintenue)",
       );
     }
     return redirectToSettings(request, "connected", undefined, region);
