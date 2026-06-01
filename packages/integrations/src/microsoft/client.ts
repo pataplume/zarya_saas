@@ -282,6 +282,19 @@ export class MicrosoftGraphClient {
     return { id: res.id, expirationDateTime: res.expirationDateTime };
   }
 
+  /** Prolonge une subscription (PATCH /subscriptions/{id}) — renouvellement avant 72 h (D4c). */
+  async renewSubscription(
+    subscriptionId: string,
+    expirationDateTime: string,
+  ): Promise<{ id: string; expirationDateTime: string }> {
+    const res = await this.request<{ id: string; expirationDateTime: string }>(
+      "PATCH",
+      `/subscriptions/${encodeURIComponent(subscriptionId)}`,
+      { body: { expirationDateTime }, auditEndpoint: "/subscriptions/{id}" },
+    );
+    return { id: res.id, expirationDateTime: res.expirationDateTime };
+  }
+
   // ─── Cœur transport (auth + audit + retry + throttling) ──────────────────────
 
   private resolveConfig(): MicrosoftOAuthConfig {

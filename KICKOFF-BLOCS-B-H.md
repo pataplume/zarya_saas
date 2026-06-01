@@ -322,9 +322,17 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     `client.createSubscription` ajouté (audité). Dépendances injectables → testé sans réseau/DB.
     Tests : 1 client + 7 unit (`email-ingestion.test.ts`) + 3 intégration idempotence réelle.
     DoD vert (biome/typecheck/**567 tests**/build).
-  - [ ] **D4c — Renouvellement (Vercel Cron)** : `vercel.json` (cron quotidien) + route
-    `/api/integrations/microsoft/renew` protégée `CRON_SECRET` qui PATCH les subscriptions
-    proches de l'expiration (72h) via le wrapper D2. (pg_cron impossible : appel Graph tokené.)
+  - [x] **D4c — Renouvellement (Vercel Cron)** ✅ (`vercel.json` + route `/renew` ;
+    `subscription-renewal.ts` ; tests verts)
+    `vercel.json` cron quotidien `0 3 * * *` → route `GET /api/integrations/microsoft/renew`
+    protégée `CRON_SECRET` (Bearer). `renewExpiringSubscriptions` : scan
+    `listExpiringSubscriptions` (actives expirant < 24 h, système toutes cabinets) → PATCH
+    `client.renewSubscription` (TTL 70 h) par subscription via le wrapper D2 → MAJ expiration ;
+    échec best-effort (marqué `erreur`, ou `revoquee` si token mort, lot non interrompu).
+    (pg_cron impossible : appel Graph tokené = TS.) Deps injectables. **⚠️ env `CRON_SECRET` à
+    poser dans Vercel** ; vercel.json à la racine (build Vercel depuis la racine). Tests : 1 client
+    PATCH + 4 unit orchestrateur + 3 intégration (scan + persistance renouvellement/erreur) + 3
+    auth route. DoD vert (biome/typecheck/**578 tests**/build). **→ Bloc D4 COMPLET.**
 - [ ] **D5 — Pipeline d'envoi (sendMail) + identité cabinet + signature**
   Consommé par C2 (relances) et G5 (notifs salaire). · Done : email part de l'adresse
   cabinet, signature appliquée, statut tracé, gestion 401/révocation.

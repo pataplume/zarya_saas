@@ -158,6 +158,20 @@ describe("MicrosoftGraphClient — chemin nominal", () => {
     expect(audits[0]).toMatchObject({ endpoint: "/subscriptions", method: "POST", ok: true });
   });
 
+  it("renewSubscription : PATCH /subscriptions/{id}, retourne la nouvelle expiration (D4c)", async () => {
+    const { impl, calls } = queuedFetch([
+      jsonResponse({ id: "graph-sub-1", expirationDateTime: "2026-06-07T10:00:00Z" }),
+    ]);
+    const { client, audits } = makeClient(impl);
+    const res = await client.renewSubscription("graph-sub-1", "2026-06-07T10:00:00Z");
+    expect(res.expirationDateTime).toBe("2026-06-07T10:00:00Z");
+    expect(calls[0]?.url).toContain("/subscriptions/graph-sub-1");
+    expect(JSON.parse(String(calls[0]?.init?.body)).expirationDateTime).toBe(
+      "2026-06-07T10:00:00Z",
+    );
+    expect(audits[0]).toMatchObject({ endpoint: "/subscriptions/{id}", method: "PATCH", ok: true });
+  });
+
   it("getTenantRegionSignal : GET /organization, extrait country + dataLocation (D3)", async () => {
     const { impl, calls } = queuedFetch([
       jsonResponse({
