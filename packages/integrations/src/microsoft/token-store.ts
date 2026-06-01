@@ -19,6 +19,7 @@ import { isAccessTokenExpiring, refreshAccessToken } from "./oauth";
 import type { MicrosoftIntegrationParams, MicrosoftOAuthConfig, MicrosoftTokenSet } from "./types";
 
 const PROVIDER = "microsoft_graph" as const;
+// NB (D2) : ce provider est aussi la valeur logée dans audit.api_externe.provider.
 
 function secretName(cabinet_id: string): string {
   // Nom unique (Vault impose l'unicité du nom) — on évite toute collision avec un

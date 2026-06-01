@@ -1,5 +1,19 @@
+export {
+  type MicrosoftGraphActeur,
+  MicrosoftGraphClient,
+  type MicrosoftGraphClientOptions,
+} from "./client";
 export type { MicrosoftErrorCode } from "./errors";
 export { MicrosoftGraphError } from "./errors";
+export type {
+  CalendarEvent,
+  CreateEventParams,
+  EmailDetail,
+  EmailFilter,
+  EmailSummary,
+  EventFilter,
+  SendEmailParams,
+} from "./graph-types";
 export {
   buildAuthorizationUrl,
   exchangeCodeForTokens,

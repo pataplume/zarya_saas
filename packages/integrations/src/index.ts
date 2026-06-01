@@ -23,12 +23,21 @@ export {
   infomaniakClient,
 } from "./infomaniak";
 export type {
+  CalendarEvent,
+  CreateEventParams,
+  EmailDetail,
+  EmailFilter,
+  EmailSummary,
+  EventFilter,
   MicrosoftErrorCode,
+  MicrosoftGraphActeur,
+  MicrosoftGraphClientOptions,
   MicrosoftIntegrationParams,
   MicrosoftOAuthConfig,
   MicrosoftOAuthStatePayload,
   MicrosoftTokenResponse,
   MicrosoftTokenSet,
+  SendEmailParams,
 } from "./microsoft";
 export {
   buildAuthorizationUrl,
@@ -38,6 +47,7 @@ export {
   isAccessTokenExpiring,
   loadMicrosoftTokens,
   MICROSOFT_SCOPES,
+  MicrosoftGraphClient,
   MicrosoftGraphError,
   REFRESH_MARGIN_MS,
   refreshAccessToken,
