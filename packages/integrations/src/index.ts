@@ -25,6 +25,7 @@ export {
 export type {
   CalendarEvent,
   CreateEventParams,
+  DetectTenantRegionOptions,
   EmailDetail,
   EmailFilter,
   EmailSummary,
@@ -38,9 +39,16 @@ export type {
   MicrosoftTokenResponse,
   MicrosoftTokenSet,
   SendEmailParams,
+  TenantRegionResult,
+  TenantRegionSignal,
+  TenantRegionSource,
+  TenantRegionVerdict,
 } from "./microsoft";
 export {
+  acknowledgeTenantRegion,
   buildAuthorizationUrl,
+  classifyTenantRegion,
+  detectAndPersistTenantRegion,
   exchangeCodeForTokens,
   getMicrosoftOAuthConfig,
   getValidMicrosoftAccessToken,
@@ -52,6 +60,7 @@ export {
   REFRESH_MARGIN_MS,
   refreshAccessToken,
   saveMicrosoftTokens,
+  saveTenantRegionVerdict,
   signOAuthState,
   verifyOAuthState,
 } from "./microsoft";

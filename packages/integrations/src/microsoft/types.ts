@@ -20,6 +20,16 @@ export interface MicrosoftIntegrationParams {
   tenant_region?: string;
   scope?: string;
   expires_at?: string; // miroir non sensible pour requêtes/affichage
+  // Conformité région (Bloc D3) — non sensible.
+  region_country_code?: string | null;
+  region_data_location?: string | null;
+  region_source?: "preferredDataLocation" | "countryLetterCode" | "unknown";
+  region_adequate?: boolean;
+  region_checked_at?: string; // ISO
+  // Accusé de réception cabinet « je continue malgré la région hors zone ».
+  region_acknowledged_at?: string; // ISO
+  region_acknowledged_by?: string | null; // acteur_id
+  region_acknowledged_acteur_type?: string;
 }
 
 // Configuration OAuth, dérivée d'env serveur uniquement (jamais côté client).

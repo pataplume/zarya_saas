@@ -23,12 +23,25 @@ export {
   REFRESH_MARGIN_MS,
   refreshAccessToken,
 } from "./oauth";
+export {
+  classifyTenantRegion,
+  type TenantRegionSignal,
+  type TenantRegionSource,
+  type TenantRegionVerdict,
+} from "./region";
 export { signOAuthState, verifyOAuthState } from "./state";
 export {
+  type DetectTenantRegionOptions,
+  detectAndPersistTenantRegion,
+  type TenantRegionResult,
+} from "./tenant-region";
+export {
+  acknowledgeTenantRegion,
   getValidMicrosoftAccessToken,
   type LoadedMicrosoftTokens,
   loadMicrosoftTokens,
   saveMicrosoftTokens,
+  saveTenantRegionVerdict,
 } from "./token-store";
 export type {
   MicrosoftIntegrationParams,

@@ -1,10 +1,12 @@
 import {
+  detectAndPersistTenantRegion,
   exchangeCodeForTokens,
   getMicrosoftOAuthConfig,
   MicrosoftGraphError,
   saveMicrosoftTokens,
   verifyOAuthState,
 } from "@zarya/integrations";
+import { logger } from "@zarya/logger";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -12,15 +14,22 @@ import { NextResponse } from "next/server";
 // login.microsoftonline.com) : la liaison au cabinet repose sur le `state` SIGNÉ, pas
 // sur la session. Échange le code contre des tokens, qui sont stockés CHIFFRÉS (Vault)
 // — jamais en clair, jamais loggués (ADR 0013 addendum).
+//
+// Bloc D3 — après stockage, détection best-effort de la région du tenant. Si la région
+// n'est pas adéquate (hors UE/EEE + Suisse + adéquats), on remonte `region=hors_zone`
+// pour que l'UI affiche un avertissement (politique : avertir, pas bloquer). Un échec
+// de détection NE bloque PAS la connexion (région inconnue ≠ refus).
 
 function redirectToSettings(
   request: NextRequest,
   status: "connected" | "error",
   detail?: string,
+  region?: "ok" | "hors_zone",
 ): NextResponse {
   const url = new URL("/parametres/integrations", request.nextUrl.origin);
   url.searchParams.set("microsoft", status);
   if (detail) url.searchParams.set("detail", detail);
+  if (region) url.searchParams.set("region", region);
   return NextResponse.redirect(url);
 }
 
@@ -51,7 +60,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const config = getMicrosoftOAuthConfig();
     const tokens = await exchangeCodeForTokens(config, code);
     await saveMicrosoftTokens(cabinet_id, tokens);
-    return redirectToSettings(request, "connected");
+
+    // D3 — détection région best-effort (ne bloque pas la connexion).
+    let region: "ok" | "hors_zone" | undefined;
+    try {
+      const verdict = await detectAndPersistTenantRegion(cabinet_id);
+      region = verdict.isAdequate ? "ok" : "hors_zone";
+    } catch (regionErr) {
+      logger.warn(
+        { cabinet_id, error: regionErr instanceof Error ? regionErr.message : "inconnu" },
+        "[microsoft.callback] détection région tenant échouée (connexion maintenue)",
+      );
+    }
+    return redirectToSettings(request, "connected", undefined, region);
   } catch (err) {
     const detail = err instanceof MicrosoftGraphError ? err.code : "inconnu";
     return redirectToSettings(request, "error", detail);

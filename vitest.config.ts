@@ -37,7 +37,11 @@ export default defineConfig({
     globals: true,
     environment: "node",
     setupFiles: ["tests/setup.ts"],
-    testTimeout: 15_000, // DB calls peuvent prendre plusieurs secondes
+    // Tests d'intégration sur la base Supabase DISTANTE (latence réseau × N round-trips).
+    // Les plus lourds (ex. valider-lot « lot nominal ») frôlent 15 s et dépassent au moindre
+    // pic de latence CI → flake récurrent. 30 s (= hookTimeout) donne la marge nécessaire ;
+    // un vrai test cassé échoue toujours sur son assertion, pas sur le timeout.
+    testTimeout: 30_000,
     hookTimeout: 30_000, // seed / cleanup
     reporters: ["verbose"],
     pool: "forks",
