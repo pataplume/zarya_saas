@@ -8,6 +8,7 @@ export {
   pauseClient,
   politiqueRelanceEnum,
   templateEcheance,
+  vRelancesAValider,
 } from "./calendar";
 export {
   acteurTypeEvenementEnum,

@@ -159,3 +159,30 @@ export const pauseClient = calendarSchema.table(
   },
   (t) => [index("idx_pause_client_lookup").on(t.cabinet_id, t.client_id, t.date_debut, t.date_fin)],
 );
+
+// ─── calendar.v_relances_a_valider — File de validation des relances (Bloc C2a) ──
+// Définie en DB par la migration 0027 (security_invoker = true). Déclarée ici en
+// `.existing()` : Drizzle expose un type de lecture, ne gère pas le DDL. La vue expose
+// `cabinet_id` → le consommateur applicatif DOIT filtrer `WHERE cabinet_id = X`.
+export const vRelancesAValider = calendarSchema
+  .view("v_relances_a_valider", {
+    relance_id: uuid("relance_id").notNull(),
+    cabinet_id: uuid("cabinet_id").notNull(),
+    client_id: uuid("client_id").notNull(),
+    client_nom: text("client_nom"),
+    client_nom_court: text("client_nom_court"),
+    echeance_id: uuid("echeance_id"),
+    echeance_libelle: text("echeance_libelle"),
+    date_echeance: date("date_echeance"),
+    echeance_type: text("echeance_type"),
+    echeance_statut: text("echeance_statut"),
+    canal: text("canal"),
+    destinataire_contact_id: uuid("destinataire_contact_id"),
+    destinataire_email: text("destinataire_email"),
+    destinataire_nom: text("destinataire_nom"),
+    sujet: text("sujet"),
+    corps: text("corps"),
+    numero_dans_serie: integer("numero_dans_serie"),
+    created_at: timestamp("created_at", { withTimezone: true }),
+  })
+  .existing();
