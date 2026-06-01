@@ -139,6 +139,21 @@ describe("MicrosoftGraphClient — chemin nominal", () => {
     expect(audits[0]).toMatchObject({ endpoint: "/me/sendMail", method: "POST", ok: true });
   });
 
+  it("getTenantRegionSignal : GET /organization, extrait country + dataLocation (D3)", async () => {
+    const { impl, calls } = queuedFetch([
+      jsonResponse({
+        value: [
+          { countryLetterCode: "CH", preferredDataLocation: "CHE", displayName: "Cabinet X" },
+        ],
+      }),
+    ]);
+    const { client, audits } = makeClient(impl);
+    const signal = await client.getTenantRegionSignal();
+    expect(signal).toEqual({ countryLetterCode: "CH", preferredDataLocation: "CHE" });
+    expect(calls[0]?.url).toContain("/organization");
+    expect(audits[0]).toMatchObject({ endpoint: "/organization", method: "GET", ok: true });
+  });
+
   it("createEvent : POST /me/events et mappe l'événement créé", async () => {
     const { impl, calls } = queuedFetch([
       jsonResponse({

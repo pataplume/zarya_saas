@@ -110,6 +110,71 @@ export async function loadMicrosoftTokens(
 }
 
 /**
+ * Persiste le verdict de région (Bloc D3) dans `parametres` (non sensible). Fusionne
+ * avec l'existant ; lève `not_connected` si aucune intégration active.
+ */
+export async function saveTenantRegionVerdict(
+  cabinet_id: string,
+  verdict: {
+    countryCode: string | null;
+    dataLocation: string | null;
+    source: "preferredDataLocation" | "countryLetterCode" | "unknown";
+    isAdequate: boolean;
+    checkedAt: string;
+  },
+): Promise<void> {
+  const row = await findActiveRow(cabinet_id);
+  if (!row) {
+    throw new MicrosoftGraphError("not_connected", "Aucune intégration Microsoft active.");
+  }
+  const parametres = (row.parametres ?? {}) as MicrosoftIntegrationParams;
+  await db
+    .update(cabinetIntegration)
+    .set({
+      parametres: {
+        ...parametres,
+        tenant_region: verdict.dataLocation ?? verdict.countryCode ?? undefined,
+        region_country_code: verdict.countryCode,
+        region_data_location: verdict.dataLocation,
+        region_source: verdict.source,
+        region_adequate: verdict.isAdequate,
+        region_checked_at: verdict.checkedAt,
+      },
+      updated_at: new Date(),
+    })
+    .where(eq(cabinetIntegration.id, row.id));
+}
+
+/**
+ * Enregistre l'accusé de réception du cabinet (« je continue malgré la région hors
+ * zone ») dans `parametres`. La trace de l'appel de détection vit, elle, dans
+ * audit.api_externe (GET /organization via le client D2).
+ */
+export async function acknowledgeTenantRegion(
+  cabinet_id: string,
+  acteur: { id: string; type: string },
+  now: number = Date.now(),
+): Promise<void> {
+  const row = await findActiveRow(cabinet_id);
+  if (!row) {
+    throw new MicrosoftGraphError("not_connected", "Aucune intégration Microsoft active.");
+  }
+  const parametres = (row.parametres ?? {}) as MicrosoftIntegrationParams;
+  await db
+    .update(cabinetIntegration)
+    .set({
+      parametres: {
+        ...parametres,
+        region_acknowledged_at: new Date(now).toISOString(),
+        region_acknowledged_by: acteur.id,
+        region_acknowledged_acteur_type: acteur.type,
+      },
+      updated_at: new Date(),
+    })
+    .where(eq(cabinetIntegration.id, row.id));
+}
+
+/**
  * Retourne un access_token valide pour ce cabinet, en rafraîchissant proactivement
  * (-5 min) si nécessaire. Rote le secret Vault au passage. Lève `not_connected` si
  * aucune intégration, `revoked` si le refresh_token n'est plus valide (statut persisté).

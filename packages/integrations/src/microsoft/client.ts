@@ -28,6 +28,7 @@ import type {
   SendEmailParams,
 } from "./graph-types";
 import { getMicrosoftOAuthConfig } from "./oauth";
+import type { TenantRegionSignal } from "./region";
 import { getValidMicrosoftAccessToken } from "./token-store";
 import type { MicrosoftOAuthConfig } from "./types";
 
@@ -93,6 +94,11 @@ interface GraphEvent {
   isAllDay?: boolean;
   start?: { dateTime?: string | null } | null;
   end?: { dateTime?: string | null } | null;
+}
+
+interface GraphOrganization {
+  countryLetterCode?: string | null;
+  preferredDataLocation?: string | null;
 }
 
 export class MicrosoftGraphClient {
@@ -236,6 +242,24 @@ export class MicrosoftGraphClient {
       auditEndpoint: "/me/events",
     });
     return toCalendarEvent(event);
+  }
+
+  // ─── Conformité (D3) ─────────────────────────────────────────────────────────
+
+  /**
+   * Lit le signal de région du tenant via GET /organization (Bloc D3). Sert à la
+   * détection d'adéquation UE/Suisse. Champs non sensibles uniquement.
+   */
+  async getTenantRegionSignal(): Promise<TenantRegionSignal> {
+    const res = await this.request<{ value: GraphOrganization[] }>("GET", "/organization", {
+      query: { $select: "countryLetterCode,preferredDataLocation" },
+      auditEndpoint: "/organization",
+    });
+    const org = res.value?.[0];
+    return {
+      countryLetterCode: org?.countryLetterCode ?? null,
+      preferredDataLocation: org?.preferredDataLocation ?? null,
+    };
   }
 
   // ─── Cœur transport (auth + audit + retry + throttling) ──────────────────────

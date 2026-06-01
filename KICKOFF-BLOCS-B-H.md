@@ -285,9 +285,20 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   (3) **throttling = Retry-After + backoff** ; limiteur interne par cabinet DIFFÉRÉ (stateful).
   · ⚠️ **Gap connu** : 401 mid-flight → `revoked` (reconnexion) sans re-tentative de refresh
   forcé ; limiteur RPS interne non implémenté (MVP).
-- [ ] **D3 — Détection région tenant (conformité UE)**
-  `GET /me` + `GET /organization` (`countryLetterCode`/`preferredDataLocation`), avertir si
-  hors UE. · ⚠️ **Doc à ~70 % de confiance sur l'API** (§3.3) → valider à l'implémentation.
+- [x] **D3 — Détection région tenant (conformité UE)** ✅ (`region.ts` + `tenant-region.ts` ;
+  câblé au callback ; tests verts)
+  `GET /organization` (`countryLetterCode`/`preferredDataLocation`) via le client D2 (audité).
+  Cœur PUR `classifyTenantRegion` (zone OK = **UE/EEE + Suisse + adéquats**, liste extensible ;
+  `preferredDataLocation` prioritaire ; signal absent → conservateur non-adéquat). Verdict
+  persisté dans `cabinet_integration.parametres` ; accusé de réception via `acknowledgeTenantRegion`.
+  Callback : détection **best-effort** (ne bloque pas la connexion) + flag `region=hors_zone`.
+  · **Arbitré founder (AskUserQuestion) AVANT code** : (1) **AVERTIR + accusé tracé**, PAS de
+  blocage dur (mode strict différé) ; (2) zone OK = **UE/EEE + Suisse + pays adéquats** (pas
+  EU-strict, sinon on rejette les tenants suisses) ; (3) périmètre = **moteur + persistance +
+  audit, sans page UI** (bannière branchée quand l'écran Intégrations existera).
+  · ⚠️ **Gaps notés** : confiance ~70 % du signal assumée (countryLetterCode = pays déclaré
+  ≠ région data) ; pas de `GET /me` (UPN) — différé avec l'UI ; wrapper server-action d'accusé
+  = fonction `acknowledgeTenantRegion` (le server action Next viendra avec l'écran).
 - [ ] **D4 — Webhooks Graph (subscriptions) ingestion email temps réel**
   Subscription à la connexion + renouvellement nightly (72h) + endpoint validé (signature,
   `clientState={cabinet_id}`). · Surface : `/api/integrations/microsoft/webhook`,
