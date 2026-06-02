@@ -439,11 +439,19 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     proposition ; Vault à la création finale E5). 4 tests intégration (proposition+invocation+
     QR-first+IBAN absent, stub sans QR, hook facture_*, hook non-facture). `@zarya/logger` ajouté
     aux deps extraction. **EXTRACTION_MODE=stub reste défaut prod** (bascule = décision founder).
-- [ ] **E4 — Anomalies + fraude IBAN + doublons**
-  Règles (TVA cohérente, IBAN mod-97, IDE mod-11, taux CH) ; **fraude RIB** (IBAN changé sur
-  fournisseur connu → alerte forte + `audit.cabinet_evenement` + validation obligatoire même
-  en aggressive) ; doublons exact/probable/flou. · Done : alertes sans blocage auto ; fraude
-  force validation ; tests règles.
+- [~] **E4 — Anomalies + fraude IBAN + doublons** — découpé E4a/E4b (jugement, founder a délégué)
+  - [x] **E4a — règles déterministes §5.1 (cœur pur)** ✅ : `detect-facture-anomalies.ts`
+    `detectFactureAnomalies` (IBAN mod-97, **IDE mod-11** `isValidIde`, cohérence TVA ±0.01 en
+    centimes, taux TVA CH 0/2.6/3.8/8.1, devise reconnue, bornes montant ≤0/≥10M + alerte >100k,
+    dates plausibles). Slugs non bloquants → `proposition_facture.anomalies_detectees` (via
+    `withDetectedAnomalies` dans stub + `toFactureProposal`). Remplace le `montants_incoherents`
+    ad-hoc par `tva_incoherente`. PUR, zéro DB. 11 tests unit.
+  - [ ] **E4b — historique + fraude RIB + doublons (§5.2/5.3/5.4)** — **replié avec/après E5** :
+    nouveau fournisseur / montant inhabituel / fréquence (§5.2), **fraude IBAN** (IBAN changé sur
+    fournisseur connu → alerte forte + audit + validation obligatoire, §5.3), doublons exact/
+    probable/flou (§5.4). Dépend du **référentiel fournisseur peuplé + IBAN en Vault** (n'existe
+    qu'après E5) → coder maintenant = code inerte contre tables vides. ⚠️ La fraude IBAN exige une
+    comparaison Vault (arbitrage au moment d'E5).
 - [ ] **E5 — Validation split-screen + création facture finale**
   UI PDF bbox / champs éditables, 1-clic si >95 % sans anomalie, lot >10, rejet→file Doc ;
   crée `facture.facture` + maj `facture.fournisseur` + `crm.evenement`. · Done : valider/

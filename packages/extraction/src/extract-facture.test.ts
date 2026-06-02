@@ -157,7 +157,7 @@ describe("toFactureProposal (normalisation sortie live)", () => {
     expect(p?.fournisseur.raison_sociale).toBe("Schneider AG");
     expect(p?.confiance_globale).toBe(1); // clampé à 1
     expect(p?.total_ttc).toBe(108.1);
-    expect(p?.anomalies).not.toContain("montants_incoherents");
+    expect(p?.anomalies).not.toContain("tva_incoherente");
   });
 
   it("détecte une incohérence de montants (ttc ≠ ht + tva)", () => {
@@ -175,7 +175,7 @@ describe("toFactureProposal (normalisation sortie live)", () => {
       },
       { nom_fichier: "f.pdf" },
     );
-    expect(p?.anomalies).toContain("montants_incoherents");
+    expect(p?.anomalies).toContain("tva_incoherente");
   });
 
   it("applique le QR-bill par-dessus la sortie IA", () => {

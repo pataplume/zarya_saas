@@ -15,6 +15,7 @@
 // LLM = infomaniak-facture-extractor). Le cœur (applyQrBill, toFactureProposal) est PUR.
 
 import { type ExtractionMode, resolveExtractionMode } from "./classifier";
+import { detectFactureAnomalies } from "./detect-facture-anomalies";
 import { InfomaniakFactureExtractor } from "./infomaniak-facture-extractor";
 import { type DEVISES, FACTURE_PROMPT_VERSION } from "./prompts/facture";
 import type { QrBillDecodeResult, SwissQrBill } from "./qr-bill";
@@ -125,6 +126,28 @@ export function applyQrBill(
   };
 }
 
+/**
+ * Ajoute les anomalies déterministes (E4a, facture.md §5.1) à une proposition FINALE
+ * (après applyQrBill, pour voir les valeurs de paiement issues du QR). PUR, dédupliqué.
+ */
+export function withDetectedAnomalies(proposal: FactureProposal): FactureProposal {
+  const detected = detectFactureAnomalies({
+    iban: proposal.fournisseur.iban,
+    ide: proposal.fournisseur.ide,
+    total_ht: proposal.total_ht,
+    total_tva: proposal.total_tva,
+    total_ttc: proposal.total_ttc,
+    montant_a_payer: proposal.montant_a_payer,
+    taux_tva_principal: proposal.taux_tva_principal,
+    devise: proposal.devise,
+    date_emission: proposal.date_emission,
+    date_echeance: proposal.date_echeance,
+  });
+  const merged = [...proposal.anomalies];
+  for (const a of detected) if (!merged.includes(a)) merged.push(a);
+  return { ...proposal, anomalies: merged };
+}
+
 /** Devise sûre depuis une chaîne arbitraire (défaut CHF). */
 export function coerceDevise(raw: unknown): Devise {
   return raw === "EUR" || raw === "USD" || raw === "autre" ? raw : "CHF";
@@ -186,7 +209,7 @@ export class StubFactureExtractor implements FactureExtractor {
       confiance_par_champ: { fournisseur: 0.1, montants: 0 },
       anomalies: ["extraction_stub"],
     };
-    const proposal = applyQrBill(base, input.qr_bill);
+    const proposal = withDetectedAnomalies(applyQrBill(base, input.qr_bill));
     return {
       proposal,
       model_used: "stub",
@@ -201,8 +224,8 @@ export class StubFactureExtractor implements FactureExtractor {
 
 /**
  * Mappe la sortie brute du modèle (FactureExtractRaw, à plat) vers une FactureProposal sûre,
- * PUIS applique le QR-bill (paiement déterministe par-dessus). PUR.
- * Détecte une incohérence de montants (|ttc - (ht+tva)| > 0.05) → anomalie.
+ * applique le QR-bill (paiement déterministe par-dessus) PUIS les anomalies déterministes
+ * (§5.1, E4a). PUR.
  */
 export function toFactureProposal(
   raw: unknown,
@@ -215,18 +238,11 @@ export function toFactureProposal(
   const total_tva = coerceNumber(r.total_tva);
   const total_ttc = coerceNumber(r.total_ttc);
 
+  // Anomalies émises par le modèle (slugs libres) ; les anomalies DÉTERMINISTES (§5.1)
+  // sont ajoutées ensuite par withDetectedAnomalies sur la proposition finale.
   const anomalies = Array.isArray(r.anomalies)
     ? r.anomalies.filter((a): a is string => typeof a === "string")
     : [];
-  if (
-    total_ht !== null &&
-    total_tva !== null &&
-    total_ttc !== null &&
-    Math.abs(total_ttc - (total_ht + total_tva)) > 0.05 &&
-    !anomalies.includes("montants_incoherents")
-  ) {
-    anomalies.push("montants_incoherents");
-  }
 
   const base: FactureProposal = {
     fournisseur: {
@@ -258,7 +274,7 @@ export function toFactureProposal(
     anomalies,
   };
 
-  return applyQrBill(base, input.qr_bill);
+  return withDetectedAnomalies(applyQrBill(base, input.qr_bill));
 }
 
 // ─── Résolution stub/live ───────────────────────────────────────────────────────
