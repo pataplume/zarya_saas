@@ -260,10 +260,20 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     1 client (sendEmailTracked) + 2 send-email + 4 intégration (envoyee/sans_dest/deja/revoked).
     DoD vert (**597 tests**). (audit.cabinet_evenement n'existe pas → événement dans `crm.evenement`.)
     ⚠️ Pas d'UI : déclencheur = action C3. Signature non stockée (param, livrable onboarding).
-- [ ] **C3 (Run 9) — UI Calendar (échéances + file relances)**
-  Livrable : vue mois + liste filtrable + détail échéance (preuve) + file relances (envoi
-  lot) ; raccourcis E/R/V/N. · ⚠️ **Pas de wireframes** → s'appuyer sur les ASCII mockups
-  `calendar.md` §6. · Prérequis : C1, C2.
+- **C3 (Run 9) — UI Calendar** — découpé en 2 PRs (arbitré founder). Pattern B7 (page
+  server + client component + server actions authentifiées). ⚠️ Pas de wireframes → ASCII
+  `calendar.md` §6. Playwright différé.
+  - [x] **C3a — File des relances à valider** ✅ (`/app/calendrier/relances` ; tests verts)
+    Page lit `calendar.v_relances_a_valider` scopée cabinet_id → `RelancesFile` (client) :
+    liste, Aperçu, **✓ Envoyer** (1-clic), **Envoyer la sélection** (lot), **✏️ Modifier**
+    (modale sujet/corps), ⏭ Plus tard (dismiss client). Server actions `envoyerRelanceAction`/
+    `envoyerLotAction`/`modifierRelanceAction` : **auth + scope cabinet + RBAC** (lecteur exclu),
+    anti-fuite (ids hors cabinet ignorés/comptés), câblent C2b (`envoyerRelance`/`...Validees`).
+    Tests : 5 server-action (RBAC, anti-fuite, nominal, lot ignorés, modif) — `@zarya/auth` +
+    `@zarya/calendar` mockés. DoD vert (**602 tests**).
+  - [ ] **C3b — Vues échéances** : liste filtrable (Date/Client/Type/Statut/Responsable +
+    filtres) + détail échéance (docs requis, historique relances, actions traiter/reporter/
+    annuler). **Grille mois différée** (arbitré founder : liste-first, faible ROI MVP).
 - [ ] **C4 — Tracking réponses + escalade + transitions retard**
   Livrable : tracking réponse (`In-Reply-To`, doc reçu couvre échéance → `traitee`),
   escalade après N relances (défaut 3), transition `imminente`→`en_retard` + recalcul risque,
