@@ -45,7 +45,7 @@
 | **B** | **Doc fini** — classif live sur texte réel, MAJ `document_attendu`, file de validation | A4 | ✅ **TERMINÉ** (B1→B7 ✅ — bascule prod = décision founder) |
 | **C** | **Calendar fini** — génération auto échéances, envoi relances, UI | A3, A4 | à faire (Runs 1-5 déjà livrés) |
 | **D** | **Microsoft Graph** — OAuth + wrapper Graph (producteur transverse) | — | à faire (package vide) |
-| **E** | **Facture** — décodage QR-bill + extraction IA + export | B, A3, A5, **D** | à faire (ADR QR-bill à ouvrir) |
+| **E** | **Facture** — décodage QR-bill + extraction IA + export | B, A3, A5, **D** | ✅ **COMPLET** (E1→E6 ; ADR 0020) |
 | **F** | **onboarding-client + dashboard-client** | A | à faire |
 | **G** | **Salaire** (workflow, PAS de calcul de paie) | B, C, **F**, A6 | à faire |
 | **H** | **embeddings/pgvector + Search** (indexe tout) | tous | à faire (bloqué par modèle embeddings IK) |
@@ -473,10 +473,16 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     le retour fraude/doublons. **bbox PDF différé** (OCR vision) ; split-screen PDF = itération
     future. Tests : 4 server-action (nominal+Vault, RBAC lecteur, anti-fuite, rejet). DoD vert
     (biome/typecheck/**697 tests**/build). → **E5 COMPLET** ; reste E6.
-- [ ] **E6 — Export comptable + mapping**
-  Cas B fichier (Crésus/WinBIZ/Abacus) + Cas C Excel humain ; statuts `recu`→`validee`→
-  `exportee`. · ⚠️ **API Bexio = Phase 2** ; formats « à valider en interview » → **MVP =
-  fichier + Excel**. · Done : génération format cible + Excel fallback ; statut tracé.
+- [x] **E6 — Export comptable + mapping** ✅ → **BLOC E COMPLET**
+  `export-facture-csv.ts` (@zarya/extraction) : `genererExportCsv` (PUR, CSV générique UTF-8 `;`
+  ouvrable Excel, RFC 4180 escaping, montants 2 déc.) + `exporterFacturesValidees(cabinet_id)`
+  (factures `validee` scopées cabinet, join fournisseur, mapping via `facture.mapping_export`,
+  bascule **validee→exportee** mode lot via `inArray`). Route handler **GET `/api/factures/export`**
+  (auth + scope + RBAC, télécharge le CSV). **IBAN EXCLU du CSV** (écriture de charge ; pas de
+  déchiffrement Vault dans un fichier téléchargeable). ⚠️ **Formats exacts par logiciel + vrai
+  .xlsx + API Bexio = DIFFÉRÉS** (MVP = CSV générique sans dépendance, arbitré founder ; colonnes
+  « à valider en interview »). UI mapping cabinet différée. Tests : 5 unit (générateur) + 2
+  intégration (export+exportee+anti-fuite+sans IBAN). DoD vert (biome/typecheck/**704 tests**/build).
   > **Hors-scope** : factures de vente, paiement, lignes détail (1.5), avoirs auto.
 
 ### BLOC F — onboarding-client + dashboard-client. Prérequis : A. *(ADR 0007 + 0008)*
