@@ -46,6 +46,22 @@ export {
   SEUIL_AUTO_HYBRIDE,
 } from "./decide-auto-classement";
 export {
+  applyQrBill,
+  coerceDevise,
+  type Devise,
+  FACTURE_PROMPT_VERSION,
+  type FactureExtractionInput,
+  type FactureExtractionResult,
+  type FactureExtractionUsage,
+  type FactureExtractor,
+  type FactureFournisseurProposal,
+  type FactureProposal,
+  getFactureExtractor,
+  STUB_FACTURE_PROMPT_VERSION,
+  StubFactureExtractor,
+  toFactureProposal,
+} from "./extract-facture";
+export {
   couvrirEcheancesParDocumentAttendu,
   type FinaliserDocumentInput,
   type FinaliserDocumentResult,
@@ -54,6 +70,7 @@ export {
   recalculerRisqueClient,
 } from "./finalize-document";
 export { type ChatModelClient, InfomaniakClassifier } from "./infomaniak-classifier";
+export { InfomaniakFactureExtractor } from "./infomaniak-facture-extractor";
 export {
   type AttenduRow,
   type DocumentSignals,
@@ -88,6 +105,12 @@ export {
   CLASSIFY_DOC_PROMPT_VERSION,
   type ClassifyDocRaw,
 } from "./prompts/classification-doc";
+export {
+  DEVISES,
+  FACTURE_JSON_SCHEMA,
+  type FactureExtractRaw,
+  TAUX_TVA_CH_2026,
+} from "./prompts/facture";
 export {
   decodeQrFromDocument,
   isQrIban,
