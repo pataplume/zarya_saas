@@ -115,6 +115,9 @@ importers:
       '@zarya/db':
         specifier: workspace:*
         version: link:../db
+      '@zarya/extraction':
+        specifier: workspace:*
+        version: link:../extraction
       '@zarya/integrations':
         specifier: workspace:*
         version: link:../integrations

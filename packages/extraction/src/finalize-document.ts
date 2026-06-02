@@ -30,7 +30,7 @@ import {
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { buildNomStandardise } from "./build-nom-standardise";
 import type { CategorieDocument } from "./classifier";
-import { computeScoreRisque, type RisqueSignals } from "./compute-risque";
+import { computeScoreRisque, type RisqueFacteurs, type RisqueSignals } from "./compute-risque";
 import { type AttenduRow, matchDocumentAttendu } from "./match-document-attendu";
 
 export interface FinaliserDocumentInput {
@@ -129,46 +129,23 @@ export async function finaliserDocument(
       );
   }
 
+  // 3bis. Tracking réponse (C4) : si TOUTES les attentes d'une échéance ouverte sont
+  // désormais reçues, l'échéance passe `traitee` (et sort donc des candidats à relance).
+  // Fait AVANT le recalcul de risque pour que le compte d'échéances en retard soit à jour.
+  if (attenduId) {
+    await couvrirEcheancesParDocumentAttendu(input.cabinet_id, input.client_id, attenduId);
+  }
+
   // 4. Recalcul du risque client (B5, ADR 0015). Applicatif (pas trigger DB, cohérent B3),
   // chemin partagé humain/IA. Upsert : provisionne la ligne crm.risque à la 1ʳᵉ finalisation.
   // Fait AVANT l'événement document_recu pour que le trigger trg_touch_derniere_activite
   // (0018) trouve la ligne et propage derniere_activite dès la 1ʳᵉ finalisation.
   const now = new Date();
-  const [prev] = await db
-    .select({ niveau: risque.niveau })
-    .from(risque)
-    .where(eq(risque.client_id, input.client_id))
-    .limit(1);
-  const niveauAvant = prev?.niveau ?? null;
-
-  const signals = await countRisqueSignals(input.cabinet_id, input.client_id);
-  const r = computeScoreRisque(signals, now);
-
-  await db
-    .insert(risque)
-    .values({
-      client_id: input.client_id,
-      cabinet_id: input.cabinet_id,
-      score: r.score,
-      niveau: r.niveau,
-      facteurs: r.facteurs,
-      drapeau_critique: r.drapeau_critique,
-      drapeau_motif: r.drapeau_motif,
-      dernier_calcul: now,
-      updated_at: now,
-    })
-    .onConflictDoUpdate({
-      target: risque.client_id,
-      set: {
-        score: r.score,
-        niveau: r.niveau,
-        facteurs: r.facteurs,
-        drapeau_critique: r.drapeau_critique,
-        drapeau_motif: r.drapeau_motif,
-        dernier_calcul: now,
-        updated_at: now,
-      },
-    });
+  const { niveauAvant, niveau, score, facteurs } = await recalculerRisqueClient(
+    input.cabinet_id,
+    input.client_id,
+    now,
+  );
 
   // 5. Événement d'activité `document_recu` (crm-schema.md §18, doc-schema.md §14.3).
   await db.insert(evenement).values({
@@ -191,7 +168,7 @@ export async function finaliserDocument(
   // 6. Événement `score_recalcule` UNIQUEMENT si le niveau de risque change (anti-bruit :
   // sinon chaque document en émettrait un). null→niveau au 1er calcul compte comme un
   // changement (une trace par client à l'activation du suivi, puis seulement les transitions).
-  if (niveauAvant !== r.niveau) {
+  if (niveauAvant !== niveau) {
     await db.insert(evenement).values({
       cabinet_id: input.cabinet_id,
       client_id: input.client_id,
@@ -200,12 +177,95 @@ export async function finaliserDocument(
       acteur_id: input.acteur_id,
       ressource_type: "crm.risque",
       ressource_id: input.client_id,
-      description: `Risque ${niveauAvant ?? "—"} → ${r.niveau} (score ${r.score})`,
-      metadata: { niveau_avant: niveauAvant, ...r.facteurs },
+      description: `Risque ${niveauAvant ?? "—"} → ${niveau} (score ${score})`,
+      metadata: { niveau_avant: niveauAvant, ...facteurs },
     });
   }
 
   return { document_id: doc.id, document_attendu_id: attenduId };
+}
+
+export interface RecalculRisqueResult {
+  niveauAvant: string | null;
+  niveau: string;
+  score: number;
+  facteurs: RisqueFacteurs;
+}
+
+/**
+ * Recalcule et upsert le risque d'un client (B5, ADR 0015). Extrait de finaliserDocument
+ * pour être réutilisé par le job de maj des échéances (C4 — recalcul au passage en retard).
+ * Retourne le niveau avant/après (l'appelant décide d'émettre l'événement score_recalcule).
+ */
+export async function recalculerRisqueClient(
+  cabinet_id: string,
+  client_id: string,
+  now: Date = new Date(),
+): Promise<RecalculRisqueResult> {
+  const [prev] = await db
+    .select({ niveau: risque.niveau })
+    .from(risque)
+    .where(eq(risque.client_id, client_id))
+    .limit(1);
+  const niveauAvant = prev?.niveau ?? null;
+
+  const signals = await countRisqueSignals(cabinet_id, client_id);
+  const r = computeScoreRisque(signals, now);
+
+  await db
+    .insert(risque)
+    .values({
+      client_id,
+      cabinet_id,
+      score: r.score,
+      niveau: r.niveau,
+      facteurs: r.facteurs,
+      drapeau_critique: r.drapeau_critique,
+      drapeau_motif: r.drapeau_motif,
+      dernier_calcul: now,
+      updated_at: now,
+    })
+    .onConflictDoUpdate({
+      target: risque.client_id,
+      set: {
+        score: r.score,
+        niveau: r.niveau,
+        facteurs: r.facteurs,
+        drapeau_critique: r.drapeau_critique,
+        drapeau_motif: r.drapeau_motif,
+        dernier_calcul: now,
+        updated_at: now,
+      },
+    });
+
+  return { niveauAvant, niveau: r.niveau, score: r.score, facteurs: r.facteurs };
+}
+
+/**
+ * Clôt (statut `traitee`) les échéances OUVERTES du client dont l'échéance référence cet
+ * attendu dans `documents_requis` ET dont TOUTES les attentes requises sont désormais
+ * reçues. C4 — « doc reçu couvre l'échéance ». Scopé cabinet+client (anti-fuite).
+ */
+export async function couvrirEcheancesParDocumentAttendu(
+  cabinet_id: string,
+  client_id: string,
+  attenduId: string,
+): Promise<void> {
+  await db.execute(sql`
+    UPDATE crm.echeance e
+       SET statut = 'traitee', date_traitement = current_date, updated_at = now()
+     WHERE e.cabinet_id = ${cabinet_id}::uuid
+       AND e.client_id = ${client_id}::uuid
+       AND e.statut IN ('a_venir', 'imminente', 'en_retard')
+       AND e.archived_at IS NULL
+       AND ${attenduId}::uuid = ANY(e.documents_requis)
+       AND NOT EXISTS (
+         SELECT 1 FROM crm.document_attendu da
+          WHERE da.id = ANY(e.documents_requis)
+            AND da.cabinet_id = ${cabinet_id}::uuid
+            AND da.statut_periode_courante IS DISTINCT FROM 'recu'
+       )
+  `);
 }
 
 // Compte les signaux de risque (B5) scopés cabinet + client (anti-fuite : jamais
