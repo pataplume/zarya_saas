@@ -40,6 +40,22 @@ Ordre canonique restant. Détail + DoD dans le KICKOFF.
 
 ---
 
+## Chantier transverse — Boucler la boucle « doc → échéance » end-to-end
+
+Le mécanisme C4 (« document reçu couvre l'échéance → `traitee` → relances stoppées »)
+**existe et est testé**, mais ne tourne pas encore de bout en bout en prod. Trois maillons :
+
+| Maillon | Statut | Détail |
+|---|---|---|
+| **C1+ — `echeance.documents_requis` peuplé à la génération** | ✅ fait (migration 0029) | Sans ça, la couverture C4 ne matche rien. Dépend de l'**alignement de vocabulaire** `document_attendu.type_document` ↔ `template_echeance.documents_requis_types` (sinon vide = pas de couverture erronée). ⚠️ **Backfill** des échéances déjà générées non fait (NULL) ; **seed des templates** à enrichir avec `documents_requis_types`. |
+| **Dépôt côté client (upload dashboard)** | ⬜ Bloc F | Aujourd'hui l'upload est `upload_fiduciaire` uniquement ; pas de dashboard client. |
+| **Le doc atteint `finaliserDocument` rattaché au bon `document_attendu`** | ⚠️ partiel | upload → classification → (politique `strict` → file de validation) → un membre valide → couverture. Donc « cabinet valide le doc reçu → relance s'arrête », pas « client upload → temps réel ». Dépend aussi du matching B3. |
+
+→ Quand F sera fait + le seed templates enrichi + (option) backfill, la boucle tournera
+end-to-end. C1+ (maillon le moins cher) est fait en premier.
+
+---
+
 ## Horizon 2 — Pré-requis BÊTA (chantiers transverses, hors Bloc)
 
 **À faire avant / autour du 1er cabinet pilote qui se connecte.** Ce sont les « trous »
