@@ -602,6 +602,83 @@ export async function seedDocument(
   return { id, cabinet_id, client_id };
 }
 
+// ─── Bloc E1 — facture.* (référentiel + propositions + factures + mapping) ────
+
+export interface TestFournisseur {
+  id: string;
+  cabinet_id: string;
+  client_id: string;
+}
+export interface TestFactureRow {
+  id: string;
+  cabinet_id: string;
+}
+
+/** Crée un facture.fournisseur de test. */
+export async function seedFournisseur(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestFournisseur> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO facture.fournisseur (id, cabinet_id, client_id, raison_sociale)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${`Fournisseur ${id.slice(0, 8)}`})
+  `;
+  return { id, cabinet_id, client_id };
+}
+
+/** Crée une facture.proposition_facture (génère son doc.document + invocation). */
+export async function seedPropositionFacture(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestFactureRow> {
+  const fp = await seedFichierPhysique(sql, cabinet_id);
+  const doc = await seedDocument(sql, cabinet_id, client_id, fp.id);
+  const inv = await seedInvocation(sql, cabinet_id);
+  const id = randomUUID();
+  await sql`
+    INSERT INTO facture.proposition_facture
+      (id, cabinet_id, client_id, document_id, extraction_invocation_id)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${doc.id}, ${inv.id})
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée une facture.facture (génère son doc.document ; fournisseur fourni). */
+export async function seedFacture(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  fournisseur_id: string,
+): Promise<TestFactureRow> {
+  const fp = await seedFichierPhysique(sql, cabinet_id);
+  const doc = await seedDocument(sql, cabinet_id, client_id, fp.id);
+  const id = randomUUID();
+  await sql`
+    INSERT INTO facture.facture
+      (id, cabinet_id, client_id, fournisseur_id, document_id, numero_facture, date_emission,
+       total_ht, total_tva, total_ttc, montant_a_payer, compte_charge, statut_classement)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${fournisseur_id}, ${doc.id},
+            ${`F-${id.slice(0, 8)}`}, CURRENT_DATE, 100, 8.10, 108.10, 108.10, '6000', 'manuel')
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée un facture.mapping_export (cabinet-global). */
+export async function seedMappingExport(
+  sql: postgres.Sql,
+  cabinet_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO facture.mapping_export (id, cabinet_id, logiciel_cible, compte_fournisseur_defaut)
+    VALUES (${id}, ${cabinet_id}, 'cresus', '2000')
+  `;
+  return { id, cabinet_id };
+}
+
 /** Crée une crm.echeance de test pour un client donné (service role). */
 export async function seedEcheance(
   sql: postgres.Sql,
@@ -745,6 +822,12 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   // Tables enfants d'abord (contraintes FK sur cabinet_id)
   // Note : sql.array(ids) produit un text[] — cast explicite en uuid[] pour la comparaison
   const arr = sql.array(ids);
+  // Bloc E1 (facture.* — enfants de doc.document/invocation en RESTRICT : supprimer AVANT doc)
+  // Ordre FK interne : facture → proposition_facture (cycle FK posé DB) → fournisseur ; mapping indépendant
+  await sql`DELETE FROM facture.facture             WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM facture.proposition_facture WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM facture.fournisseur         WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM facture.mapping_export      WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Module Doc (ordre FK : document → proposition → fichier_physique → upload_brut → invocation)
   await sql`DELETE FROM doc.email_brut              WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM doc.email_subscription      WHERE cabinet_id = ANY(${arr}::uuid[])`;
