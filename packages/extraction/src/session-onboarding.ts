@@ -5,7 +5,7 @@
 // La session est `terminee` quand il ne reste AUCUNE proposition d'employé `en_attente` et
 // qu'au moins un employé a été validé. Réf : onboarding-client.md §2/§8 ; salaire-schema.md.
 
-import { and, db, eq, propositionEmploye, sessionOnboarding } from "@zarya/db";
+import { and, db, eq, propositionEmploye, sessionOnboarding, sql } from "@zarya/db";
 import { count } from "drizzle-orm";
 
 export type StatutSessionOnboarding =
@@ -126,4 +126,92 @@ export async function terminerOnboarding(
     })
     .where(eq(sessionOnboarding.id, session_id));
   return { statut: "terminee" };
+}
+
+// ─── F7 — Progression, relance, édition partagée ─────────────────────────────
+
+export interface ProgressionOnboarding {
+  session_id: string;
+  client_id: string;
+  raison_sociale: string;
+  statut: StatutSessionOnboarding;
+  progression_pct: number;
+  nb_employes_attendus: number | null;
+  nb_employes_proposes: number;
+  nb_employes_valides: number;
+  employes_progression_pct: number;
+  dernier_acteur_type: "client" | "fiduciaire" | null;
+}
+
+/** Lit la progression d'un onboarding (vue v_session_onboarding_progress), scopée cabinet. */
+export async function getProgressionOnboarding(
+  cabinet_id: string,
+  client_id: string,
+): Promise<ProgressionOnboarding | null> {
+  const rows = (await db.execute(sql`
+    SELECT id, client_id, raison_sociale, statut, progression_pct, nb_employes_attendus,
+           nb_employes_proposes, nb_employes_valides, employes_progression_pct, dernier_acteur_type
+    FROM salaire.v_session_onboarding_progress
+    WHERE cabinet_id = ${cabinet_id} AND client_id = ${client_id}
+    LIMIT 1
+  `)) as unknown as Array<Record<string, unknown>>;
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    session_id: r.id as string,
+    client_id: r.client_id as string,
+    raison_sociale: r.raison_sociale as string,
+    statut: r.statut as StatutSessionOnboarding,
+    progression_pct: Number(r.progression_pct),
+    nb_employes_attendus: r.nb_employes_attendus === null ? null : Number(r.nb_employes_attendus),
+    nb_employes_proposes: Number(r.nb_employes_proposes),
+    nb_employes_valides: Number(r.nb_employes_valides),
+    employes_progression_pct: Number(r.employes_progression_pct),
+    dernier_acteur_type: (r.dernier_acteur_type as "client" | "fiduciaire" | null) ?? null,
+  };
+}
+
+export interface SessionARelancer {
+  session_id: string;
+  client_id: string;
+  raison_sociale: string;
+  jours_inactivite: number;
+}
+
+/** Liste les sessions inactives ≥ 7 j d'un cabinet (vue v_extractions_a_relancer). */
+export async function listerSessionsARelancer(cabinet_id: string): Promise<SessionARelancer[]> {
+  const rows = (await db.execute(sql`
+    SELECT id, client_id, raison_sociale, jours_inactivite
+    FROM salaire.v_extractions_a_relancer
+    WHERE cabinet_id = ${cabinet_id}
+    ORDER BY jours_inactivite DESC
+  `)) as unknown as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    session_id: r.id as string,
+    client_id: r.client_id as string,
+    raison_sociale: r.raison_sociale as string,
+    jours_inactivite: Number(r.jours_inactivite),
+  }));
+}
+
+/**
+ * Édition partagée (last-write-wins, onboarding-client.md §9) : enregistre qui a agi en dernier
+ * + rafraîchit l'horodatage d'activité (réinitialise le compteur de relance). Scopé cabinet.
+ */
+export async function enregistrerActiviteOnboarding(
+  cabinet_id: string,
+  session_id: string,
+  acteur_type: "client" | "fiduciaire",
+  acteur_id?: string,
+): Promise<void> {
+  const now = new Date();
+  await db
+    .update(sessionOnboarding)
+    .set({
+      dernier_acteur_type: acteur_type,
+      ...(acteur_id ? { dernier_acteur_id: acteur_id } : {}),
+      date_derniere_activite: now,
+      updated_at: now,
+    })
+    .where(and(eq(sessionOnboarding.id, session_id), eq(sessionOnboarding.cabinet_id, cabinet_id)));
 }
