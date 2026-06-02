@@ -55,11 +55,43 @@ export {
   TAUX_TVA_CH_VALIDES,
 } from "./detect-facture-anomalies";
 export {
+  CATEGORIE_PAR_CHAMP,
+  type CategorieChamp,
+  CHAMPS_OBLIGATOIRES_SWISSDEC,
+  CHAMPS_SENSIBLES_VAULT,
+  clefEntete,
+  masquerAvs,
+  masquerIban,
+  masquerSensible,
+  NOMS_CHAMP,
+  type NomChamp,
+  normaliserEntete,
+} from "./employe-fields";
+export {
   type ExportResult,
   exporterFacturesValidees,
   type FactureExportRow,
   genererExportCsv,
 } from "./export-facture-csv";
+export {
+  buildManualProposal,
+  type ChampPropose,
+  DETERMINISTE_PROMPT_VERSION,
+  DeterministicEmployesExtractor,
+  type EmployeProposal,
+  type EmployesExtractionInput,
+  type EmployesExtractionResult,
+  type EmployesExtractor,
+  getEmployesExtractor,
+  type SaisieManuelle,
+} from "./extract-employes";
+export {
+  type AjouterEmployeManuelInput,
+  ajouterEmployeManuel,
+  type ExtraireEmployesInput,
+  type ExtraireEmployesResult,
+  extraireEmployesDepuisFichier,
+} from "./extract-employes-pipeline";
 export {
   applyQrBill,
   coerceDevise,
@@ -121,6 +153,18 @@ export {
   type OcrDocumentResult,
   ocrDocument,
 } from "./ocr-document";
+export {
+  type CelluleExtraite,
+  detecterFormat,
+  type FormatFichier,
+  type LigneEmploye,
+  type ParseEmployesInput,
+  type ParseEmployesResult,
+  parseCsv,
+  parseCsvEmployes,
+  parseEmployesFile,
+  parseXlsx,
+} from "./parse-employes-file";
 export {
   extractPdfText,
   isPdfTextUsable,
