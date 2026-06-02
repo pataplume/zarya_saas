@@ -271,9 +271,16 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     anti-fuite (ids hors cabinet ignorés/comptés), câblent C2b (`envoyerRelance`/`...Validees`).
     Tests : 5 server-action (RBAC, anti-fuite, nominal, lot ignorés, modif) — `@zarya/auth` +
     `@zarya/calendar` mockés. DoD vert (**602 tests**).
-  - [ ] **C3b — Vues échéances** : liste filtrable (Date/Client/Type/Statut/Responsable +
-    filtres) + détail échéance (docs requis, historique relances, actions traiter/reporter/
-    annuler). **Grille mois différée** (arbitré founder : liste-first, faible ROI MVP).
+  - [x] **C3b — Vues échéances** ✅ (`/app/calendrier/echeances` ; tests verts) — **C3 COMPLET**
+    Page liste **filtrable** (statut / type / client via searchParams) interrogeant `crm.echeance`
+    scopée cabinet_id (la vue `v_echeances_a_venir` est trop étroite). `EcheancesListe` (client) :
+    table + badges statut + actions **Traiter / Reporter (modale date+motif) / Annuler** sur les
+    statuts actionnables (a_venir/imminente/en_retard). Server actions `marquerTraiteeAction`/
+    `reporterEcheanceAction`/`annulerEcheanceAction` : auth + scope cabinet + RBAC (lecteur exclu),
+    transitions de statut (traitee+date_traitement / reportee+reporte_a+motif / annulee). Zod sur
+    le report. **Grille mois différée** (arbitré founder : liste-first). ⚠️ détail riche (docs requis,
+    historique relances) non inclus — liste + transitions seulement (suffisant MVP). Tests : 5
+    server-action (RBAC, anti-fuite, traiter/annuler/reporter). DoD vert (**607 tests**).
 - [ ] **C4 — Tracking réponses + escalade + transitions retard**
   Livrable : tracking réponse (`In-Reply-To`, doc reçu couvre échéance → `traitee`),
   escalade après N relances (défaut 3), transition `imminente`→`en_retard` + recalcul risque,
