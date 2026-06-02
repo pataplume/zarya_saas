@@ -464,9 +464,15 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     exact (n°) bloqué par `uniq_facture_numero` ; probable (montant+date ±3j) signalé non bloquant.
     Scopé cabinet (isolation). 4 tests intégration (nominal+anti-clair Vault, fraude, doublon,
     isolation). **E4b absorbé ici** (fraude + doublons). Pas de migration (schéma E1).
-  - [ ] **E5b — UI split-screen + server action** : page validation (PDF + champs éditables,
-    1-clic si >95 % sans anomalie, lot >10, rejet→file Doc) appelant `finaliserFacture`. bbox PDF
-    différé (OCR vision). Done : valider/corriger/rejeter + tests server-action.
+  - [x] **E5b — UI validation + server action** ✅ : `apps/web/.../factures/validation/`
+    (page + `factures-client.tsx` + `actions.ts` + loading). Page liste `proposition_facture`
+    a_valider scopée cabinet (jointe client) ; carte par facture (anomalies, confiance, badge QR)
+    → formulaire inline éditable **prérempli depuis la proposition** + **champ IBAN saisi par
+    l'humain** (non persisté au stade proposition, ADR 0013). `validerFactureAction` (Zod + AUTH +
+    SCOPE + RBAC) délègue à `finaliserFacture` (E5a) ; `rejeterFactureAction` → rejetee. Affiche
+    le retour fraude/doublons. **bbox PDF différé** (OCR vision) ; split-screen PDF = itération
+    future. Tests : 4 server-action (nominal+Vault, RBAC lecteur, anti-fuite, rejet). DoD vert
+    (biome/typecheck/**697 tests**/build). → **E5 COMPLET** ; reste E6.
 - [ ] **E6 — Export comptable + mapping**
   Cas B fichier (Crésus/WinBIZ/Abacus) + Cas C Excel humain ; statuts `recu`→`validee`→
   `exportee`. · ⚠️ **API Bexio = Phase 2** ; formats « à valider en interview » → **MVP =
