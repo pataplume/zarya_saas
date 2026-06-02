@@ -54,6 +54,14 @@ jobs:
   test:
     name: Tests (isolation multi-tenant)
     runs-on: ubuntu-latest
+    # Sérialise CE job entre TOUTES les PR/branches : un seul run accède à la fois à la base
+    # Supabase de test PARTAGÉE. Sans ça, deux suites concurrentes se marchent dessus
+    # (collisions seed/cleanup → échecs « Failed query » / idempotence). Groupe constant
+    # (pas de github.ref) + cancel-in-progress:false = file d'attente, pas d'annulation.
+    # lint/typecheck/build (sans DB) restent parallèles. Cf. addendum ADR 0005 (DB partagée).
+    concurrency:
+      group: integration-tests-shared-db
+      cancel-in-progress: false
     # DATABASE_URL doit pointer vers le connection pooler Supabase (IPv4 only).
     # Format : postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
     # Le hostname db.PROJECT_REF.supabase.co est IPv6-only — inaccessible depuis GitHub Actions.
