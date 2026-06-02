@@ -516,10 +516,16 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   un non-`client_contact` → `/app`. Helpers PURS `espaceCible`/`resolveBranding`/`NAV_CLIENT`
   (`lib/client-space.ts`) + 5 tests unit. Activation réutilise `/auth/callback`. ⚠️ **Pages de contenu
   + vues filtrées `v_dashboard_client_*` (champs internes masqués) = F8** ; i18n FR/DE/IT + PWA différés.
-- [ ] **F3 — Étape 1 : identification entreprise via Zefix**
-  Recherche IDE/raison sociale (**route handler** `/api/zefix/*`, ADR 0009), consentement
-  nLPD obligatoire avant appel, auto-remplissage éditable, fallback manuel. Crée `crm.client`
-  + `crm.adresse`. · ⚠️ Hors-scope : ESTV TVA, Moneyhouse = v2.
+- [~] **F3 — Étape 1 : identification entreprise via Zefix** ✅ *(server action + audit ; UI search/prefill = avec wizard)*
+  Server action `creerClientDepuisZefixAction` (`apps/web/.../clients/zefix/actions.ts`) :
+  **consentement nLPD obligatoire** (pas d'appel Zefix sinon, §5.2) → `zefixClient.rechercherParIde`
+  (client Zefix DÉJÀ câblé, routes `/api/zefix/*` réutilisées pour la recherche live UI) → crée
+  `crm.client` + `crm.adresse` (siège) → **audit dans `crm.zefix_recherche_cabinet`** (table dédiée,
+  rétention 5 ans ; choisi vs `crm.evenement` qui n'a pas de type adéquat sans toucher l'enum scellé).
+  **Fallback manuel** si Zefix vide (§5.4) = `createClientAction` existante (signal `fallback_manuel`).
+  AUTH + RBAC + scope cabinet + anti-doublon IDE. 4 tests server-action (nominal+adresse+audit, sans
+  consentement, fallback, RBAC ; Zefix mocké). ⚠️ Hors-scope : ESTV TVA, Moneyhouse = v2 ; UI
+  recherche/préremplissage = avec le wizard onboarding-client.
 - [ ] **F4 — Étape 2 : services + paramètres + checklist documents**
   Sélection des 6 services, sous-formulaires (compta/TVA/bouclement), application
   `crm.modele_checklist` → `crm.document_attendu`. · Prérequis : F3, A3, A4, A8. · Done :
