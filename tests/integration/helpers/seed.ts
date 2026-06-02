@@ -710,6 +710,90 @@ export async function seedAccesClient(
   return { id, cabinet_id };
 }
 
+// ─── Bloc F6a — salaire.* cluster propositions onboarding ─────────────────────
+
+/** Crée une salaire.session_onboarding (1 par client). */
+export async function seedSessionOnboarding(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.session_onboarding (id, cabinet_id, client_id)
+    VALUES (${id}, ${cabinet_id}, ${client_id})
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée une salaire.upload_fichier (génère son doc.document). */
+export async function seedUploadFichier(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  session_id: string,
+): Promise<TestFactureRow> {
+  const fp = await seedFichierPhysique(sql, cabinet_id);
+  const doc = await seedDocument(sql, cabinet_id, client_id, fp.id);
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.upload_fichier
+      (id, cabinet_id, client_id, session_id, document_id, nom_fichier_original, uploaded_par_type)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${session_id}, ${doc.id},
+            ${`employes-${id.slice(0, 8)}.xlsx`}, 'fiduciaire')
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée une salaire.extraction_ia (passe LLM sur un fichier). */
+export async function seedExtractionIa(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  upload_fichier_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.extraction_ia
+      (id, cabinet_id, client_id, upload_fichier_id, modele_utilise, statut)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${upload_fichier_id}, 'chat_large', 'succes')
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée une salaire.proposition_employe (issue d'une extraction). */
+export async function seedPropositionEmploye(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  session_id: string,
+  extraction_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.proposition_employe
+      (id, cabinet_id, client_id, session_id, extraction_id)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${session_id}, ${extraction_id})
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée une salaire.proposition_champ (1 champ proposé). */
+export async function seedPropositionChamp(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  proposition_employe_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.proposition_champ
+      (id, cabinet_id, client_id, proposition_employe_id, nom_champ, confiance)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${proposition_employe_id}, 'prenom', 0.95)
+  `;
+  return { id, cabinet_id };
+}
+
 /** Crée une crm.echeance de test pour un client donné (service role). */
 export async function seedEcheance(
   sql: postgres.Sql,
@@ -853,6 +937,13 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   // Tables enfants d'abord (contraintes FK sur cabinet_id)
   // Note : sql.array(ids) produit un text[] — cast explicite en uuid[] pour la comparaison
   const arr = sql.array(ids);
+  // Bloc F6a (salaire.* cluster propositions — ordre FK : champ → employe-prop → extraction →
+  // upload → session ; AVANT salaire.employe et doc.document, dont upload_fichier dépend en RESTRICT)
+  await sql`DELETE FROM salaire.proposition_champ   WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM salaire.proposition_employe WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM salaire.extraction_ia       WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM salaire.upload_fichier      WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM salaire.session_onboarding  WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc F0 (salaire.* — enfants de crm.client/contact en RESTRICT : supprimer AVANT crm)
   await sql`DELETE FROM salaire.employe             WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM salaire.acces_client        WHERE cabinet_id = ANY(${arr}::uuid[])`;
