@@ -430,11 +430,15 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     `montants_incoherents`, **`applyQrBill` QR-first PUR** : paiement IBAN/montant/devise/réf du
     QR-bill E2 écrase l'IA) ; `infomaniak-facture-extractor.ts` (live chat_large, calque
     InfomaniakClassifier json_schema+fallback). 11 tests unit. **Aucun appel réseau/DB.**
-  - [ ] **E3b — câblage** : déclencheur **après finalisation Doc si `type LIKE 'facture_%'`**
-    (hook applicatif dans `finaliserDocument`, arbitré founder) → décode QR (E2, seam différé →
-    fallback IA) → `extractFacture` → trace `extraction.invocation` (`context='facture'`) →
-    crée `facture.proposition_facture` (pattern proposition→validation). Done : proposition créée
-    scopée cabinet, invocation tracée, tests intégration nominal/erreur + anti-fuite.
+  - [x] **E3b — câblage** ✅ : `extract-facture-pipeline.ts` `extraireFactureDepuisDocument`
+    (décode QR via seam E2 → `extractFacture` → trace `extraction.invocation` `context='facture'`
+    → crée `facture.proposition_facture`). **Hook best-effort dans `finaliserDocument`** quand
+    `type LIKE 'facture_%'` (n'échoue jamais la finalisation Doc ; `logger.warn` sinon ; import
+    dynamique anti-cycle). **IBAN ANTI-CLAIR (ADR 0013)** : IBAN strippé de `fournisseur_propose_data`
+    ET `qr_facture_data` avant insert (arbitré founder : pas de persistance IBAN au stade
+    proposition ; Vault à la création finale E5). 4 tests intégration (proposition+invocation+
+    QR-first+IBAN absent, stub sans QR, hook facture_*, hook non-facture). `@zarya/logger` ajouté
+    aux deps extraction. **EXTRACTION_MODE=stub reste défaut prod** (bascule = décision founder).
 - [ ] **E4 — Anomalies + fraude IBAN + doublons**
   Règles (TVA cohérente, IBAN mod-97, IDE mod-11, taux CH) ; **fraude RIB** (IBAN changé sur
   fournisseur connu → alerte forte + `audit.cabinet_evenement` + validation obligatoire même

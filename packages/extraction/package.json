@@ -11,6 +11,7 @@
   "dependencies": {
     "@zarya/db": "workspace:*",
     "@zarya/integrations": "workspace:*",
+    "@zarya/logger": "workspace:*",
     "drizzle-orm": "^0.44.0",
     "unpdf": "^1.6.2"
   },
