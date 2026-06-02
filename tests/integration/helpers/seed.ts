@@ -679,6 +679,37 @@ export async function seedMappingExport(
   return { id, cabinet_id };
 }
 
+// ─── Bloc F0 — salaire.* (employe + acces_client) ─────────────────────────────
+
+/** Crée un salaire.employe de test (référentiel, statut propose). */
+export async function seedEmploye(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.employe (id, cabinet_id, client_id, prenom, nom)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, 'Jean', ${`Test ${id.slice(0, 8)}`})
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée un salaire.acces_client de test (génère son contact). */
+export async function seedAccesClient(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestFactureRow> {
+  const contact = await seedContact(sql, cabinet_id, client_id);
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.acces_client (id, cabinet_id, client_id, contact_id, email)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${contact.id}, ${`rh-${id.slice(0, 8)}@test.ch`})
+  `;
+  return { id, cabinet_id };
+}
+
 /** Crée une crm.echeance de test pour un client donné (service role). */
 export async function seedEcheance(
   sql: postgres.Sql,
@@ -822,6 +853,9 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   // Tables enfants d'abord (contraintes FK sur cabinet_id)
   // Note : sql.array(ids) produit un text[] — cast explicite en uuid[] pour la comparaison
   const arr = sql.array(ids);
+  // Bloc F0 (salaire.* — enfants de crm.client/contact en RESTRICT : supprimer AVANT crm)
+  await sql`DELETE FROM salaire.employe             WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM salaire.acces_client        WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc E1 (facture.* — enfants de doc.document/invocation en RESTRICT : supprimer AVANT doc)
   // Ordre FK interne : facture → proposition_facture (cycle FK posé DB) → fournisseur ; mapping indépendant
   await sql`DELETE FROM facture.facture             WHERE cabinet_id = ANY(${arr}::uuid[])`;
