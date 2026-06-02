@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { MicrosoftGraphError } from "./errors";
 import type { SendEmailParams } from "./graph-types";
-import { applySignature, sendCabinetEmail } from "./send-email";
+import { applySignature, sendCabinetEmail, sendCabinetEmailTracked } from "./send-email";
 
 describe("applySignature (D5)", () => {
   it("sans signature → corps inchangé", () => {
@@ -71,5 +71,53 @@ describe("sendCabinetEmail (D5)", () => {
       { client: { sendEmail } },
     );
     expect(res).toEqual({ status: "error", code: "error" });
+  });
+});
+
+describe("sendCabinetEmailTracked (C2b)", () => {
+  it("succès → 'sent' + ids, signature apposée", async () => {
+    const sendEmailTracked = vi.fn(async (_p: SendEmailParams) => ({
+      messageId: "msg-1",
+      internetMessageId: "<abc@zarya>",
+    }));
+    const res = await sendCabinetEmailTracked(
+      "cab-A",
+      { to: ["client@pme.ch"], subject: "Relance", body: "Merci.", signature: "— Fid X" },
+      { client: { sendEmailTracked } },
+    );
+    expect(res).toEqual({
+      status: "sent",
+      messageId: "msg-1",
+      internetMessageId: "<abc@zarya>",
+    });
+    expect(sendEmailTracked.mock.calls[0]?.[0]?.body).toBe("Merci.\n\n— Fid X");
+  });
+
+  it("révoqué → 'revoked' ; erreur → 'error'", async () => {
+    const revoked = await sendCabinetEmailTracked(
+      "cab-A",
+      { to: ["x@y.ch"], subject: "S", body: "B" },
+      {
+        client: {
+          sendEmailTracked: async () => {
+            throw new MicrosoftGraphError("revoked", "mort");
+          },
+        },
+      },
+    );
+    expect(revoked).toEqual({ status: "revoked" });
+
+    const errored = await sendCabinetEmailTracked(
+      "cab-A",
+      { to: ["x@y.ch"], subject: "S", body: "B" },
+      {
+        client: {
+          sendEmailTracked: async () => {
+            throw new MicrosoftGraphError("api_error", "boom");
+          },
+        },
+      },
+    );
+    expect(errored).toEqual({ status: "error", code: "api_error" });
   });
 });

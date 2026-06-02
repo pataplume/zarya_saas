@@ -53,8 +53,11 @@ export {
   applySignature,
   type SendCabinetEmailOptions,
   type SendCabinetEmailParams,
+  type SendCabinetEmailTrackedOptions,
+  type SendCabinetEmailTrackedOutcome,
   type SendEmailOutcome,
   sendCabinetEmail,
+  sendCabinetEmailTracked,
 } from "./send-email";
 export { signOAuthState, verifyOAuthState } from "./state";
 export {

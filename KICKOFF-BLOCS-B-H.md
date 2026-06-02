@@ -248,11 +248,18 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     Déclenché par **Vercel Cron** quotidien `0 5 * * *` → route `GET /api/calendar/generer-relances`
     protégée `CRON_SECRET`. PAS d'envoi (Mode A). NE touche PAS au Bloc A scellé. Tests : 3
     intégration (rendu/idempotence/pause) + 2 auth route. DoD vert.
-  - [ ] **C2b — Envoi des brouillons validés** : `brouillon`→`envoyee` via `sendCabinetEmail`
-    (D5) ; **draft+send** pour récupérer `internetMessageId` (ADR 0019) ; migration additive
-    `crm.relance.microsoft_message_id` (**exception sceau Bloc A — ADR 0019**) ; throttle
-    séquentiel + plafond 50/lot ; événement `crm.evenement` ; 401→alerte. (audit.cabinet_evenement
-    n'existe pas → événement dans `crm.evenement`.)
+  - [x] **C2b — Envoi des brouillons validés** ✅ (migration 0028 ; `envoyer.ts` ; tests verts)
+    — **C2 COMPLET (C2a+C2b)**
+    `client.sendEmailTracked` (draft+send : POST /me/messages → id + internetMessageId, puis
+    /send) + `sendCabinetEmailTracked` (D5, signature appliquée, statut+ids). `@zarya/calendar`
+    `envoyerRelance` : `brouillon`→`envoyee` + stocke `microsoft_message_id`/`internet_message_id`
+    + événement `crm.evenement` `relance_envoyee` ; statuts `envoyee/sans_destinataire/deja_envoyee/
+    revoked/error` (ne lève pas). `envoyerRelancesValidees` : lot séquentiel plafonné `PLAFOND_LOT=50`.
+    **Migration 0028** : colonnes additives `crm.relance.microsoft_message_id` + `internet_message_id`
+    (**exception sceau Bloc A — ADR 0019**, appliquée base partagée). Sender injectable. Tests :
+    1 client (sendEmailTracked) + 2 send-email + 4 intégration (envoyee/sans_dest/deja/revoked).
+    DoD vert (**597 tests**). (audit.cabinet_evenement n'existe pas → événement dans `crm.evenement`.)
+    ⚠️ Pas d'UI : déclencheur = action C3. Signature non stockée (param, livrable onboarding).
 - [ ] **C3 (Run 9) — UI Calendar (échéances + file relances)**
   Livrable : vue mois + liste filtrable + détail échéance (preuve) + file relances (envoi
   lot) ; raccourcis E/R/V/N. · ⚠️ **Pas de wireframes** → s'appuyer sur les ASCII mockups

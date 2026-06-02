@@ -115,6 +115,9 @@ importers:
       '@zarya/db':
         specifier: workspace:*
         version: link:../db
+      '@zarya/integrations':
+        specifier: workspace:*
+        version: link:../integrations
       handlebars:
         specifier: ^4.7.8
         version: 4.7.9

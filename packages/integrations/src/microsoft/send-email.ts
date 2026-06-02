@@ -40,6 +40,22 @@ export interface SendCabinetEmailOptions {
   client?: EmailSender;
 }
 
+// Envoi tracé (draft+send) — retourne l'identifiant du message (tracking réponses C4).
+export type SendCabinetEmailTrackedOutcome =
+  | { status: "sent"; messageId: string; internetMessageId: string | null }
+  | { status: "revoked" }
+  | { status: "error"; code: string };
+
+interface TrackedSender {
+  sendEmailTracked(
+    params: SendEmailParams,
+  ): Promise<{ messageId: string; internetMessageId: string | null }>;
+}
+
+export interface SendCabinetEmailTrackedOptions {
+  client?: TrackedSender;
+}
+
 /**
  * Applique la signature au corps. PUR. Sépare par un double saut (texte) ou deux <br>
  * (HTML). Sans signature → corps inchangé.
@@ -76,6 +92,39 @@ export async function sendCabinetEmail(
       ...(params.saveToSentItems !== undefined ? { saveToSentItems: params.saveToSentItems } : {}),
     });
     return { status: "sent" };
+  } catch (err) {
+    if (err instanceof MicrosoftGraphError && err.code === "revoked") {
+      return { status: "revoked" };
+    }
+    const code = err instanceof MicrosoftGraphError ? err.code : "error";
+    return { status: "error", code };
+  }
+}
+
+/**
+ * Variante TRACÉE (draft+send) : retourne l'identifiant du message envoyé en plus du
+ * statut. Utilisée pour les relances (C2b) afin de stocker `internetMessageId` (tracking
+ * des réponses C4, ADR 0019). Même contrat « ne lève pas, retourne un statut ».
+ */
+export async function sendCabinetEmailTracked(
+  cabinet_id: string,
+  params: SendCabinetEmailParams,
+  opts: SendCabinetEmailTrackedOptions = {},
+): Promise<SendCabinetEmailTrackedOutcome> {
+  const client = opts.client ?? new MicrosoftGraphClient(cabinet_id);
+  const bodyType = params.bodyType ?? "Text";
+  const body = applySignature(params.body, params.signature, bodyType);
+
+  try {
+    const res = await client.sendEmailTracked({
+      to: params.to,
+      subject: params.subject,
+      body,
+      bodyType,
+      ...(params.cc ? { cc: params.cc } : {}),
+      ...(params.saveToSentItems !== undefined ? { saveToSentItems: params.saveToSentItems } : {}),
+    });
+    return { status: "sent", messageId: res.messageId, internetMessageId: res.internetMessageId };
   } catch (err) {
     if (err instanceof MicrosoftGraphError && err.code === "revoked") {
       return { status: "revoked" };
