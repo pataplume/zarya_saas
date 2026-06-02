@@ -13,6 +13,11 @@ import { Sidebar } from "@/components/layout/sidebar";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 
+  // Un contact RH client n'a rien à faire dans le dashboard fiduciaire → mini-dashboard (F2).
+  if ((user?.app_metadata.role as string | undefined) === "client_contact") {
+    redirect("/espace");
+  }
+
   const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
   if (!cabinet_id) {
     redirect("/onboarding");

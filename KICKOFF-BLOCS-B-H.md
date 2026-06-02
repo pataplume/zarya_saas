@@ -507,11 +507,15 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   présents** dans `@zarya/auth` (rbac.ts). 4 tests server-action (nominal+app_metadata sécurisé, RBAC,
   anti-fuite, idempotence ; Supabase admin mocké → pas d'email réel). ⚠️ **Restent** : page d'activation
   (pose mot de passe), audit connexions, sessions 24h, routage `client_contact`→mini-dashboard (= F2).
-- [ ] **F2 — Coquille Dashboard Client (branding, nav, états)**
-  Header logo+couleurs cabinet (CSS vars), nav, états utilisateur (onboarding forcé/reprise/
-  suspendu/service off). · Surface : `/app` client, vues filtrées `v_dashboard_client_*`,
-  i18n FR/DE/IT, PWA. · Done : mobile-first 375px ; **champs invisibles client jamais
-  exposés** (notes internes, risque, anomalies, autres clients) via vues dédiées.
+- [~] **F2 — Coquille Dashboard Client (branding, nav, routage)** ✅ *(coquille+routage ; pages/vues = F8)*
+  Migration **0032** : colonnes branding additives sur `crm.cabinet` (`logo_url`, `couleur_primaire`,
+  `couleur_secondaire`). Coquille `apps/web/app/(app)/espace/` (layout + page accueil) : header
+  logo+couleurs cabinet en **CSS vars** (défauts ZARYA si null — `resolveBranding`), **bottom-tab
+  mobile-first** (`ClientNav`, 7 onglets), footer « Propulsé par ZARYA ». **Routage par rôle** :
+  `client_contact` → `/espace` (garde ajouté au layout fiduciaire `(app)/app`) ; `/espace` redirige
+  un non-`client_contact` → `/app`. Helpers PURS `espaceCible`/`resolveBranding`/`NAV_CLIENT`
+  (`lib/client-space.ts`) + 5 tests unit. Activation réutilise `/auth/callback`. ⚠️ **Pages de contenu
+  + vues filtrées `v_dashboard_client_*` (champs internes masqués) = F8** ; i18n FR/DE/IT + PWA différés.
 - [ ] **F3 — Étape 1 : identification entreprise via Zefix**
   Recherche IDE/raison sociale (**route handler** `/api/zefix/*`, ADR 0009), consentement
   nLPD obligatoire avant appel, auto-remplissage éditable, fallback manuel. Crée `crm.client`
