@@ -6,6 +6,9 @@ export default defineConfig({
     // Les packages workspace exposent directement leur source TS (exports "." → src/index.ts).
     // Le runner racine n'a pas de symlink node_modules/@zarya/*, on résout donc à la main.
     alias: {
+      // Alias `@/` d'apps/web (tsconfig paths) — pour que les server actions importées par les
+      // tests résolvent `@/lib/*`, `@/components/*` comme sous Next. Préfixe, donc trailing slash.
+      "@/": fileURLToPath(new URL("./apps/web/", import.meta.url)),
       "@zarya/extraction": fileURLToPath(
         new URL("./packages/extraction/src/index.ts", import.meta.url),
       ),

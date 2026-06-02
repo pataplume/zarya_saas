@@ -526,10 +526,15 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   AUTH + RBAC + scope cabinet + anti-doublon IDE. 4 tests server-action (nominal+adresse+audit, sans
   consentement, fallback, RBAC ; Zefix mocké). ⚠️ Hors-scope : ESTV TVA, Moneyhouse = v2 ; UI
   recherche/préremplissage = avec le wizard onboarding-client.
-- [ ] **F4 — Étape 2 : services + paramètres + checklist documents**
-  Sélection des 6 services, sous-formulaires (compta/TVA/bouclement), application
-  `crm.modele_checklist` → `crm.document_attendu`. · Prérequis : F3, A3, A4, A8. · Done :
-  régime TVA saisi manuellement ; checklist éditable.
+- [~] **F4 — Étape 2 : services + paramètres + checklist documents** ✅ *(server action + checklist ; UI cards = avec wizard)*
+  Cœur PUR `lib/checklist-onboarding.ts` `checklistPourServices(typeClient, services)` (modèle
+  **CODÉ**, arbitré founder ; `crm.modele_checklist` = Phase 2). Server action
+  `configurerServicesClientAction` (`apps/web/.../clients/services/`) : crée `crm.service` (1/service,
+  parametres jsonb) + upsert `crm.param_comptable` (si comptabilité ; logiciel/plan) + applique la
+  checklist → `crm.document_attendu` (service_id lié). **Idempotent** (skip service/doc déjà présent),
+  scope cabinet, RBAC. 6 tests unit (checklist) + 4 server-action (nominal, idempotence, RBAC, anti-fuite).
+  Alias `@/` ajouté à vitest.config (pour importer les actions apps/web). ⚠️ UI cards 6 services +
+  sous-formulaires = avec le wizard onboarding-client ; checklist éditable + `crm.modele_checklist` perso = Phase 2.
 - [ ] **F5 — Étape 3a : configuration générale paie**
   Formulaire → `crm.salaire_config` ; skipé si service salaires inactif. · Prérequis : F4, A6.
 - [ ] **F6 — Étape 3b : référentiel employés + extraction IA + validation granulaire**
