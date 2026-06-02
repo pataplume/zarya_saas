@@ -55,6 +55,12 @@ export {
   TAUX_TVA_CH_VALIDES,
 } from "./detect-facture-anomalies";
 export {
+  type ExportResult,
+  exporterFacturesValidees,
+  type FactureExportRow,
+  genererExportCsv,
+} from "./export-facture-csv";
+export {
   applyQrBill,
   coerceDevise,
   type Devise,
