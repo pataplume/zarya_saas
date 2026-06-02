@@ -222,6 +222,16 @@ export {
   scoreClients,
 } from "./resolve-client";
 export {
+  assertOnboardingTermine,
+  type CompletudeOnboarding,
+  evaluerCompletude,
+  OnboardingNonTermineError,
+  onboardingEstTermine,
+  type StatutSessionOnboarding,
+  type TerminerOnboardingResult,
+  terminerOnboarding,
+} from "./session-onboarding";
+export {
   type ChampsProposition,
   type ChampValidation,
   diffValidation,
