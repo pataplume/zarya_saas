@@ -89,6 +89,24 @@ export {
   type ClassifyDocRaw,
 } from "./prompts/classification-doc";
 export {
+  decodeQrFromDocument,
+  isQrIban,
+  isValidCreditorReference,
+  isValidIban,
+  isValidQrReference,
+  normalizeIban,
+  parseSwissQrBill,
+  type QrBillCurrency,
+  type QrBillDecodeResult,
+  type QrBillParty,
+  type QrBillValidation,
+  type QrDocumentSource,
+  type QrPayloadExtractor,
+  type ReferenceType,
+  type SwissQrBill,
+  unavailableQrPayloadExtractor,
+} from "./qr-bill";
+export {
   type ClientCandidat,
   type ClientPalier,
   type ClientResolution,

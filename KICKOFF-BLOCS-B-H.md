@@ -409,10 +409,17 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   ADR 0013), cycle FK proposition↔facture posé en DB, registres `METIER_TABLES`/`RLS_TABLES`,
   tests isolation (`facture-isolation.test.ts`) + anti-fuite (generic-leak). FK réelles vers
   `doc.document`/`extraction.invocation`/`crm.client`.
-- [ ] **E2 — Trigger depuis Doc + décodage QR-bill déterministe (avant LLM)**
-  Déclenche sur `doc.document type LIKE 'facture_%'` (B5) ; décodage QR-bill SIX +
-  validations checksums (IBAN mod-97, QRR mod-10). · Prérequis : **ADR QR-bill**, B5, E1. ·
-  Done : QR décodé sans LLM ; fallback IA si QR corrompu ; tests QRR/SCOR/NON.
+- [~] **E2 — décodage QR-bill déterministe (avant LLM)** ✅ *couche déterministe livrée*
+  `packages/extraction/src/qr-bill.ts` (cœur PUR, **zéro dépendance**) : `parseSwissQrBill`
+  (payload SPC v0200/0210) + validators `isValidIban` (mod-97) / `isQrIban` (IID 30000–31999) /
+  `isValidQrReference` (QRR mod-10 récursif) / `isValidCreditorReference` (SCOR ISO 11649) +
+  cohérence QR-IBAN↔type réf. Identification par en-tête **SPC** (ADR 0020). **Seam image
+  `decodeQrFromDocument` exposé mais NON câblé** (`unavailableQrPayloadExtractor` → null →
+  fallback IA E3) — couche image = même jalon que l'OCR `vision` différé. 23 tests
+  (QRR/SCOR/NON nominal + erreurs checksum/cohérence/troncature + seam). ⚠️ **RESTE en E2/E3 :
+  le trigger « déclenche sur `doc.document type LIKE 'facture_%'` » (B5) câblé au pipeline**
+  (extraction proposition_facture) — déplacé avec E3 (extraction IA) car il dépend du même
+  point d'entrée pipeline.
 - [ ] **E3 — Extraction IA structurée (champs hors-QR)**
   `FactureSchema` 15+ champs, contexte `facture`, catégorie `chat_large`, bbox sources (PDF
   natif). · ⚠️ MVP = totaux (lignes de détail = Phase 1.5). · Done : champs+confiance+bbox ;
