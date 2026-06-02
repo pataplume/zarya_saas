@@ -779,12 +779,14 @@ beforeAll(async () => {
     "salaire.proposition_employe": propEmpB.id,
     "salaire.proposition_champ": propChampB.id,
   });
-});
+}, 120_000); // ~150 inserts séquentiels × 2 cabinets sur DB distante : le hookTimeout
+// global (30 s) est insuffisant sous la latence réseau CI (≈200 ms/round-trip). Ce seeding
+// est le plus lourd de la suite et croît à chaque table métier → timeout dédié généreux.
 
 afterAll(async () => {
   if (cabinetA && cabinetB) await cleanupCabinets(sql, cabinetA.id, cabinetB.id);
   await sql.end();
-});
+}, 60_000);
 
 describe("Anti-fuite cross-tenant — chemin applicatif (db service role + filtre cabinet_id)", () => {
   describe.each(METIER_TABLES)("$name", (spec) => {
