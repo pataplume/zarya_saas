@@ -420,10 +420,21 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   le trigger « déclenche sur `doc.document type LIKE 'facture_%'` » (B5) câblé au pipeline**
   (extraction proposition_facture) — déplacé avec E3 (extraction IA) car il dépend du même
   point d'entrée pipeline.
-- [ ] **E3 — Extraction IA structurée (champs hors-QR)**
-  `FactureSchema` 15+ champs, contexte `facture`, catégorie `chat_large`, bbox sources (PDF
-  natif). · ⚠️ MVP = totaux (lignes de détail = Phase 1.5). · Done : champs+confiance+bbox ;
-  trace invocation ; tests nominal/erreur.
+- [~] **E3 — Extraction IA structurée (champs hors-QR)** — découpé E3a/E3b (arbitré founder)
+  `FactureSchema` 15+ champs, contexte `facture`, catégorie `chat_large`. · ⚠️ MVP = totaux
+  (lignes de détail = Phase 1.5). bbox sources = différé (PDF natif, avec OCR vision).
+  - [x] **E3a — cœur extracteur (PUR, sans DB)** ✅ : `prompts/facture.ts` (prompt versionné
+    `ik-facture-v1` + `FACTURE_JSON_SCHEMA` strict + anti-injection + taux TVA CH 2026) ;
+    `extract-facture.ts` (`FactureExtractor` contrat, `StubFactureExtractor` défaut prod,
+    `getFactureExtractor` flag EXTRACTION_MODE, `toFactureProposal` normalizer + détection
+    `montants_incoherents`, **`applyQrBill` QR-first PUR** : paiement IBAN/montant/devise/réf du
+    QR-bill E2 écrase l'IA) ; `infomaniak-facture-extractor.ts` (live chat_large, calque
+    InfomaniakClassifier json_schema+fallback). 11 tests unit. **Aucun appel réseau/DB.**
+  - [ ] **E3b — câblage** : déclencheur **après finalisation Doc si `type LIKE 'facture_%'`**
+    (hook applicatif dans `finaliserDocument`, arbitré founder) → décode QR (E2, seam différé →
+    fallback IA) → `extractFacture` → trace `extraction.invocation` (`context='facture'`) →
+    crée `facture.proposition_facture` (pattern proposition→validation). Done : proposition créée
+    scopée cabinet, invocation tracée, tests intégration nominal/erreur + anti-fuite.
 - [ ] **E4 — Anomalies + fraude IBAN + doublons**
   Règles (TVA cohérente, IBAN mod-97, IDE mod-11, taux CH) ; **fraude RIB** (IBAN changé sur
   fournisseur connu → alerte forte + `audit.cabinet_evenement` + validation obligatoire même
