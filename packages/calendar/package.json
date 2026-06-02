@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@zarya/db": "workspace:*",
+    "@zarya/extraction": "workspace:*",
     "@zarya/integrations": "workspace:*",
     "handlebars": "^4.7.8"
   },

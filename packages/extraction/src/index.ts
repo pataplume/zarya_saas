@@ -46,9 +46,12 @@ export {
   SEUIL_AUTO_HYBRIDE,
 } from "./decide-auto-classement";
 export {
+  couvrirEcheancesParDocumentAttendu,
   type FinaliserDocumentInput,
   type FinaliserDocumentResult,
   finaliserDocument,
+  type RecalculRisqueResult,
+  recalculerRisqueClient,
 } from "./finalize-document";
 export { type ChatModelClient, InfomaniakClassifier } from "./infomaniak-classifier";
 export {

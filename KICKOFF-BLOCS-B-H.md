@@ -281,12 +281,21 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     le report. **Grille mois différée** (arbitré founder : liste-first). ⚠️ détail riche (docs requis,
     historique relances) non inclus — liste + transitions seulement (suffisant MVP). Tests : 5
     server-action (RBAC, anti-fuite, traiter/annuler/reporter). DoD vert (**607 tests**).
-- [ ] **C4 — Tracking réponses + escalade + transitions retard**
-  Livrable : tracking réponse (`In-Reply-To`, doc reçu couvre échéance → `traitee`),
-  escalade après N relances (défaut 3), transition `imminente`→`en_retard` + recalcul risque,
-  pause auto post-réponse. · Surface : `crm.relance`, `crm.echeance`, `crm.risque`,
-  `crm.evenement`. · Prérequis : C1, C2, **B5** (signal doc reçu).
-  > **Hors-scope v1.0** : Run 8 sync Outlook 2-way = Phase 2 (MVP = 1-way ZARYA→Outlook).
+- [x] **C4 — Tracking réponses (doc) + transitions retard + recalcul risque** ✅ — **BLOC C COMPLET**
+  Tracking par **document reçu** : `couvrirEcheancesParDocumentAttendu` (dans finaliserDocument,
+  B5) — une échéance dont TOUTES les attentes `documents_requis` sont reçues passe `traitee`
+  (et sort des candidats à relance = pause auto). Recalcul risque extrait en
+  `recalculerRisqueClient` (exporté, réutilisé). `majEcheancesEtRisque` (`@zarya/calendar`
+  +dep `@zarya/extraction`) : transition statuts (fn 0007) + recalcul risque des clients en
+  retard → route Vercel Cron `GET /api/calendar/maj-echeances` (CRON_SECRET, `0 4 * * *`).
+  · **Arbitré founder (AskUserQuestion)** : (1) **tracking par doc** ; **In-Reply-To email
+  DIFFÉRÉ** (email_brut ne capte pas l'en-tête des entrants → Phase 2) ; (2) recalcul risque
+  via route cron TS ; (3) 1 PR. · ⚠️ **ESCALADE après N relances DIFFÉRÉE** (découvert : la
+  génération C2a ne crée qu'1 relance/échéance — pas de série N°2/3 à escalader ; nécessite
+  d'abord la génération multi-relances). Tests : 3 intégration + 2 auth route + régression B5 OK.
+  DoD vert (**612 tests**).
+  > **Hors-scope v1.0** : Run 8 sync Outlook 2-way = Phase 2. **Différés C4** : escalade
+  multi-relances, tracking réponse par email (In-Reply-To).
 
 ### BLOC D — Microsoft Graph (producteur transverse). Préalable de C2, E6, G5.
 
