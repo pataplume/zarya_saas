@@ -318,6 +318,11 @@ export const cabinet = crmSchema.table(
       .notNull()
       .default("strict"),
 
+    // ── Branding dashboard client (F2, dashboard-client.md §4.1) — défauts ZARYA si null ──
+    logo_url: text("logo_url"),
+    couleur_primaire: text("couleur_primaire"),
+    couleur_secondaire: text("couleur_secondaire"),
+
     // ── Identité enrichie (remplie à l'étape A) ─────────────────────────────
     zefix_ehraid: text("zefix_ehraid"),
     forme_juridique: text("forme_juridique"),
