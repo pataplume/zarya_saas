@@ -498,11 +498,15 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
   +extraction_ia). **IBAN + AVS ANTI-CLAIR** (`iban_vault_id`/`numero_avs_vault_id`, ADR 0013 ;
   write-path Vault = F6). DoD complet : cabinet_id+client_id, RLS double, triggers cohérence,
   registres METIER/RLS, seeds, test isolation `salaire-employe-acces.test.ts` + anti-fuite generic-leak.
-- [ ] **F1 — Auth & accès contact RH client**
-  Création compte par le cabinet (`crm.contact.est_contact_rh`, `salaire.acces_client` +
-  `token_activation`, email activation, `app_metadata.role='client_contact'`+`client_id` JWT).
-  · Done : **RLS double `cabinet_id`+`client_id`** (le contact ne voit QUE son client) ;
-  sessions 24h ; audit connexions ; multi-clients = MVP non supporté.
+- [~] **F1 — Auth & accès contact RH client** ✅ *(provisioning livré ; activation page + audit = suite)*
+  Server action `creerAccesClientAction` (`apps/web/.../clients/acces-client/`) : le cabinet crée
+  l'accès → invite Supabase (`inviteUserByEmail`, arbitré founder) + **`app_metadata` server-controlled
+  `role='client_contact'`+`client_id`+`cabinet_id`** (JAMAIS user_metadata) + `salaire.acces_client`
+  + `crm.contact.est_contact_rh=true`. AUTH cabinet + RBAC (responsable/collaborateur) + **scope
+  cabinet/client (anti-fuite)** + idempotence. Rôle `client_contact` + `requireClientContact` **déjà
+  présents** dans `@zarya/auth` (rbac.ts). 4 tests server-action (nominal+app_metadata sécurisé, RBAC,
+  anti-fuite, idempotence ; Supabase admin mocké → pas d'email réel). ⚠️ **Restent** : page d'activation
+  (pose mot de passe), audit connexions, sessions 24h, routage `client_contact`→mini-dashboard (= F2).
 - [ ] **F2 — Coquille Dashboard Client (branding, nav, états)**
   Header logo+couleurs cabinet (CSS vars), nav, états utilisateur (onboarding forcé/reprise/
   suspendu/service off). · Surface : `/app` client, vues filtrées `v_dashboard_client_*`,
