@@ -20,6 +20,7 @@
  * + dans RLS_TABLES. C'est non négociable (cf. ADR 0005 addendum).
  */
 import {
+  accesClient,
   adresse,
   and,
   banque,
@@ -35,6 +36,7 @@ import {
   echeance,
   emailBrut,
   emailSubscription,
+  employe,
   eq,
   evenement,
   facture,
@@ -67,6 +69,7 @@ import { createServiceClient } from "../helpers/rls";
 import {
   cleanupCabinets,
   getSessionId,
+  seedAccesClient,
   seedAdresse,
   seedBanque,
   seedCabinetIntegration,
@@ -78,6 +81,7 @@ import {
   seedEcheance,
   seedEmailBrut,
   seedEmailSubscription,
+  seedEmploye,
   seedEvenement,
   seedFacture,
   seedFichierPhysique,
@@ -383,6 +387,21 @@ const METIER_TABLES: MetierTableSpec[] = [
     idCol: mappingExport.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
+  // Bloc F0 — module Salaire (schéma minimal).
+  {
+    name: "salaire.employe",
+    table: employe,
+    scopeCol: employe.cabinet_id,
+    idCol: employe.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.acces_client",
+    table: accesClient,
+    scopeCol: accesClient.cabinet_id,
+    idCol: accesClient.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
 ];
 
 // Tables dont la RLS doit rester ACTIVÉE en DB (défense en profondeur).
@@ -430,6 +449,9 @@ const RLS_TABLES = [
   ["facture", "proposition_facture"],
   ["facture", "facture"],
   ["facture", "mapping_export"],
+  // Bloc F0 — module Salaire.
+  ["salaire", "employe"],
+  ["salaire", "acces_client"],
 ] as const;
 
 let sql: postgres.Sql;
@@ -584,6 +606,15 @@ beforeAll(async () => {
     await seedMappingExport(sql, cabinetA.id),
     await seedMappingExport(sql, cabinetB.id),
   ];
+  // Bloc F0 — module Salaire.
+  const [employeA, employeB] = [
+    await seedEmploye(sql, cabinetA.id, clientA.id),
+    await seedEmploye(sql, cabinetB.id, clientB.id),
+  ];
+  const [accesA, accesB] = [
+    await seedAccesClient(sql, cabinetA.id, clientA.id),
+    await seedAccesClient(sql, cabinetB.id, clientB.id),
+  ];
 
   Object.assign(idsA, {
     "crm.cabinet": cabinetA.id,
@@ -622,6 +653,8 @@ beforeAll(async () => {
     "facture.proposition_facture": propFactA.id,
     "facture.facture": factA.id,
     "facture.mapping_export": mapExpA.id,
+    "salaire.employe": employeA.id,
+    "salaire.acces_client": accesA.id,
   });
   Object.assign(idsB, {
     "crm.cabinet": cabinetB.id,
@@ -660,6 +693,8 @@ beforeAll(async () => {
     "facture.proposition_facture": propFactB.id,
     "facture.facture": factB.id,
     "facture.mapping_export": mapExpB.id,
+    "salaire.employe": employeB.id,
+    "salaire.acces_client": accesB.id,
   });
 });
 

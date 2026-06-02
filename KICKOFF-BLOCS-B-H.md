@@ -46,7 +46,7 @@
 | **C** | **Calendar fini** — génération auto échéances, envoi relances, UI | A3, A4 | à faire (Runs 1-5 déjà livrés) |
 | **D** | **Microsoft Graph** — OAuth + wrapper Graph (producteur transverse) | — | à faire (package vide) |
 | **E** | **Facture** — décodage QR-bill + extraction IA + export | B, A3, A5, **D** | ✅ **COMPLET** (E1→E6 ; ADR 0020) |
-| **F** | **onboarding-client + dashboard-client** | A | à faire |
+| **F** | **onboarding-client + dashboard-client** | A | 🚧 **EN COURS** (F0 ✅ schéma salaire minimal) |
 | **G** | **Salaire** (workflow, PAS de calcul de paie) | B, C, **F**, A6 | à faire |
 | **H** | **embeddings/pgvector + Search** (indexe tout) | tous | à faire (bloqué par modèle embeddings IK) |
 | **I** | **Chiffrement au repos** colonnes ultra-sensibles (tâche #17, ADR 0013) | voir ⚠️ §4.I | à faire — **placé après H par décision founder** |
@@ -487,14 +487,17 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
 
 ### BLOC F — onboarding-client + dashboard-client. Prérequis : A. *(ADR 0007 + 0008)*
 
-> ⚠️ **Inversion d'ordre F↔G à trancher** : `salaire.employe` / `proposition_employe` /
-> `proposition_champ` / `acces_client` sont **consommés dès F** (F1, F6) mais appartiennent
-> nominalement au schéma Salaire (G1). **Recommandation** : poser ces tables précises **en
-> tête de F** (run F0 « schéma salaire minimal »), le reste du schéma en G1. À arbitrer.
+> ✅ **F↔G TRANCHÉ (founder)** : F0 pose un schéma salaire MINIMAL (2 tables FK-propres) ;
+> le reste de Salaire en G1. Le cluster propositions (proposition_employe/champ) part à F6
+> car ses FK NOT NULL exigent session_onboarding+extraction_ia (zéro-FK-fantôme).
 
-- [ ] **F0 — (recommandé) Schéma salaire minimal consommé par F**
-  Poser `salaire.employe`, `salaire.proposition_employe`, `salaire.proposition_champ`,
-  `salaire.acces_client` (DoD table métier complet). · ⚠️ dépend de l'arbitrage F↔G ci-dessus.
+- [x] **F0 — Schéma salaire minimal consommé par F** ✅ (migration 0031, arbitré founder)
+  Ouvre `salaire.*` avec **seulement les 2 tables FK-propres** consommées tout de suite :
+  `salaire.employe` (référentiel Swissdec-ready) + `salaire.acces_client` (auth contact RH, F1).
+  ⚠️ **`proposition_employe`/`proposition_champ` DÉPLACÉES à F6** (FK NOT NULL → session_onboarding
+  +extraction_ia). **IBAN + AVS ANTI-CLAIR** (`iban_vault_id`/`numero_avs_vault_id`, ADR 0013 ;
+  write-path Vault = F6). DoD complet : cabinet_id+client_id, RLS double, triggers cohérence,
+  registres METIER/RLS, seeds, test isolation `salaire-employe-acces.test.ts` + anti-fuite generic-leak.
 - [ ] **F1 — Auth & accès contact RH client**
   Création compte par le cabinet (`crm.contact.est_contact_rh`, `salaire.acces_client` +
   `token_activation`, email activation, `app_metadata.role='client_contact'`+`client_id` JWT).

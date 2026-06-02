@@ -103,3 +103,14 @@ export {
   statutPropositionEnum,
   typeFactureEnum,
 } from "./facture";
+export {
+  accesClient,
+  confessionEnum,
+  employe,
+  etatCivilEnum,
+  roleAccesClientEnum,
+  salaireSchema,
+  sexeEnum,
+  statutEmployeEnum,
+  typeContratEnum,
+} from "./salaire";
