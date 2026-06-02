@@ -111,7 +111,7 @@ describe("validerLotAction + note interne (authentifié, B7)", () => {
   function champsComplets(client_id: string) {
     return {
       client_id_propose: client_id,
-      type_propose: "facture",
+      type_propose: "releve_bancaire",
       categorie_proposee: "commercial",
       periode_proposee: "2026-04",
       libelle_propose: "Facture Swisscom",
@@ -157,7 +157,7 @@ describe("validerLotAction + note interne (authentifié, B7)", () => {
     const complet = await seedChain(cabinetA.id, user.id, champsComplets(clientA.id));
     const incomplet = await seedChain(cabinetA.id, user.id, {
       client_id_propose: null, // pas de client → non validable à l'aveugle
-      type_propose: "facture",
+      type_propose: "releve_bancaire",
       categorie_proposee: "commercial",
       periode_proposee: null,
       libelle_propose: "Sans client",
@@ -232,7 +232,7 @@ describe("validerLotAction + note interne (authentifié, B7)", () => {
     const fd = new FormData();
     fd.set("proposition_id", c.propId);
     fd.set("client_id", clientA.id);
-    fd.set("type", "facture");
+    fd.set("type", "releve_bancaire");
     fd.set("categorie", "commercial");
     fd.set("periode", "2026-04");
     fd.set("libelle", "Facture Swisscom");
@@ -260,7 +260,7 @@ describe("validerLotAction + note interne (authentifié, B7)", () => {
     const fd = new FormData();
     fd.set("proposition_id", c.propId);
     fd.set("client_id", clientA.id);
-    fd.set("type", "facture");
+    fd.set("type", "releve_bancaire");
     fd.set("categorie", "fiscal"); // correction (proposé: commercial)
     fd.set("periode", "2026-04");
     fd.set("libelle", "Facture Swisscom");
