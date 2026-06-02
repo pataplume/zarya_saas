@@ -123,6 +123,12 @@ export {
   recalculerRisqueClient,
 } from "./finalize-document";
 export {
+  FinalisationBloqueeError,
+  type FinaliserPropositionEmployeInput,
+  type FinaliserPropositionEmployeResult,
+  finaliserPropositionEmploye,
+} from "./finalize-employe";
+export {
   type DeviseFacture,
   type FinaliserFactureInput,
   type FinaliserFactureResult,
@@ -221,3 +227,10 @@ export {
   diffValidation,
   type ValidationDiff,
 } from "./validation";
+export {
+  type ChampPourFinalisation,
+  champsBloquants,
+  detectDoublonsParIdentite,
+  type IdentiteEmploye,
+  isValidAvs,
+} from "./valider-employe";
