@@ -397,14 +397,18 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
 
 ### BLOC E — Facture. Prérequis : B, A3, A5, **D**. *(schéma `facture.*` à créer)*
 
-> ⚠️ **ADR QR-bill à OUVRIR avant E2** (lib décodage SIX + détection croix suisse non
-> choisies — facture §16). ⚠️ Factures **scannées** dépendent de l'OCR `vision` IK (différé).
+> ✅ **ADR QR-bill TRANCHÉ (ADR 0020)** : parser SPC + validators déterministes maintenant ;
+> extraction image-depuis-PDF différée derrière un seam ; identification par en-tête `SPC`
+> (pas la croix suisse). ⚠️ Factures **scannées** dépendent de l'OCR `vision` IK (différé).
 
-- [ ] **E1 — Schéma `facture.*` + référentiel fournisseur**
+- [x] **E1 — Schéma `facture.*` + référentiel fournisseur** ✅ (migration 0030)
   Tables `facture.facture`, `proposition_facture`, `fournisseur` (par couple cabinet×client),
-  `mapping_export`, `ligne_detail` (Phase 1.5). · Prérequis : A3, A5 (IBAN). · Done : **DoD
-  table métier complet** (`cabinet_id`+`client_id`, RLS double, triggers, registres, FK
-  réelles vers `doc.document`/`extraction.invocation`/`crm.client`, tests isolation+anti-fuite).
+  `mapping_export`. `ligne_detail` + colonnes stats/patterns + `facture.export` = différés
+  (Phase 1.5 / E6). · DoD livré : `cabinet_id`+`client_id`, **RLS double** (4 tables),
+  **4 triggers cohérence** `fn_check_client_cabinet`, **IBAN anti-clair** (`*_vault_id` UUID,
+  ADR 0013), cycle FK proposition↔facture posé en DB, registres `METIER_TABLES`/`RLS_TABLES`,
+  tests isolation (`facture-isolation.test.ts`) + anti-fuite (generic-leak). FK réelles vers
+  `doc.document`/`extraction.invocation`/`crm.client`.
 - [ ] **E2 — Trigger depuis Doc + décodage QR-bill déterministe (avant LLM)**
   Déclenche sur `doc.document type LIKE 'facture_%'` (B5) ; décodage QR-bill SIX +
   validations checksums (IBAN mod-97, QRR mod-10). · Prérequis : **ADR QR-bill**, B5, E1. ·

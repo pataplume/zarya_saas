@@ -92,3 +92,14 @@ export {
   extractionStatusEnum,
   invocation,
 } from "./extraction";
+export {
+  deviseEnum,
+  facture,
+  factureSchema,
+  fournisseur,
+  mappingExport,
+  propositionFacture,
+  statutFactureEnum,
+  statutPropositionEnum,
+  typeFactureEnum,
+} from "./facture";

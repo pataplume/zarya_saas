@@ -37,15 +37,19 @@ import {
   emailSubscription,
   eq,
   evenement,
+  facture,
   fichierPhysique,
+  fournisseur,
   invitationMembre,
   invocation,
   mandat,
+  mappingExport,
   modeleRelance,
   note,
   paramComptable,
   pauseClient,
   propositionClassement,
+  propositionFacture,
   relance,
   relation,
   risque,
@@ -75,15 +79,19 @@ import {
   seedEmailBrut,
   seedEmailSubscription,
   seedEvenement,
+  seedFacture,
   seedFichierPhysique,
+  seedFournisseur,
   seedInvitation,
   seedInvocation,
   seedMandat,
+  seedMappingExport,
   seedModeleRelance,
   seedNote,
   seedParamComptable,
   seedPauseClient,
   seedProposition,
+  seedPropositionFacture,
   seedRelance,
   seedRelation,
   seedRisque,
@@ -346,6 +354,35 @@ const METIER_TABLES: MetierTableSpec[] = [
     idCol: emailBrut.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
+  // Bloc E1 — module Facture (facture.*).
+  {
+    name: "facture.fournisseur",
+    table: fournisseur,
+    scopeCol: fournisseur.cabinet_id,
+    idCol: fournisseur.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "facture.proposition_facture",
+    table: propositionFacture,
+    scopeCol: propositionFacture.cabinet_id,
+    idCol: propositionFacture.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "facture.facture",
+    table: facture,
+    scopeCol: facture.cabinet_id,
+    idCol: facture.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "facture.mapping_export",
+    table: mappingExport,
+    scopeCol: mappingExport.cabinet_id,
+    idCol: mappingExport.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
 ];
 
 // Tables dont la RLS doit rester ACTIVÉE en DB (défense en profondeur).
@@ -388,6 +425,11 @@ const RLS_TABLES = [
   // Ingestion email Microsoft Graph (D4a).
   ["doc", "email_subscription"],
   ["doc", "email_brut"],
+  // Bloc E1 — module Facture.
+  ["facture", "fournisseur"],
+  ["facture", "proposition_facture"],
+  ["facture", "facture"],
+  ["facture", "mapping_export"],
 ] as const;
 
 let sql: postgres.Sql;
@@ -525,6 +567,23 @@ beforeAll(async () => {
     await seedEmailBrut(sql, cabinetA.id),
     await seedEmailBrut(sql, cabinetB.id),
   ];
+  // Bloc E1 — module Facture (ordre FK : fournisseur → facture ; proposition + mapping indépendants).
+  const [fournA, fournB] = [
+    await seedFournisseur(sql, cabinetA.id, clientA.id),
+    await seedFournisseur(sql, cabinetB.id, clientB.id),
+  ];
+  const [propFactA, propFactB] = [
+    await seedPropositionFacture(sql, cabinetA.id, clientA.id),
+    await seedPropositionFacture(sql, cabinetB.id, clientB.id),
+  ];
+  const [factA, factB] = [
+    await seedFacture(sql, cabinetA.id, clientA.id, fournA.id),
+    await seedFacture(sql, cabinetB.id, clientB.id, fournB.id),
+  ];
+  const [mapExpA, mapExpB] = [
+    await seedMappingExport(sql, cabinetA.id),
+    await seedMappingExport(sql, cabinetB.id),
+  ];
 
   Object.assign(idsA, {
     "crm.cabinet": cabinetA.id,
@@ -559,6 +618,10 @@ beforeAll(async () => {
     "calendar.pause_client": pauseA.id,
     "doc.email_subscription": emailSubA.id,
     "doc.email_brut": emailBrutA.id,
+    "facture.fournisseur": fournA.id,
+    "facture.proposition_facture": propFactA.id,
+    "facture.facture": factA.id,
+    "facture.mapping_export": mapExpA.id,
   });
   Object.assign(idsB, {
     "crm.cabinet": cabinetB.id,
@@ -593,6 +656,10 @@ beforeAll(async () => {
     "calendar.pause_client": pauseB.id,
     "doc.email_subscription": emailSubB.id,
     "doc.email_brut": emailBrutB.id,
+    "facture.fournisseur": fournB.id,
+    "facture.proposition_facture": propFactB.id,
+    "facture.facture": factB.id,
+    "facture.mapping_export": mapExpB.id,
   });
 });
 
