@@ -39,6 +39,7 @@ import {
   employe,
   eq,
   evenement,
+  extractionIa,
   facture,
   fichierPhysique,
   fournisseur,
@@ -50,16 +51,20 @@ import {
   note,
   paramComptable,
   pauseClient,
+  propositionChamp,
   propositionClassement,
+  propositionEmploye,
   propositionFacture,
   relance,
   relation,
   risque,
   salaireConfig,
   service,
+  sessionOnboarding,
   sessionOnboardingFiduciaire,
   templateEcheance,
   uploadBrut,
+  uploadFichier,
   zefixRechercheCabinet,
 } from "@zarya/db";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
@@ -83,6 +88,7 @@ import {
   seedEmailSubscription,
   seedEmploye,
   seedEvenement,
+  seedExtractionIa,
   seedFacture,
   seedFichierPhysique,
   seedFournisseur,
@@ -95,15 +101,19 @@ import {
   seedParamComptable,
   seedPauseClient,
   seedProposition,
+  seedPropositionChamp,
+  seedPropositionEmploye,
   seedPropositionFacture,
   seedRelance,
   seedRelation,
   seedRisque,
   seedSalaireConfig,
   seedService,
+  seedSessionOnboarding,
   seedTemplateEcheance,
   seedTwoCabinets,
   seedUploadBrut,
+  seedUploadFichier,
   seedZefixRecherche,
   type TestCabinet,
 } from "../helpers/seed";
@@ -402,6 +412,42 @@ const METIER_TABLES: MetierTableSpec[] = [
     idCol: accesClient.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
+  // Bloc F6a — cluster propositions onboarding (salaire.*).
+  {
+    name: "salaire.session_onboarding",
+    table: sessionOnboarding,
+    scopeCol: sessionOnboarding.cabinet_id,
+    idCol: sessionOnboarding.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.upload_fichier",
+    table: uploadFichier,
+    scopeCol: uploadFichier.cabinet_id,
+    idCol: uploadFichier.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.extraction_ia",
+    table: extractionIa,
+    scopeCol: extractionIa.cabinet_id,
+    idCol: extractionIa.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.proposition_employe",
+    table: propositionEmploye,
+    scopeCol: propositionEmploye.cabinet_id,
+    idCol: propositionEmploye.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.proposition_champ",
+    table: propositionChamp,
+    scopeCol: propositionChamp.cabinet_id,
+    idCol: propositionChamp.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
 ];
 
 // Tables dont la RLS doit rester ACTIVÉE en DB (défense en profondeur).
@@ -452,6 +498,12 @@ const RLS_TABLES = [
   // Bloc F0 — module Salaire.
   ["salaire", "employe"],
   ["salaire", "acces_client"],
+  // Bloc F6a — cluster propositions onboarding.
+  ["salaire", "session_onboarding"],
+  ["salaire", "upload_fichier"],
+  ["salaire", "extraction_ia"],
+  ["salaire", "proposition_employe"],
+  ["salaire", "proposition_champ"],
 ] as const;
 
 let sql: postgres.Sql;
@@ -615,6 +667,27 @@ beforeAll(async () => {
     await seedAccesClient(sql, cabinetA.id, clientA.id),
     await seedAccesClient(sql, cabinetB.id, clientB.id),
   ];
+  // Bloc F6a — cluster propositions (ordre FK : session → upload → extraction → prop → champ).
+  const [sessOnbA, sessOnbB] = [
+    await seedSessionOnboarding(sql, cabinetA.id, clientA.id),
+    await seedSessionOnboarding(sql, cabinetB.id, clientB.id),
+  ];
+  const [uplFichA, uplFichB] = [
+    await seedUploadFichier(sql, cabinetA.id, clientA.id, sessOnbA.id),
+    await seedUploadFichier(sql, cabinetB.id, clientB.id, sessOnbB.id),
+  ];
+  const [extrA, extrB] = [
+    await seedExtractionIa(sql, cabinetA.id, clientA.id, uplFichA.id),
+    await seedExtractionIa(sql, cabinetB.id, clientB.id, uplFichB.id),
+  ];
+  const [propEmpA, propEmpB] = [
+    await seedPropositionEmploye(sql, cabinetA.id, clientA.id, sessOnbA.id, extrA.id),
+    await seedPropositionEmploye(sql, cabinetB.id, clientB.id, sessOnbB.id, extrB.id),
+  ];
+  const [propChampA, propChampB] = [
+    await seedPropositionChamp(sql, cabinetA.id, clientA.id, propEmpA.id),
+    await seedPropositionChamp(sql, cabinetB.id, clientB.id, propEmpB.id),
+  ];
 
   Object.assign(idsA, {
     "crm.cabinet": cabinetA.id,
@@ -655,6 +728,11 @@ beforeAll(async () => {
     "facture.mapping_export": mapExpA.id,
     "salaire.employe": employeA.id,
     "salaire.acces_client": accesA.id,
+    "salaire.session_onboarding": sessOnbA.id,
+    "salaire.upload_fichier": uplFichA.id,
+    "salaire.extraction_ia": extrA.id,
+    "salaire.proposition_employe": propEmpA.id,
+    "salaire.proposition_champ": propChampA.id,
   });
   Object.assign(idsB, {
     "crm.cabinet": cabinetB.id,
@@ -695,13 +773,20 @@ beforeAll(async () => {
     "facture.mapping_export": mapExpB.id,
     "salaire.employe": employeB.id,
     "salaire.acces_client": accesB.id,
+    "salaire.session_onboarding": sessOnbB.id,
+    "salaire.upload_fichier": uplFichB.id,
+    "salaire.extraction_ia": extrB.id,
+    "salaire.proposition_employe": propEmpB.id,
+    "salaire.proposition_champ": propChampB.id,
   });
-});
+}, 120_000); // ~150 inserts séquentiels × 2 cabinets sur DB distante : le hookTimeout
+// global (30 s) est insuffisant sous la latence réseau CI (≈200 ms/round-trip). Ce seeding
+// est le plus lourd de la suite et croît à chaque table métier → timeout dédié généreux.
 
 afterAll(async () => {
   if (cabinetA && cabinetB) await cleanupCabinets(sql, cabinetA.id, cabinetB.id);
   await sql.end();
-});
+}, 60_000);
 
 describe("Anti-fuite cross-tenant — chemin applicatif (db service role + filtre cabinet_id)", () => {
   describe.each(METIER_TABLES)("$name", (spec) => {
