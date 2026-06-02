@@ -27,6 +27,7 @@ import {
   fichierPhysique,
   risque,
 } from "@zarya/db";
+import { logger } from "@zarya/logger";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { buildNomStandardise } from "./build-nom-standardise";
 import type { CategorieDocument } from "./classifier";
@@ -180,6 +181,53 @@ export async function finaliserDocument(
       description: `Risque ${niveauAvant ?? "—"} → ${niveau} (score ${score})`,
       metadata: { niveau_avant: niveauAvant, ...facteurs },
     });
+  }
+
+  // 7. E3b — déclenche l'extraction facture si le document est une facture. BEST-EFFORT :
+  // une extraction qui échoue ne casse PAS la finalisation Doc (la facture sera ré-extractible).
+  // Import dynamique pour éviter le cycle de modules
+  // finalize-document → extract-facture-pipeline → classify-document → finalize-document.
+  if (input.type.startsWith("facture")) {
+    try {
+      const [fichier] = await db
+        .select({
+          ocr_text: fichierPhysique.ocr_text,
+          type_mime: fichierPhysique.type_mime,
+          storage_path: fichierPhysique.storage_path,
+        })
+        .from(fichierPhysique)
+        .where(
+          and(
+            eq(fichierPhysique.id, input.fichier_physique_id),
+            eq(fichierPhysique.cabinet_id, input.cabinet_id),
+          ),
+        )
+        .limit(1);
+
+      const { extraireFactureDepuisDocument } = await import("./extract-facture-pipeline");
+      await extraireFactureDepuisDocument({
+        cabinet_id: input.cabinet_id,
+        client_id: input.client_id,
+        document_id: doc.id,
+        fichier_physique_id: input.fichier_physique_id,
+        nom_fichier: input.libelle,
+        ocr_text: fichier?.ocr_text ?? null,
+        ...(fichier?.type_mime ? { type_mime: fichier.type_mime } : {}),
+        storage_path: fichier?.storage_path ?? null,
+        invoked_by_user_id: input.cree_par,
+      });
+    } catch (err) {
+      // Trace best-effort (l'invocation en échec est déjà loggée par le pipeline pour les
+      // erreurs LLM ; ici on couvre tout autre échec sans casser la finalisation Doc).
+      logger.warn(
+        {
+          document_id: doc.id,
+          cabinet_id: input.cabinet_id,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        "extraction facture best-effort échouée",
+      );
+    }
   }
 
   return { document_id: doc.id, document_attendu_id: attenduId };

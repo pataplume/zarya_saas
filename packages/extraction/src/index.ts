@@ -62,6 +62,11 @@ export {
   toFactureProposal,
 } from "./extract-facture";
 export {
+  type ExtraireFactureInput,
+  type ExtraireFactureResult,
+  extraireFactureDepuisDocument,
+} from "./extract-facture-pipeline";
+export {
   couvrirEcheancesParDocumentAttendu,
   type FinaliserDocumentInput,
   type FinaliserDocumentResult,
