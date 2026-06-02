@@ -46,6 +46,15 @@ export {
   SEUIL_AUTO_HYBRIDE,
 } from "./decide-auto-classement";
 export {
+  ANNEE_MIN_PLAUSIBLE,
+  detectFactureAnomalies,
+  type FactureAnomalyInput,
+  isValidIde,
+  PLAFOND_MONTANT,
+  SEUIL_MONTANT_ELEVE,
+  TAUX_TVA_CH_VALIDES,
+} from "./detect-facture-anomalies";
+export {
   applyQrBill,
   coerceDevise,
   type Devise,
@@ -60,6 +69,7 @@ export {
   STUB_FACTURE_PROMPT_VERSION,
   StubFactureExtractor,
   toFactureProposal,
+  withDetectedAnomalies,
 } from "./extract-facture";
 export {
   type ExtraireFactureInput,
