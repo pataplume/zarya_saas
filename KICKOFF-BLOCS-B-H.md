@@ -452,10 +452,21 @@ Aucun run n'est « fini » sans **tous** ces points (ADR 0012 §DoD + ADR 0005 a
     probable/flou (§5.4). Dépend du **référentiel fournisseur peuplé + IBAN en Vault** (n'existe
     qu'après E5) → coder maintenant = code inerte contre tables vides. ⚠️ La fraude IBAN exige une
     comparaison Vault (arbitrage au moment d'E5).
-- [ ] **E5 — Validation split-screen + création facture finale**
-  UI PDF bbox / champs éditables, 1-clic si >95 % sans anomalie, lot >10, rejet→file Doc ;
-  crée `facture.facture` + maj `facture.fournisseur` + `crm.evenement`. · Done : valider/
-  corriger/rejeter + E2E.
+- [~] **E5 — Validation split-screen + création facture finale** — découpé E5a/E5b (arbitré)
+  - [x] **E5a — cœur serveur `finaliserFacture`** ✅ : `finalize-facture.ts` (@zarya/extraction).
+    Upsert `facture.fournisseur` (match cabinet+client+IDE → raison sociale, sinon créé) +
+    crée `facture.facture` depuis la proposition validée (statut `validee`, proposition liée).
+    **IBAN→Vault anti-clair (ADR 0013, 1er write-path, arbitré founder)** : `vaultCreateSecret`
+    → `iban_principal_vault_id`/`iban_paiement_vault_id`, JAMAIS de clair en colonne. **Fraude RIB
+    §5.3** : IBAN ≠ IBAN connu (comparé via Vault en mémoire) → `iban_change_vs_historique` +
+    événement `anomalie_facture` + trace `iban_changements` **masquée avant/après** (****1234),
+    rotation Vault (même UUID) ; **non bloquant** (le collaborateur décide). **Doublons §5.4** :
+    exact (n°) bloqué par `uniq_facture_numero` ; probable (montant+date ±3j) signalé non bloquant.
+    Scopé cabinet (isolation). 4 tests intégration (nominal+anti-clair Vault, fraude, doublon,
+    isolation). **E4b absorbé ici** (fraude + doublons). Pas de migration (schéma E1).
+  - [ ] **E5b — UI split-screen + server action** : page validation (PDF + champs éditables,
+    1-clic si >95 % sans anomalie, lot >10, rejet→file Doc) appelant `finaliserFacture`. bbox PDF
+    différé (OCR vision). Done : valider/corriger/rejeter + tests server-action.
 - [ ] **E6 — Export comptable + mapping**
   Cas B fichier (Crésus/WinBIZ/Abacus) + Cas C Excel humain ; statuts `recu`→`validee`→
   `exportee`. · ⚠️ **API Bexio = Phase 2** ; formats « à valider en interview » → **MVP =

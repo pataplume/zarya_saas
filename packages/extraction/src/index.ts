@@ -84,6 +84,14 @@ export {
   type RecalculRisqueResult,
   recalculerRisqueClient,
 } from "./finalize-document";
+export {
+  type DeviseFacture,
+  type FinaliserFactureInput,
+  type FinaliserFactureResult,
+  type FournisseurValide,
+  finaliserFacture,
+  type TypeFacture,
+} from "./finalize-facture";
 export { type ChatModelClient, InfomaniakClassifier } from "./infomaniak-classifier";
 export { InfomaniakFactureExtractor } from "./infomaniak-facture-extractor";
 export {
