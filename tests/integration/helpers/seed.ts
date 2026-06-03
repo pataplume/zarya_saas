@@ -937,6 +937,9 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   // Tables enfants d'abord (contraintes FK sur cabinet_id)
   // Note : sql.array(ids) produit un text[] — cast explicite en uuid[] pour la comparaison
   const arr = sql.array(ids);
+  // Bloc H1 (search.* — enfants de doc.document/extraction.invocation ; AVANT eux)
+  await sql`DELETE FROM search.document_chunk        WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM search.requete               WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc G1b (salaire.* export/notif — enfants de periode/format_export ; AVANT periode + doc.document)
   await sql`DELETE FROM salaire.piece                WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM salaire.notification         WHERE cabinet_id = ANY(${arr}::uuid[])`;
@@ -1215,6 +1218,56 @@ export async function seedPiece(
   await sql`
     INSERT INTO salaire.piece (id, cabinet_id, client_id, periode_id, document_id, source)
     VALUES (${id}, ${cabinet_id}, ${client_id}, ${periode_id}, ${doc.id}, 'client_dashboard')
+  `;
+  return { id, cabinet_id };
+}
+
+// ─── Bloc H1 — search.* (chunks + historique recherche) ───────────────────────
+
+/** Construit un littéral halfvec à 3584 dim : 1.0 à l'index `dir`, 0 ailleurs. */
+function halfvecLiteral(dir: number): string {
+  const v = new Array(3584).fill(0);
+  v[((dir % 3584) + 3584) % 3584] = 1;
+  return `[${v.join(",")}]`;
+}
+
+/**
+ * Crée un search.document_chunk. `document_id` requis (FK doc.document). `embeddingDir` (optionnel)
+ * pose un embedding halfvec unitaire orienté sur cet index (pour les tests cosinus) ; sinon NULL.
+ */
+export async function seedDocumentChunk(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  document_id: string,
+  opts: { chunkIndex?: number; embeddingDir?: number; text?: string } = {},
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  const chunkIndex = opts.chunkIndex ?? 0;
+  const text = opts.text ?? `chunk test ${id.slice(0, 8)}`;
+  const embedding = opts.embeddingDir === undefined ? null : halfvecLiteral(opts.embeddingDir);
+  const model = opts.embeddingDir === undefined ? null : "bge_multilingual_gemma2";
+  await sql`
+    INSERT INTO search.document_chunk
+      (id, cabinet_id, document_id, client_id, chunk_index, text_content, embedding, embedding_model)
+    VALUES (
+      ${id}, ${cabinet_id}, ${document_id}, ${client_id}, ${chunkIndex}, ${text},
+      ${embedding}::halfvec, ${model}
+    )
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée une search.requete (utilisateur_id = auth.users réel requis). */
+export async function seedSearchRequete(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  utilisateur_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO search.requete (id, cabinet_id, utilisateur_id, question)
+    VALUES (${id}, ${cabinet_id}, ${utilisateur_id}, ${`question test ${id.slice(0, 8)}`})
   `;
   return { id, cabinet_id };
 }

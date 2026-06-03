@@ -163,3 +163,4 @@ export {
   validationPeriode,
   valideParValidationEnum,
 } from "./salaire";
+export { documentChunk, searchRequete, searchSchema } from "./search";
