@@ -112,7 +112,9 @@ export async function extractText(
   opts: ExtractTextOptions = {},
 ): Promise<ExtractTextResult> {
   if (isPdf(input.type_mime)) {
-    const pdf = await extractPdfText(input.bytes);
+    // unpdf détache le buffer source : on lui passe une COPIE pour préserver input.bytes
+    // (réutilisé par la rasterisation si le PDF est scanné).
+    const pdf = await extractPdfText(Uint8Array.from(input.bytes));
     const quality = isPdfTextUsable(pdf, opts.quality);
     if (quality.usable) {
       return {
@@ -122,7 +124,11 @@ export async function extractText(
         needs_image_ocr: false,
       };
     }
-    // PDF scanné : rasterisation page→image requise pour la vision (différé).
+    // PDF scanné (pas de texte natif exploitable). Si un client vision est fourni : on
+    // rasterise les pages et on OCR chacune. Sinon, non bloquant (needs_image_ocr).
+    if (client) {
+      return await visionOcrScannedPdf(input, client, opts);
+    }
     return {
       text: pdf.text, // souvent vide ; conservé si quelques bribes natives
       source: "aucune",
@@ -145,24 +151,20 @@ export async function extractText(
   return { text: "", source: "aucune", nb_pages: null, needs_image_ocr: false };
 }
 
-async function visionOcr(
-  input: ExtractTextInput,
+// Nombre maximum de pages OCRisées pour un PDF scanné (borne le coût vision).
+const OCR_MAX_PAGES = 15;
+
+// OCR vision d'UNE image (bytes + mime). Lève une ExtractionError mappée en cas d'échec.
+async function visionOcrImage(
+  bytes: Uint8Array,
+  mime: string,
+  model: string,
   client: VisionModelClient,
   opts: ExtractTextOptions,
-): Promise<ExtractTextResult> {
-  let model: string;
+): Promise<IkChatCompletionResponse> {
+  const dataUrl = bytesToDataUrl(bytes, mime);
   try {
-    model = await client.resolveModel("vision");
-  } catch (err) {
-    throw mapVisionError(err);
-  }
-
-  const dataUrl = bytesToDataUrl(input.bytes, input.type_mime);
-  const start = Date.now();
-
-  let response: IkChatCompletionResponse;
-  try {
-    response = await client.chatCompletion({
+    return await client.chatCompletion({
       model,
       temperature: 0,
       max_tokens: opts.maxTokens ?? VISION_MAX_TOKENS,
@@ -180,9 +182,33 @@ async function visionOcr(
   } catch (err) {
     throw mapVisionError(err);
   }
+}
 
+function usageFrom(response: IkChatCompletionResponse): {
+  tokens_input: number;
+  tokens_output: number;
+} {
+  return {
+    tokens_input: response.usage?.prompt_tokens ?? 0,
+    tokens_output: response.usage?.completion_tokens ?? 0,
+  };
+}
+
+async function visionOcr(
+  input: ExtractTextInput,
+  client: VisionModelClient,
+  opts: ExtractTextOptions,
+): Promise<ExtractTextResult> {
+  let model: string;
+  try {
+    model = await client.resolveModel("vision");
+  } catch (err) {
+    throw mapVisionError(err);
+  }
+
+  const start = Date.now();
+  const response = await visionOcrImage(input.bytes, input.type_mime, model, client, opts);
   const text = (response.choices[0]?.message?.content ?? "").trim();
-  const usage = response.usage;
   return {
     text,
     source: "vision",
@@ -191,13 +217,54 @@ async function visionOcr(
     model_used: model,
     vision_duration_ms: Date.now() - start,
     raw_output: response,
-    ...(usage
-      ? {
-          usage: {
-            tokens_input: usage.prompt_tokens ?? 0,
-            tokens_output: usage.completion_tokens ?? 0,
-          },
-        }
-      : {}),
+    usage: usageFrom(response),
+  };
+}
+
+// OCR d'un PDF scanné : rasterise les pages (import dynamique de rasterize-pdf, server-only —
+// hors barrel pour ne pas tirer le binaire canvas dans le bundle client) puis OCR chaque page.
+async function visionOcrScannedPdf(
+  input: ExtractTextInput,
+  client: VisionModelClient,
+  opts: ExtractTextOptions,
+): Promise<ExtractTextResult> {
+  let model: string;
+  try {
+    model = await client.resolveModel("vision");
+  } catch (err) {
+    throw mapVisionError(err);
+  }
+
+  const start = Date.now();
+  const { rasterizePdf } = await import("./rasterize-pdf");
+  let raster: Awaited<ReturnType<typeof rasterizePdf>>;
+  try {
+    raster = await rasterizePdf(input.bytes, { scale: 2, maxPages: OCR_MAX_PAGES });
+  } catch (err) {
+    throw new ExtractionError("OCR_FAILED", "Rasterisation du PDF scanné échouée.", err);
+  }
+
+  const textes: string[] = [];
+  let tokensIn = 0;
+  let tokensOut = 0;
+  let lastRaw: IkChatCompletionResponse | undefined;
+  for (const page of raster.pages) {
+    const response = await visionOcrImage(page.png, "image/png", model, client, opts);
+    textes.push((response.choices[0]?.message?.content ?? "").trim());
+    const u = usageFrom(response);
+    tokensIn += u.tokens_input;
+    tokensOut += u.tokens_output;
+    lastRaw = response;
+  }
+
+  return {
+    text: textes.join("\n\n").trim(),
+    source: "vision",
+    nb_pages: raster.totalPages,
+    needs_image_ocr: false,
+    model_used: model,
+    vision_duration_ms: Date.now() - start,
+    usage: { tokens_input: tokensIn, tokens_output: tokensOut },
+    ...(lastRaw ? { raw_output: lastRaw } : {}),
   };
 }
