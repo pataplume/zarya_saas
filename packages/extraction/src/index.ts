@@ -68,6 +68,18 @@ export {
   normaliserEntete,
 } from "./employe-fields";
 export {
+  type ArchiverEmployeInput,
+  appliquerModificationReferentiel,
+  archiverEmploye,
+  type EntreeReferentielInput,
+  enregistrerEntreeReferentiel,
+  type LifecycleResult,
+  type ModificationReferentielInput,
+  type SortieEmployeInput,
+  sortirEmploye,
+  type TypeModificationReferentiel,
+} from "./employe-lifecycle";
+export {
   type ExportResult,
   exporterFacturesValidees,
   type FactureExportRow,

@@ -11,7 +11,14 @@ import {
   sql,
   validationPeriode,
 } from "@zarya/db";
-import { confirmerImportExport, genererPeriodesMensuelles } from "@zarya/extraction";
+import {
+  appliquerModificationReferentiel,
+  archiverEmploye,
+  confirmerImportExport,
+  enregistrerEntreeReferentiel,
+  genererPeriodesMensuelles,
+  sortirEmploye,
+} from "@zarya/extraction";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -242,6 +249,167 @@ export async function confirmerImportAction(
     return { error: err instanceof Error ? err.message : "Échec de la confirmation d'import." };
   }
 
+  revalidatePath("/app/salaire");
+  return { success: true };
+}
+
+// ─── G7a — Cycle de vie du référentiel employé (vagues) ───────────────────────
+const ISO_DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date attendue (AAAA-MM-JJ).");
+
+const EntreeSchema = z.object({
+  proposition_employe_id: z.string().uuid(),
+  periode_id: z.string().uuid(),
+  date_entree: ISO_DATE,
+});
+
+/** Entrée (embauche en cours d'année) : finalise une proposition validée + journalise l'entrée. */
+export async function enregistrerEntreeAction(
+  _prev: SalaireFiduciaireState,
+  formData: FormData,
+): Promise<SalaireFiduciaireState> {
+  const c = await ctx();
+  if ("error" in c) return c;
+  const parsed = EntreeSchema.safeParse({
+    proposition_employe_id: formData.get("proposition_employe_id"),
+    periode_id: formData.get("periode_id"),
+    date_entree: formData.get("date_entree"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Entrée invalide." };
+  try {
+    await enregistrerEntreeReferentiel({
+      cabinet_id: c.cabinet_id,
+      acteur_id: c.user_id,
+      ...parsed.data,
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Échec de l'entrée." };
+  }
+  revalidatePath("/app/salaire");
+  return { success: true };
+}
+
+const SortieSchema = z.object({
+  employe_id: z.string().uuid(),
+  periode_id: z.string().uuid(),
+  date_sortie: ISO_DATE,
+  motif: z.string().max(500).optional(),
+});
+
+/** Sortie d'un employé actif (statut sorti + changement sortie). */
+export async function sortirEmployeAction(
+  _prev: SalaireFiduciaireState,
+  formData: FormData,
+): Promise<SalaireFiduciaireState> {
+  const c = await ctx();
+  if ("error" in c) return c;
+  const motifRaw = formData.get("motif");
+  const parsed = SortieSchema.safeParse({
+    employe_id: formData.get("employe_id"),
+    periode_id: formData.get("periode_id"),
+    date_sortie: formData.get("date_sortie"),
+    ...(typeof motifRaw === "string" && motifRaw.length > 0 ? { motif: motifRaw } : {}),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Sortie invalide." };
+  const v = parsed.data;
+  try {
+    await sortirEmploye({
+      cabinet_id: c.cabinet_id,
+      acteur_id: c.user_id,
+      employe_id: v.employe_id,
+      periode_id: v.periode_id,
+      date_sortie: v.date_sortie,
+      ...(v.motif !== undefined ? { motif: v.motif } : {}),
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Échec de la sortie." };
+  }
+  revalidatePath("/app/salaire");
+  return { success: true };
+}
+
+const ModificationSchema = z
+  .object({
+    employe_id: z.string().uuid(),
+    periode_id: z.string().uuid(),
+    type: z.enum(["changement_salaire", "changement_taux"]),
+    date_effet: ISO_DATE,
+    nouveau_salaire_base: z.coerce.number().positive().optional(),
+    nouveau_taux_activite: z.coerce.number().positive().max(100).optional(),
+  })
+  .refine(
+    (v) =>
+      v.type === "changement_salaire"
+        ? v.nouveau_salaire_base !== undefined
+        : v.nouveau_taux_activite !== undefined,
+    { message: "Nouvelle valeur requise pour ce type de modification." },
+  );
+
+/** Modification du référentiel (salaire ou taux) d'un employé actif. */
+export async function modifierReferentielAction(
+  _prev: SalaireFiduciaireState,
+  formData: FormData,
+): Promise<SalaireFiduciaireState> {
+  const c = await ctx();
+  if ("error" in c) return c;
+  const salaireRaw = formData.get("nouveau_salaire_base");
+  const tauxRaw = formData.get("nouveau_taux_activite");
+  const parsed = ModificationSchema.safeParse({
+    employe_id: formData.get("employe_id"),
+    periode_id: formData.get("periode_id"),
+    type: formData.get("type"),
+    date_effet: formData.get("date_effet"),
+    ...(typeof salaireRaw === "string" && salaireRaw.length > 0
+      ? { nouveau_salaire_base: salaireRaw }
+      : {}),
+    ...(typeof tauxRaw === "string" && tauxRaw.length > 0
+      ? { nouveau_taux_activite: tauxRaw }
+      : {}),
+  });
+  if (!parsed.success)
+    return { error: parsed.error.issues[0]?.message ?? "Modification invalide." };
+  const v = parsed.data;
+  try {
+    await appliquerModificationReferentiel({
+      cabinet_id: c.cabinet_id,
+      acteur_id: c.user_id,
+      employe_id: v.employe_id,
+      periode_id: v.periode_id,
+      type: v.type,
+      date_effet: v.date_effet,
+      ...(v.nouveau_salaire_base !== undefined
+        ? { nouveau_salaire_base: v.nouveau_salaire_base }
+        : {}),
+      ...(v.nouveau_taux_activite !== undefined
+        ? { nouveau_taux_activite: v.nouveau_taux_activite }
+        : {}),
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Échec de la modification." };
+  }
+  revalidatePath("/app/salaire");
+  return { success: true };
+}
+
+const ArchiveSchema = z.object({ employe_id: z.string().uuid() });
+
+/** Archivage manuel d'un employé sorti (sorti → archive, terminal). */
+export async function archiverEmployeAction(
+  _prev: SalaireFiduciaireState,
+  formData: FormData,
+): Promise<SalaireFiduciaireState> {
+  const c = await ctx();
+  if ("error" in c) return c;
+  const parsed = ArchiveSchema.safeParse({ employe_id: formData.get("employe_id") });
+  if (!parsed.success) return { error: "Employé invalide." };
+  try {
+    await archiverEmploye({
+      cabinet_id: c.cabinet_id,
+      employe_id: parsed.data.employe_id,
+      acteur_id: c.user_id,
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Échec de l'archivage." };
+  }
   revalidatePath("/app/salaire");
   return { success: true };
 }
