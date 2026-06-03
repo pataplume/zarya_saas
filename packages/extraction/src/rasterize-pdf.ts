@@ -7,7 +7,11 @@
 //
 // PUR (pas de DB). Borne le coût/charge : `maxPages` plafonne le nombre de pages rendues.
 
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+
 const PDFJS_ENTRY = "pdfjs-dist/legacy/build/pdf.mjs";
+const PDFJS_WORKER = "pdfjs-dist/legacy/build/pdf.worker.mjs";
 
 export interface RasterizeOptions {
   /** Facteur d'échelle de rendu (≈ scale×72 DPI). 2 ≈ 144 DPI : bon compromis lisibilité/poids. */
@@ -57,7 +61,19 @@ async function loadPdfjs(): Promise<any> {
     }
     polyfilled = true;
   }
-  if (!pdfjsModule) pdfjsModule = await import(PDFJS_ENTRY);
+  if (!pdfjsModule) {
+    const pdfjs = await import(PDFJS_ENTRY);
+    // Force pdfjs à utiliser SON worker (même version) : sans cela, un autre pdfjs hoisté dans
+    // le monorepo (ex. celui embarqué par `unpdf`) peut booter un worker de version différente
+    // → « API version does not match the Worker version ». On résout le worker depuis CE module.
+    try {
+      const require = createRequire(import.meta.url);
+      pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(require.resolve(PDFJS_WORKER)).href;
+    } catch {
+      // import.meta/createRequire indisponible : on laisse pdfjs gérer (best effort).
+    }
+    pdfjsModule = pdfjs;
+  }
   return pdfjsModule;
 }
 
