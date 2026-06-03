@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@zarya/auth";
-import { buildExportXlsx, genererExportPeriode } from "@zarya/extraction";
+import { buildExportXlsx, genererExportPeriode, marquerExportTelecharge } from "@zarya/extraction";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -29,6 +29,8 @@ export async function GET(
       format_code,
       genere_par: user.id,
     });
+    // La réponse EST le téléchargement : on marque l'export généré comme téléchargé (best-effort).
+    await marquerExportTelecharge({ cabinet_id, export_id: res.export_id, acteur_id: user.id });
     if (format === "csv") {
       return new NextResponse(res.contenu_csv ?? "", {
         headers: {
