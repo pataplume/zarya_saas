@@ -230,6 +230,15 @@ export {
   scoreClients,
 } from "./resolve-client";
 export {
+  buildNotificationTemplate,
+  type EmailTemplate,
+  type EnvoyerNotificationInput,
+  type EnvoyerNotificationResult,
+  envoyerNotificationCycle,
+  type TemplateContexte,
+  type TypeNotificationCycle,
+} from "./salaire-notifications";
+export {
   assertOnboardingTermine,
   type CompletudeOnboarding,
   enregistrerActiviteOnboarding,
