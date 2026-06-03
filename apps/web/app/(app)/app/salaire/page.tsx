@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@zarya/auth";
 import { redirect } from "next/navigation";
+import { LancerCampagneForm } from "@/components/salaire/campagne-form";
 import { getKpisFiduciaire, getPeriodesFiduciaire } from "@/lib/salaire-fiduciaire-data";
 
 // G4a — Dashboard Salaire fiduciaire (lecture) : KPIs du mois + tableau par client.
@@ -63,6 +64,10 @@ export default async function SalaireFiduciairePage({
       <p className="mt-1 text-sm text-gray-500">
         Suivi du cycle mensuel de validation des salaires.
       </p>
+
+      <div className="mt-4">
+        <LancerCampagneForm annee={annee} mois={mois} />
+      </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
         {cartes.map((c) => (

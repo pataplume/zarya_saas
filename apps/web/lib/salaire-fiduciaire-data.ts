@@ -86,6 +86,38 @@ export async function getKpisFiduciaire(
   };
 }
 
+export interface DeltaElement {
+  employe_id: string;
+  type_element_id: string;
+  valeur_actuelle: string | null;
+  valeur_prepopulee: string | null;
+}
+
+/**
+ * Delta de la période : éléments dont la valeur a changé vs la prépopulation M-1 (origine).
+ * Met en évidence ce que le client/fiduciaire a ajusté. Scopé cabinet.
+ */
+export async function getDeltaPeriode(
+  cabinet_id: string,
+  periode_id: string,
+): Promise<DeltaElement[]> {
+  const rows = (await db.execute(sql`
+    SELECT e.employe_id, e.type_element_id,
+           e.valeur_numerique::text AS valeur_actuelle,
+           o.valeur_numerique::text AS valeur_prepopulee
+    FROM salaire.element_paie e
+    JOIN salaire.element_paie o ON o.id = e.origine_element_id
+    WHERE e.periode_id = ${periode_id} AND e.cabinet_id = ${cabinet_id}
+      AND e.valeur_numerique IS DISTINCT FROM o.valeur_numerique
+  `)) as unknown as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    employe_id: r.employe_id as string,
+    type_element_id: r.type_element_id as string,
+    valeur_actuelle: (r.valeur_actuelle as string | null) ?? null,
+    valeur_prepopulee: (r.valeur_prepopulee as string | null) ?? null,
+  }));
+}
+
 /** Vue annuelle d'un client (toutes ses périodes d'une année), scopée cabinet. */
 export async function getVueAnnuelleClient(
   cabinet_id: string,
