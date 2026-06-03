@@ -3,12 +3,16 @@
 import { requireClientContact } from "@zarya/auth";
 import {
   and,
+  changement as changementTable,
   client as clientTable,
   db,
+  document as documentTable,
   elementPaie,
   eq,
   evenementSalaire,
   periode as periodeTable,
+  piece as pieceTable,
+  sql,
   validationPeriode,
 } from "@zarya/db";
 import { revalidatePath } from "next/cache";
@@ -118,6 +122,166 @@ export async function saisirElementPaieAction(
     });
 
   await tracerModification(v.periode_id, user.id);
+  revalidatePath("/espace/validations");
+  return { success: true };
+}
+
+// ─── G3b — Déclarer un changement (flow E / salaire.md §7.5) ─────────────────
+
+const TYPES_CHANGEMENT = [
+  "entree",
+  "sortie",
+  "changement_salaire",
+  "changement_taux",
+  "conge_non_paye",
+  "maladie_longue",
+  "accident",
+  "maternite_paternite",
+  "service_militaire",
+  "autre",
+] as const;
+
+const ChangementSchema = z.object({
+  periode_id: z.string().uuid(),
+  type: z.enum(TYPES_CHANGEMENT),
+  date_effet: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date d'effet invalide (AAAA-MM-JJ)."),
+  employe_id: z.string().uuid().optional(),
+  montant_impact: z.coerce.number().finite().optional(),
+  description: z.string().trim().max(2000).optional(),
+});
+
+/** Déclare un changement significatif sur la période (entrée/sortie/augmentation…). */
+export async function declarerChangementClientAction(
+  _prev: PeriodeActionState,
+  formData: FormData,
+): Promise<PeriodeActionState> {
+  const { user, client_id } = await requireClientContact();
+  const cabinet_id = user.app_metadata.cabinet_id as string | undefined;
+  if (!cabinet_id) return { error: "Cabinet introuvable." };
+
+  const raw = (k: string) => {
+    const x = formData.get(k);
+    return x === null || x === "" ? undefined : x;
+  };
+  const parsed = ChangementSchema.safeParse({
+    periode_id: formData.get("periode_id"),
+    type: formData.get("type"),
+    date_effet: formData.get("date_effet"),
+    employe_id: raw("employe_id"),
+    montant_impact: raw("montant_impact"),
+    description: raw("description"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Déclaration invalide." };
+  const v = parsed.data;
+
+  const editable = await chargerPeriodeEditable(cabinet_id, client_id, v.periode_id);
+  if (!editable.ok) return { error: editable.error };
+
+  await db.insert(changementTable).values({
+    cabinet_id,
+    client_id,
+    periode_id: v.periode_id,
+    ...(v.employe_id ? { employe_id: v.employe_id } : {}),
+    type: v.type,
+    date_effet: v.date_effet,
+    ...(v.montant_impact !== undefined ? { montant_impact: v.montant_impact.toString() } : {}),
+    ...(v.description ? { description: v.description } : {}),
+    source: "client_dashboard",
+  });
+  await db
+    .update(periodeTable)
+    .set({
+      nb_changements_declares: sql`${periodeTable.nb_changements_declares} + 1`,
+      derniere_modification_par: "client",
+      derniere_modification_acteur_id: user.id,
+      derniere_modification_at: new Date(),
+      updated_at: new Date(),
+    })
+    .where(eq(periodeTable.id, v.periode_id));
+  await db.insert(evenementSalaire).values({
+    cabinet_id,
+    client_id,
+    periode_id: v.periode_id,
+    type: "changement_declare",
+    acteur_type: "humain_client",
+    acteur_id: user.id,
+  });
+
+  revalidatePath("/espace/validations");
+  return { success: true };
+}
+
+const PieceSchema = z.object({
+  periode_id: z.string().uuid(),
+  document_id: z.string().uuid(),
+  employe_id: z.string().uuid().optional(),
+  categorie: z.enum(["heures", "absences", "frais", "contrat", "medical", "autre"]).optional(),
+  type_libre: z.string().trim().max(200).optional(),
+});
+
+/**
+ * Rattache une pièce (un doc.document DÉJÀ présent) à la période. L'upload physique du fichier
+ * côté client est différé (dépend d'un chemin d'upload Doc pour client_contact) ; cette action
+ * crée le lien salaire.piece une fois le document disponible.
+ */
+export async function attacherPieceClientAction(
+  _prev: PeriodeActionState,
+  formData: FormData,
+): Promise<PeriodeActionState> {
+  const { user, client_id } = await requireClientContact();
+  const cabinet_id = user.app_metadata.cabinet_id as string | undefined;
+  if (!cabinet_id) return { error: "Cabinet introuvable." };
+
+  const raw = (k: string) => {
+    const x = formData.get(k);
+    return x === null || x === "" ? undefined : x;
+  };
+  const parsed = PieceSchema.safeParse({
+    periode_id: formData.get("periode_id"),
+    document_id: formData.get("document_id"),
+    employe_id: raw("employe_id"),
+    categorie: raw("categorie"),
+    type_libre: raw("type_libre"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Pièce invalide." };
+  const v = parsed.data;
+
+  const editable = await chargerPeriodeEditable(cabinet_id, client_id, v.periode_id);
+  if (!editable.ok) return { error: editable.error };
+
+  // Le document doit appartenir au client (anti-fuite).
+  const [doc] = await db
+    .select({ id: documentTable.id })
+    .from(documentTable)
+    .where(
+      and(
+        eq(documentTable.id, v.document_id),
+        eq(documentTable.cabinet_id, cabinet_id),
+        eq(documentTable.client_id, client_id),
+      ),
+    )
+    .limit(1);
+  if (!doc) return { error: "Document introuvable." };
+
+  await db.insert(pieceTable).values({
+    cabinet_id,
+    client_id,
+    periode_id: v.periode_id,
+    ...(v.employe_id ? { employe_id: v.employe_id } : {}),
+    ...(v.categorie ? { categorie: v.categorie } : {}),
+    ...(v.type_libre ? { type_libre: v.type_libre } : {}),
+    document_id: v.document_id,
+    source: "client_dashboard",
+  });
+  await db.insert(evenementSalaire).values({
+    cabinet_id,
+    client_id,
+    periode_id: v.periode_id,
+    type: "piece_uploadee",
+    acteur_type: "humain_client",
+    acteur_id: user.id,
+  });
+
   revalidatePath("/espace/validations");
   return { success: true };
 }
