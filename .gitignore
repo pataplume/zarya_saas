@@ -230,3 +230,6 @@ lighthouse-report.html
 # Tags
 tags
 TAGS
+
+# Documents locaux / données sensibles (jamais commiter — benchmarks, vrais docs clients)
+data/
