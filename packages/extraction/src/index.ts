@@ -239,6 +239,16 @@ export {
   type TypeNotificationCycle,
 } from "./salaire-notifications";
 export {
+  buildRelanceTemplate,
+  type EnvoyerRelanceInput,
+  type EnvoyerRelanceResult,
+  envoyerRelanceSalaire,
+  escaladerPeriodesEnRetard,
+  type GenererBrouillonsRelancesInput,
+  genererBrouillonsRelancesSalaire,
+  type RelanceContexte,
+} from "./salaire-relances";
+export {
   assertOnboardingTermine,
   type CompletudeOnboarding,
   enregistrerActiviteOnboarding,

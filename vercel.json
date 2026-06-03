@@ -16,6 +16,10 @@
     {
       "path": "/api/salaire/generer-periodes",
       "schedule": "0 6 1 * *"
+    },
+    {
+      "path": "/api/salaire/relances",
+      "schedule": "0 7 * * *"
     }
   ]
 }
