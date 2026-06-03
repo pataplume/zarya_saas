@@ -794,3 +794,214 @@ export const evenementSalaire = salaireSchema.table(
     index("idx_evenement_client").on(t.cabinet_id, t.client_id, t.created_at),
   ],
 );
+
+// ═══ G1b — Export + notifications du cycle salaire ════════════════════════════
+// format_export/mapping_export = catalogues (cabinet_id NULL global). export/notification/
+// relance/piece = scopés (cabinet_id+client_id). Réf : salaire-schema.md §9/§11/§13/§14 ; migration 0037.
+
+export const formatFichierExportEnum = salaireSchema.enum("format_fichier_export", [
+  "csv",
+  "xlsx",
+  "xml",
+  "txt",
+]);
+export const statutExportEnum = salaireSchema.enum("statut_export", [
+  "genere",
+  "telecharge",
+  "importe",
+  "erreur",
+]);
+export const typeNotificationEnum = salaireSchema.enum("type_notification", [
+  "initiale",
+  "confirmation_validation",
+  "modification_fiduciaire",
+  "cloture",
+]);
+export const statutEnvoiNotifEnum = salaireSchema.enum("statut_envoi_notif", [
+  "envoyee",
+  "echec",
+  "bounce",
+]);
+export const langueNotifEnum = salaireSchema.enum("langue_notif", ["fr", "de", "it", "en"]);
+export const categoriePieceEnum = salaireSchema.enum("categorie_piece", [
+  "heures",
+  "absences",
+  "frais",
+  "contrat",
+  "medical",
+  "autre",
+]);
+export const sourcePieceEnum = salaireSchema.enum("source_piece", [
+  "client_dashboard",
+  "fiduciaire_upload",
+  "email_client",
+]);
+
+// ─── salaire.format_export (catalogue) ───────────────────────────────────────
+export const formatExport = salaireSchema.table("format_export", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  cabinet_id: uuid("cabinet_id").references(() => cabinet.id, { onDelete: "cascade" }),
+  code: text("code").notNull(),
+  nom: text("nom").notNull(),
+  logiciel_cible: logicielPaieCibleEnum("logiciel_cible").notNull(),
+  version: text("version"),
+  format_fichier: formatFichierExportEnum("format_fichier").notNull(),
+  encodage: text("encodage").default("utf-8"),
+  separateur_csv: text("separateur_csv"),
+  date_format: text("date_format"),
+  nombre_format: text("nombre_format"),
+  actif: boolean("actif").notNull().default(true),
+  documentation_url: text("documentation_url"),
+  notes_internes: text("notes_internes"),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─── salaire.mapping_export (catalogue) ──────────────────────────────────────
+export const mappingExportSalaire = salaireSchema.table(
+  "mapping_export",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id").references(() => cabinet.id, { onDelete: "cascade" }),
+    format_export_id: uuid("format_export_id")
+      .notNull()
+      .references(() => formatExport.id, { onDelete: "cascade" }),
+    type_element_id: uuid("type_element_id").references(() => typeElementPaie.id, {
+      onDelete: "set null",
+    }),
+    champ_zarya: text("champ_zarya"),
+    champ_cible: text("champ_cible").notNull(),
+    transformation: jsonb("transformation"),
+    obligatoire: boolean("obligatoire").notNull().default(false),
+    valeur_par_defaut: text("valeur_par_defaut"),
+    notes: text("notes"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_mapping_export_format").on(t.format_export_id)],
+);
+
+// ─── salaire.export ──────────────────────────────────────────────────────────
+export const exportSalaire = salaireSchema.table(
+  "export",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    periode_id: uuid("periode_id")
+      .notNull()
+      .references(() => periode.id, { onDelete: "cascade" }),
+    format_export_id: uuid("format_export_id")
+      .notNull()
+      .references(() => formatExport.id, { onDelete: "restrict" }),
+    logiciel_cible: logicielPaieCibleEnum("logiciel_cible"),
+    fichier_id: uuid("fichier_id").references(() => document.id, { onDelete: "set null" }),
+    nom_fichier: text("nom_fichier"),
+    taille_octets: bigint("taille_octets", { mode: "number" }),
+    nb_employes_inclus: integer("nb_employes_inclus"),
+    nb_lignes_donnees: integer("nb_lignes_donnees"),
+    genere_par: uuid("genere_par").notNull(),
+    genere_le: timestamp("genere_le", { withTimezone: true }).notNull().defaultNow(),
+    telecharge_le: timestamp("telecharge_le", { withTimezone: true }),
+    import_confirme: boolean("import_confirme").notNull().default(false),
+    import_confirme_le: timestamp("import_confirme_le", { withTimezone: true }),
+    import_confirme_par: uuid("import_confirme_par"),
+    import_notes: text("import_notes"),
+    version_format: text("version_format"),
+    statut: statutExportEnum("statut").notNull().default("genere"),
+    message_erreur: text("message_erreur"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_export_periode").on(t.cabinet_id, t.periode_id)],
+);
+
+// ─── salaire.notification ─────────────────────────────────────────────────────
+export const notificationSalaire = salaireSchema.table(
+  "notification",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    periode_id: uuid("periode_id")
+      .notNull()
+      .references(() => periode.id, { onDelete: "cascade" }),
+    type: typeNotificationEnum("type").notNull(),
+    destinataire_contact_id: uuid("destinataire_contact_id").references(() => contact.id, {
+      onDelete: "set null",
+    }),
+    destinataire_email: text("destinataire_email"),
+    sujet: text("sujet"),
+    corps: text("corps"),
+    langue: langueNotifEnum("langue"),
+    date_envoi: timestamp("date_envoi", { withTimezone: true }).notNull().defaultNow(),
+    statut_envoi: statutEnvoiNotifEnum("statut_envoi"),
+    envoyee_par: uuid("envoyee_par"),
+    graph_message_id: text("graph_message_id"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_notification_periode").on(t.cabinet_id, t.periode_id)],
+);
+
+// ─── salaire.relance ──────────────────────────────────────────────────────────
+export const relanceSalaire = salaireSchema.table(
+  "relance",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    periode_id: uuid("periode_id")
+      .notNull()
+      .references(() => periode.id, { onDelete: "cascade" }),
+    numero: integer("numero").notNull(),
+    destinataire_contact_id: uuid("destinataire_contact_id").references(() => contact.id, {
+      onDelete: "set null",
+    }),
+    sujet: text("sujet"),
+    corps: text("corps"),
+    date_envoi: timestamp("date_envoi", { withTimezone: true }).notNull().defaultNow(),
+    envoyee_par: uuid("envoyee_par"),
+    auto_generated: boolean("auto_generated").notNull().default(false),
+    valide_par_humain: boolean("valide_par_humain").notNull().default(false),
+    graph_message_id: text("graph_message_id"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_relance_periode").on(t.cabinet_id, t.periode_id)],
+);
+
+// ─── salaire.piece ────────────────────────────────────────────────────────────
+export const piece = salaireSchema.table(
+  "piece",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    periode_id: uuid("periode_id")
+      .notNull()
+      .references(() => periode.id, { onDelete: "cascade" }),
+    employe_id: uuid("employe_id").references(() => employe.id, { onDelete: "set null" }),
+    type_libre: text("type_libre"),
+    categorie: categoriePieceEnum("categorie"),
+    document_id: uuid("document_id")
+      .notNull()
+      .references(() => document.id, { onDelete: "restrict" }),
+    source: sourcePieceEnum("source").notNull(),
+    commentaire: text("commentaire"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_piece_periode").on(t.cabinet_id, t.periode_id, t.employe_id)],
+);
