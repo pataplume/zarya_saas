@@ -74,6 +74,15 @@ export {
   genererExportCsv,
 } from "./export-facture-csv";
 export {
+  assemblerLignesExport,
+  buildExportXlsx,
+  type GenererExportInput,
+  type GenererExportResult,
+  genererExportPeriode,
+  type LignesExport,
+  toCsvSalaire,
+} from "./export-salaire";
+export {
   buildManualProposal,
   type ChampPropose,
   DETERMINISTE_PROMPT_VERSION,
