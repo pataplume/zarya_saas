@@ -9,11 +9,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.0",
     "@zarya/db": "workspace:*",
     "@zarya/integrations": "workspace:*",
     "@zarya/logger": "workspace:*",
     "drizzle-orm": "^0.44.0",
     "exceljs": "^4.4.0",
+    "pdfjs-dist": "^4.10.38",
     "unpdf": "^1.6.2"
   },
   "devDependencies": {
