@@ -1,5 +1,9 @@
 import { notFound } from "next/navigation";
-import { SaisieElementForm, ValiderPeriodeForm } from "@/components/salaire/periode-forms";
+import {
+  DeclarerChangementForm,
+  SaisieElementForm,
+  ValiderPeriodeForm,
+} from "@/components/salaire/periode-forms";
 import { getEspaceClientContext } from "@/lib/espace-context";
 import { getPeriodeDetailClient } from "@/lib/periode-client-data";
 
@@ -84,6 +88,7 @@ export default async function PeriodeDetailPage({
           {employes.length > 0 && types.length > 0 ? (
             <SaisieElementForm periode_id={periode.id} employes={employes} types={types} />
           ) : null}
+          <DeclarerChangementForm periode_id={periode.id} employes={employes} />
           <ValiderPeriodeForm periode_id={periode.id} />
         </div>
       ) : (
