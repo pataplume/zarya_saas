@@ -11,7 +11,7 @@ import {
   sql,
   validationPeriode,
 } from "@zarya/db";
-import { genererPeriodesMensuelles } from "@zarya/extraction";
+import { confirmerImportExport, genererPeriodesMensuelles } from "@zarya/extraction";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -20,12 +20,15 @@ import { z } from "zod";
 // audit diff avant/après via salaire.evenement. Réf : salaire.md §6/§8 ; flow E §5-6 ; KICKOFF G4.
 
 const ROLES_ECRITURE = new Set(["responsable", "gestionnaire_salaires", "collaborateur"]);
+// G6b : `exportee` reste éditable (fenêtre de correction post-export, ré-export possible).
+// Seul `cloturee` verrouille en dur (arbitré founder).
 const STATUTS_EDITABLES = new Set([
   "non_demandee",
   "en_attente",
   "relancee",
   "en_retard",
   "validee",
+  "exportee",
 ]);
 
 export type SalaireFiduciaireState = {
@@ -201,6 +204,43 @@ export async function revoirPeriodeAction(
     acteur_type: "humain_fiduciaire",
     acteur_id: c.user_id,
   });
+
+  revalidatePath("/app/salaire");
+  return { success: true };
+}
+
+const ImportSchema = z.object({
+  export_id: z.string().uuid(),
+  notes: z.string().max(2000).optional(),
+});
+
+/**
+ * G6b — « Marquer importé » : confirme l'import de l'export dans le logiciel de paie, ce qui
+ * AUTO-clôture la période (exportee → cloturee). Scopé cabinet + RBAC écriture.
+ */
+export async function confirmerImportAction(
+  _prev: SalaireFiduciaireState,
+  formData: FormData,
+): Promise<SalaireFiduciaireState> {
+  const c = await ctx();
+  if ("error" in c) return c;
+  const notesRaw = formData.get("notes");
+  const parsed = ImportSchema.safeParse({
+    export_id: formData.get("export_id"),
+    ...(typeof notesRaw === "string" && notesRaw.length > 0 ? { notes: notesRaw } : {}),
+  });
+  if (!parsed.success) return { error: "Export invalide." };
+
+  try {
+    await confirmerImportExport({
+      cabinet_id: c.cabinet_id,
+      export_id: parsed.data.export_id,
+      import_par: c.user_id,
+      ...(parsed.data.notes ? { notes: parsed.data.notes } : {}),
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Échec de la confirmation d'import." };
+  }
 
   revalidatePath("/app/salaire");
   return { success: true };

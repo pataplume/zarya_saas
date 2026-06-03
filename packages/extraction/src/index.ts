@@ -273,6 +273,13 @@ export {
   terminerOnboarding,
 } from "./session-onboarding";
 export {
+  type ConfirmerImportInput,
+  type ConfirmerImportResult,
+  confirmerImportExport,
+  type MarquerTelechargeInput,
+  marquerExportTelecharge,
+} from "./suivi-export";
+export {
   type ChampsProposition,
   type ChampValidation,
   diffValidation,
