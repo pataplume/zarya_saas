@@ -599,6 +599,9 @@ export const periode = salaireSchema.table(
     notes_client: text("notes_client"),
     gestionnaire_id: uuid("gestionnaire_id"),
     logiciel_paie_cible: logicielPaieCibleEnum("logiciel_paie_cible"),
+    // G4b — jalon de revue fiduciaire (« validee_cabinet », migration 0039).
+    revue_fiduciaire_at: timestamp("revue_fiduciaire_at", { withTimezone: true }),
+    revue_fiduciaire_par: uuid("revue_fiduciaire_par"),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
