@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.0",
     "@zarya/db": "workspace:*",
     "@zarya/integrations": "workspace:*",
     "@zarya/logger": "workspace:*",

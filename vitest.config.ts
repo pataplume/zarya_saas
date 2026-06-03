@@ -40,6 +40,14 @@ export default defineConfig({
     globals: true,
     environment: "node",
     setupFiles: ["tests/setup.ts"],
+    // @napi-rs/canvas (binaire natif Skia, utilisé par la rasterisation OCR-a via unpdf) :
+    // externalisé pour être chargé par le résolveur Node natif (vite-node ne sait pas parser le
+    // binaire `.node`). Cf. rasterize-pdf.ts.
+    server: {
+      deps: {
+        external: [/@napi-rs\/canvas/],
+      },
+    },
     // Tests d'intégration sur la base Supabase DISTANTE (latence réseau × N round-trips).
     // Les plus lourds (ex. valider-lot « lot nominal ») frôlent 15 s et dépassent au moindre
     // pic de latence CI → flake récurrent. 30 s (= hookTimeout) donne la marge nécessaire ;
