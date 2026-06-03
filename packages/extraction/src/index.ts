@@ -136,6 +136,14 @@ export {
   finaliserFacture,
   type TypeFacture,
 } from "./finalize-facture";
+export {
+  deriverDateLimite,
+  type GenererPeriodesInput,
+  type GenererPeriodesResult,
+  genererPeriodesMensuelles,
+  joursDansMois,
+  moisPrecedent,
+} from "./generer-periodes";
 export { type ChatModelClient, InfomaniakClassifier } from "./infomaniak-classifier";
 export { InfomaniakFactureExtractor } from "./infomaniak-facture-extractor";
 export {
