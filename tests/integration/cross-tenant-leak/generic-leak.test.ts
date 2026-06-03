@@ -43,24 +43,30 @@ import {
   eq,
   evenement,
   evenementSalaire,
+  exportSalaire,
   extractionIa,
   facture,
   fichierPhysique,
+  formatExport,
   fournisseur,
   invitationMembre,
   invocation,
   mandat,
   mappingExport,
+  mappingExportSalaire,
   modeleRelance,
   note,
+  notificationSalaire,
   paramComptable,
   pauseClient,
   periode,
+  piece,
   propositionChamp,
   propositionClassement,
   propositionEmploye,
   propositionFacture,
   relance,
+  relanceSalaire,
   relation,
   risque,
   salaireConfig,
@@ -99,24 +105,30 @@ import {
   seedEmploye,
   seedEvenement,
   seedEvenementSalaire,
+  seedExportSalaire,
   seedExtractionIa,
   seedFacture,
   seedFichierPhysique,
+  seedFormatExport,
   seedFournisseur,
   seedInvitation,
   seedInvocation,
   seedMandat,
   seedMappingExport,
+  seedMappingExportSalaire,
   seedModeleRelance,
   seedNote,
+  seedNotificationSalaire,
   seedParamComptable,
   seedPauseClient,
   seedPeriode,
+  seedPiece,
   seedProposition,
   seedPropositionChamp,
   seedPropositionEmploye,
   seedPropositionFacture,
   seedRelance,
+  seedRelanceSalaire,
   seedRelation,
   seedRisque,
   seedSalaireConfig,
@@ -514,6 +526,49 @@ const METIER_TABLES: MetierTableSpec[] = [
     idCol: evenementSalaire.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
+  // Bloc G1b — export/notif. format_export/mapping_export = catalogues (override cabinet scopé).
+  {
+    name: "salaire.format_export",
+    table: formatExport,
+    scopeCol: formatExport.cabinet_id,
+    idCol: formatExport.id,
+    noopSet: { actif: false },
+  },
+  {
+    name: "salaire.mapping_export",
+    table: mappingExportSalaire,
+    scopeCol: mappingExportSalaire.cabinet_id,
+    idCol: mappingExportSalaire.id,
+    noopSet: { obligatoire: true },
+  },
+  {
+    name: "salaire.export",
+    table: exportSalaire,
+    scopeCol: exportSalaire.cabinet_id,
+    idCol: exportSalaire.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.notification",
+    table: notificationSalaire,
+    scopeCol: notificationSalaire.cabinet_id,
+    idCol: notificationSalaire.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.relance",
+    table: relanceSalaire,
+    scopeCol: relanceSalaire.cabinet_id,
+    idCol: relanceSalaire.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.piece",
+    table: piece,
+    scopeCol: piece.cabinet_id,
+    idCol: piece.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
 ];
 
 // Tables dont la RLS doit rester ACTIVÉE en DB (défense en profondeur).
@@ -578,6 +633,13 @@ const RLS_TABLES = [
   ["salaire", "changement"],
   ["salaire", "validation"],
   ["salaire", "evenement"],
+  // Bloc G1b — export/notif.
+  ["salaire", "format_export"],
+  ["salaire", "mapping_export"],
+  ["salaire", "export"],
+  ["salaire", "notification"],
+  ["salaire", "relance"],
+  ["salaire", "piece"],
 ] as const;
 
 let sql: postgres.Sql;
@@ -791,6 +853,31 @@ beforeAll(async () => {
     await seedEvenementSalaire(sql, cabinetA.id, clientA.id),
     await seedEvenementSalaire(sql, cabinetB.id, clientB.id),
   ];
+  // Bloc G1b — export/notif (format → mapping/export ; notif/relance/piece sur periode).
+  const [fmtA, fmtB] = [
+    await seedFormatExport(sql, cabinetA.id),
+    await seedFormatExport(sql, cabinetB.id),
+  ];
+  const [mapA, mapB] = [
+    await seedMappingExportSalaire(sql, cabinetA.id, fmtA.id),
+    await seedMappingExportSalaire(sql, cabinetB.id, fmtB.id),
+  ];
+  const [expA, expB] = [
+    await seedExportSalaire(sql, cabinetA.id, clientA.id, periodeA.id, fmtA.id),
+    await seedExportSalaire(sql, cabinetB.id, clientB.id, periodeB.id, fmtB.id),
+  ];
+  const [notifA, notifB] = [
+    await seedNotificationSalaire(sql, cabinetA.id, clientA.id, periodeA.id),
+    await seedNotificationSalaire(sql, cabinetB.id, clientB.id, periodeB.id),
+  ];
+  const [relSalA, relSalB] = [
+    await seedRelanceSalaire(sql, cabinetA.id, clientA.id, periodeA.id),
+    await seedRelanceSalaire(sql, cabinetB.id, clientB.id, periodeB.id),
+  ];
+  const [pieceA, pieceB] = [
+    await seedPiece(sql, cabinetA.id, clientA.id, periodeA.id),
+    await seedPiece(sql, cabinetB.id, clientB.id, periodeB.id),
+  ];
 
   Object.assign(idsA, {
     "crm.cabinet": cabinetA.id,
@@ -843,6 +930,12 @@ beforeAll(async () => {
     "salaire.changement": changeA.id,
     "salaire.validation": validA.id,
     "salaire.evenement": evtSalA.id,
+    "salaire.format_export": fmtA.id,
+    "salaire.mapping_export": mapA.id,
+    "salaire.export": expA.id,
+    "salaire.notification": notifA.id,
+    "salaire.relance": relSalA.id,
+    "salaire.piece": pieceA.id,
   });
   Object.assign(idsB, {
     "crm.cabinet": cabinetB.id,
@@ -895,6 +988,12 @@ beforeAll(async () => {
     "salaire.changement": changeB.id,
     "salaire.validation": validB.id,
     "salaire.evenement": evtSalB.id,
+    "salaire.format_export": fmtB.id,
+    "salaire.mapping_export": mapB.id,
+    "salaire.export": expB.id,
+    "salaire.notification": notifB.id,
+    "salaire.relance": relSalB.id,
+    "salaire.piece": pieceB.id,
   });
 }, 120_000); // ~150 inserts séquentiels × 2 cabinets sur DB distante : le hookTimeout
 // global (30 s) est insuffisant sous la latence réseau CI (≈200 ms/round-trip). Ce seeding
