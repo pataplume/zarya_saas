@@ -937,6 +937,14 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   // Tables enfants d'abord (contraintes FK sur cabinet_id)
   // Note : sql.array(ids) produit un text[] — cast explicite en uuid[] pour la comparaison
   const arr = sql.array(ids);
+  // Bloc G1a (salaire.* cycle — enfants de periode/employe en RESTRICT : AVANT salaire.employe)
+  await sql`DELETE FROM salaire.element_paie        WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM salaire.absence             WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM salaire.changement          WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM salaire.validation          WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM salaire.evenement           WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM salaire.periode             WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  await sql`DELETE FROM salaire.type_element_paie   WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc F6a (salaire.* cluster propositions — ordre FK : champ → employe-prop → extraction →
   // upload → session ; AVANT salaire.employe et doc.document, dont upload_fichier dépend en RESTRICT)
   await sql`DELETE FROM salaire.proposition_champ   WHERE cabinet_id = ANY(${arr}::uuid[])`;
@@ -999,4 +1007,115 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   await sql`DELETE FROM crm.session_onboarding_fiduciaire WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.cabinet_membre          WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.cabinet                 WHERE id         = ANY(${arr}::uuid[])`;
+}
+
+// ─── Bloc G1a — salaire.* cycle mensuel ───────────────────────────────────────
+
+/** Crée un salaire.type_element_paie SCOPÉ cabinet (override du catalogue global). */
+export async function seedTypeElementPaie(
+  sql: postgres.Sql,
+  cabinet_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.type_element_paie (id, cabinet_id, code, libelle_fr, unite, categorie)
+    VALUES (${id}, ${cabinet_id}, ${`PRIME_${id.slice(0, 6)}`}, 'Prime cabinet', 'montant_chf', 'prime')
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée une salaire.periode de test. */
+export async function seedPeriode(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.periode (id, cabinet_id, client_id, annee, mois, date_limite_validation)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, 2026, 5, '2026-05-25')
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée un salaire.element_paie (type = HEURES_NORMALES global ; employe fourni). */
+export async function seedElementPaie(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  periode_id: string,
+  employe_id: string,
+): Promise<TestFactureRow> {
+  const [type] = await sql`
+    SELECT id FROM salaire.type_element_paie WHERE cabinet_id IS NULL AND code = 'HEURES_NORMALES' LIMIT 1`;
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.element_paie
+      (id, cabinet_id, client_id, periode_id, employe_id, type_element_id, valeur_numerique, source)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${periode_id}, ${employe_id}, ${type?.id}, 168, 'fiduciaire_saisie')
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée une salaire.absence (employe fourni). */
+export async function seedAbsence(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  periode_id: string,
+  employe_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.absence
+      (id, cabinet_id, client_id, periode_id, employe_id, type, date_debut, date_fin, source)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${periode_id}, ${employe_id}, 'maladie',
+            '2026-05-04', '2026-05-06', 'client_dashboard')
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée un salaire.changement. */
+export async function seedChangement(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  periode_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.changement (id, cabinet_id, client_id, periode_id, type, date_effet, source)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${periode_id}, 'changement_salaire', '2026-05-01', 'client_dashboard')
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée une salaire.validation (1 par période). */
+export async function seedValidationPeriode(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+  periode_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.validation
+      (id, cabinet_id, client_id, periode_id, valide_par_type, methode)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${periode_id}, 'client', 'dashboard')
+  `;
+  return { id, cabinet_id };
+}
+
+/** Crée un salaire.evenement (journal). */
+export async function seedEvenementSalaire(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<TestFactureRow> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO salaire.evenement (id, cabinet_id, client_id, type, acteur_type)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, 'periode_creee', 'systeme')
+  `;
+  return { id, cabinet_id };
 }

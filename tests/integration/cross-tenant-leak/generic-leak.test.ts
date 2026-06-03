@@ -20,6 +20,7 @@
  * + dans RLS_TABLES. C'est non négociable (cf. ADR 0005 addendum).
  */
 import {
+  absence,
   accesClient,
   adresse,
   and,
@@ -28,17 +29,20 @@ import {
   cabinetIntegration,
   cabinetMembre,
   calendarCabinetConfig,
+  changement,
   client,
   contact,
   db,
   document,
   documentAttendu,
   echeance,
+  elementPaie,
   emailBrut,
   emailSubscription,
   employe,
   eq,
   evenement,
+  evenementSalaire,
   extractionIa,
   facture,
   fichierPhysique,
@@ -51,6 +55,7 @@ import {
   note,
   paramComptable,
   pauseClient,
+  periode,
   propositionChamp,
   propositionClassement,
   propositionEmploye,
@@ -63,8 +68,10 @@ import {
   sessionOnboarding,
   sessionOnboardingFiduciaire,
   templateEcheance,
+  typeElementPaie,
   uploadBrut,
   uploadFichier,
+  validationPeriode,
   zefixRechercheCabinet,
 } from "@zarya/db";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
@@ -74,20 +81,24 @@ import { createServiceClient } from "../helpers/rls";
 import {
   cleanupCabinets,
   getSessionId,
+  seedAbsence,
   seedAccesClient,
   seedAdresse,
   seedBanque,
   seedCabinetIntegration,
   seedCalendarConfig,
+  seedChangement,
   seedClient,
   seedContact,
   seedDocument,
   seedDocumentAttendu,
   seedEcheance,
+  seedElementPaie,
   seedEmailBrut,
   seedEmailSubscription,
   seedEmploye,
   seedEvenement,
+  seedEvenementSalaire,
   seedExtractionIa,
   seedFacture,
   seedFichierPhysique,
@@ -100,6 +111,7 @@ import {
   seedNote,
   seedParamComptable,
   seedPauseClient,
+  seedPeriode,
   seedProposition,
   seedPropositionChamp,
   seedPropositionEmploye,
@@ -112,8 +124,10 @@ import {
   seedSessionOnboarding,
   seedTemplateEcheance,
   seedTwoCabinets,
+  seedTypeElementPaie,
   seedUploadBrut,
   seedUploadFichier,
+  seedValidationPeriode,
   seedZefixRecherche,
   type TestCabinet,
 } from "../helpers/seed";
@@ -448,6 +462,58 @@ const METIER_TABLES: MetierTableSpec[] = [
     idCol: propositionChamp.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
+  // Bloc G1a — cycle mensuel salaire (salaire.*).
+  // type_element_paie = catalogue (global cabinet_id NULL + override cabinet) : on enregistre
+  // l'override SCOPÉ cabinet (jamais l'override d'un autre cabinet via un filtre cabinet_id).
+  {
+    name: "salaire.type_element_paie",
+    table: typeElementPaie,
+    scopeCol: typeElementPaie.cabinet_id,
+    idCol: typeElementPaie.id,
+    noopSet: { ordre_affichage: 0 },
+  },
+  {
+    name: "salaire.periode",
+    table: periode,
+    scopeCol: periode.cabinet_id,
+    idCol: periode.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.element_paie",
+    table: elementPaie,
+    scopeCol: elementPaie.cabinet_id,
+    idCol: elementPaie.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.absence",
+    table: absence,
+    scopeCol: absence.cabinet_id,
+    idCol: absence.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.changement",
+    table: changement,
+    scopeCol: changement.cabinet_id,
+    idCol: changement.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.validation",
+    table: validationPeriode,
+    scopeCol: validationPeriode.cabinet_id,
+    idCol: validationPeriode.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "salaire.evenement",
+    table: evenementSalaire,
+    scopeCol: evenementSalaire.cabinet_id,
+    idCol: evenementSalaire.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
 ];
 
 // Tables dont la RLS doit rester ACTIVÉE en DB (défense en profondeur).
@@ -504,6 +570,14 @@ const RLS_TABLES = [
   ["salaire", "extraction_ia"],
   ["salaire", "proposition_employe"],
   ["salaire", "proposition_champ"],
+  // Bloc G1a — cycle mensuel salaire.
+  ["salaire", "type_element_paie"],
+  ["salaire", "periode"],
+  ["salaire", "element_paie"],
+  ["salaire", "absence"],
+  ["salaire", "changement"],
+  ["salaire", "validation"],
+  ["salaire", "evenement"],
 ] as const;
 
 let sql: postgres.Sql;
@@ -688,6 +762,35 @@ beforeAll(async () => {
     await seedPropositionChamp(sql, cabinetA.id, clientA.id, propEmpA.id),
     await seedPropositionChamp(sql, cabinetB.id, clientB.id, propEmpB.id),
   ];
+  // Bloc G1a — cycle (ordre FK : type_element → periode → element/absence/changement/validation ; evenement libre).
+  const [typeElA, typeElB] = [
+    await seedTypeElementPaie(sql, cabinetA.id),
+    await seedTypeElementPaie(sql, cabinetB.id),
+  ];
+  const [periodeA, periodeB] = [
+    await seedPeriode(sql, cabinetA.id, clientA.id),
+    await seedPeriode(sql, cabinetB.id, clientB.id),
+  ];
+  const [elemA, elemB] = [
+    await seedElementPaie(sql, cabinetA.id, clientA.id, periodeA.id, employeA.id),
+    await seedElementPaie(sql, cabinetB.id, clientB.id, periodeB.id, employeB.id),
+  ];
+  const [absA, absB] = [
+    await seedAbsence(sql, cabinetA.id, clientA.id, periodeA.id, employeA.id),
+    await seedAbsence(sql, cabinetB.id, clientB.id, periodeB.id, employeB.id),
+  ];
+  const [changeA, changeB] = [
+    await seedChangement(sql, cabinetA.id, clientA.id, periodeA.id),
+    await seedChangement(sql, cabinetB.id, clientB.id, periodeB.id),
+  ];
+  const [validA, validB] = [
+    await seedValidationPeriode(sql, cabinetA.id, clientA.id, periodeA.id),
+    await seedValidationPeriode(sql, cabinetB.id, clientB.id, periodeB.id),
+  ];
+  const [evtSalA, evtSalB] = [
+    await seedEvenementSalaire(sql, cabinetA.id, clientA.id),
+    await seedEvenementSalaire(sql, cabinetB.id, clientB.id),
+  ];
 
   Object.assign(idsA, {
     "crm.cabinet": cabinetA.id,
@@ -733,6 +836,13 @@ beforeAll(async () => {
     "salaire.extraction_ia": extrA.id,
     "salaire.proposition_employe": propEmpA.id,
     "salaire.proposition_champ": propChampA.id,
+    "salaire.type_element_paie": typeElA.id,
+    "salaire.periode": periodeA.id,
+    "salaire.element_paie": elemA.id,
+    "salaire.absence": absA.id,
+    "salaire.changement": changeA.id,
+    "salaire.validation": validA.id,
+    "salaire.evenement": evtSalA.id,
   });
   Object.assign(idsB, {
     "crm.cabinet": cabinetB.id,
@@ -778,6 +888,13 @@ beforeAll(async () => {
     "salaire.extraction_ia": extrB.id,
     "salaire.proposition_employe": propEmpB.id,
     "salaire.proposition_champ": propChampB.id,
+    "salaire.type_element_paie": typeElB.id,
+    "salaire.periode": periodeB.id,
+    "salaire.element_paie": elemB.id,
+    "salaire.absence": absB.id,
+    "salaire.changement": changeB.id,
+    "salaire.validation": validB.id,
+    "salaire.evenement": evtSalB.id,
   });
 }, 120_000); // ~150 inserts séquentiels × 2 cabinets sur DB distante : le hookTimeout
 // global (30 s) est insuffisant sous la latence réseau CI (≈200 ms/round-trip). Ce seeding

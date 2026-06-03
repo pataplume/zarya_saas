@@ -429,3 +429,368 @@ export const propositionChamp = salaireSchema.table(
     index("idx_proposition_champ_swissdec").on(t.proposition_employe_id, t.obligatoire_swissdec),
   ],
 );
+
+// ═══ G1a — Cœur du cycle mensuel salaire (workflow, PAS de calcul de paie) ═════
+// cabinet_id + client_id dénormalisés (précédent facture 0030) ; type_element_paie =
+// catalogue (cabinet_id NULL global). Réf : salaire-schema.md §2/§4-10/§15 ; migration 0036.
+
+export const statutPeriodeEnum = salaireSchema.enum("statut_periode", [
+  "non_demandee",
+  "en_attente",
+  "relancee",
+  "validee",
+  "en_retard",
+  "exportee",
+  "cloturee",
+  "non_applicable",
+]);
+export const logicielPaieCibleEnum = salaireSchema.enum("logiciel_paie_cible", [
+  "bexio_payroll",
+  "cresus_salaires",
+  "winbiz_salaires",
+  "abacus_lohn",
+  "swiss21",
+  "banana",
+  "autre",
+  "aucun",
+]);
+export const acteurModifEnum = salaireSchema.enum("acteur_modif", [
+  "client",
+  "fiduciaire",
+  "systeme",
+]);
+export const uniteElementEnum = salaireSchema.enum("unite_element", [
+  "heures",
+  "jours",
+  "montant_chf",
+  "pourcentage",
+  "nombre",
+  "texte",
+]);
+export const categorieElementEnum = salaireSchema.enum("categorie_element", [
+  "temps_travail",
+  "prime",
+  "indemnite",
+  "retenue",
+  "frais",
+  "autre",
+]);
+export const sourceElementEnum = salaireSchema.enum("source_element", [
+  "pre_remplie",
+  "client_dashboard",
+  "fiduciaire_saisie",
+  "import_pj",
+  "ia_extraction",
+]);
+export const typeAbsenceEnum = salaireSchema.enum("type_absence", [
+  "maladie",
+  "accident_pro",
+  "accident_non_pro",
+  "maternite",
+  "paternite",
+  "service_militaire",
+  "conge_non_paye",
+  "conge_paye",
+  "autre",
+]);
+export const assuranceAbsenceEnum = salaireSchema.enum("assurance_absence", [
+  "aucune",
+  "accident_lpp",
+  "accident_laanp",
+  "ijm",
+  "apg",
+]);
+export const sourceAbsenceEnum = salaireSchema.enum("source_absence", [
+  "client_dashboard",
+  "fiduciaire_saisie",
+  "import_pj",
+]);
+export const typeChangementEnum = salaireSchema.enum("type_changement", [
+  "entree",
+  "sortie",
+  "changement_salaire",
+  "changement_taux",
+  "conge_non_paye",
+  "maladie_longue",
+  "accident",
+  "maternite_paternite",
+  "service_militaire",
+  "autre",
+]);
+export const sourceChangementEnum = salaireSchema.enum("source_changement", [
+  "client_dashboard",
+  "fiduciaire_saisie",
+  "ia_extraction",
+]);
+export const valideParValidationEnum = salaireSchema.enum("valide_par_validation", [
+  "client",
+  "fiduciaire_pour_client",
+]);
+export const methodeValidationEnum = salaireSchema.enum("methode_validation", [
+  "dashboard",
+  "email_reponse",
+  "email_avec_piece",
+  "confirmation_manuelle",
+]);
+export const acteurEvenementSalaireEnum = salaireSchema.enum("acteur_evenement", [
+  "humain_fiduciaire",
+  "humain_client",
+  "systeme",
+  "ia",
+]);
+export const typeEvenementSalaireEnum = salaireSchema.enum("type_evenement", [
+  "periode_creee",
+  "periode_pre_remplie",
+  "notification_envoyee",
+  "relance_envoyee",
+  "connexion_client_dashboard",
+  "element_paie_saisi",
+  "element_paie_modifie",
+  "absence_declaree",
+  "changement_declare",
+  "changement_applique_referentiel",
+  "employe_propose",
+  "employe_confirme",
+  "employe_sorti",
+  "piece_uploadee",
+  "validation_recue_client",
+  "validation_par_fiduciaire",
+  "export_genere",
+  "export_telecharge",
+  "import_confirme",
+  "periode_clotturee",
+  "periode_reouverte",
+  "statut_modifie",
+  "note_ajoutee",
+  "connexion_client_echec",
+]);
+
+// ─── salaire.periode ──────────────────────────────────────────────────────────
+export const periode = salaireSchema.table(
+  "periode",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    annee: integer("annee").notNull(),
+    mois: integer("mois").notNull(),
+    statut: statutPeriodeEnum("statut").notNull().default("non_demandee"),
+    date_notification_envoyee: timestamp("date_notification_envoyee", { withTimezone: true }),
+    date_validation_recue: timestamp("date_validation_recue", { withTimezone: true }),
+    date_export_genere: timestamp("date_export_genere", { withTimezone: true }),
+    date_import_confirme: timestamp("date_import_confirme", { withTimezone: true }),
+    date_limite_validation: date("date_limite_validation").notNull(),
+    date_cloture: timestamp("date_cloture", { withTimezone: true }),
+    pre_remplie: boolean("pre_remplie").notNull().default(false),
+    pre_remplie_depuis: uuid("pre_remplie_depuis"),
+    derniere_modification_par: acteurModifEnum("derniere_modification_par"),
+    derniere_modification_acteur_id: uuid("derniere_modification_acteur_id"),
+    derniere_modification_at: timestamp("derniere_modification_at", { withTimezone: true }),
+    nb_employes_concernes: integer("nb_employes_concernes").notNull().default(0),
+    nb_changements_declares: integer("nb_changements_declares").notNull().default(0),
+    sans_changement_declare: boolean("sans_changement_declare").notNull().default(false),
+    non_applicable: boolean("non_applicable").notNull().default(false),
+    non_applicable_motif: text("non_applicable_motif"),
+    notes_internes_fiduciaire: text("notes_internes_fiduciaire"),
+    notes_client: text("notes_client"),
+    gestionnaire_id: uuid("gestionnaire_id"),
+    logiciel_paie_cible: logicielPaieCibleEnum("logiciel_paie_cible"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uniq_periode_client_mois").on(t.client_id, t.annee, t.mois),
+    index("idx_periode_statut").on(t.cabinet_id, t.statut, t.date_limite_validation),
+    index("idx_periode_client").on(t.cabinet_id, t.client_id, t.annee, t.mois),
+  ],
+);
+
+// ─── salaire.type_element_paie (catalogue) ───────────────────────────────────
+export const typeElementPaie = salaireSchema.table("type_element_paie", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  cabinet_id: uuid("cabinet_id").references(() => cabinet.id, { onDelete: "cascade" }),
+  code: text("code").notNull(),
+  libelle_fr: text("libelle_fr").notNull(),
+  libelle_de: text("libelle_de"),
+  libelle_it: text("libelle_it"),
+  description_client: text("description_client"),
+  unite: uniteElementEnum("unite").notNull(),
+  categorie: categorieElementEnum("categorie").notNull(),
+  recurrent: boolean("recurrent").notNull().default(false),
+  visible_client: boolean("visible_client").notNull().default(true),
+  ordre_affichage: integer("ordre_affichage").notNull().default(100),
+  actif: boolean("actif").notNull().default(true),
+  created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─── salaire.element_paie ─────────────────────────────────────────────────────
+export const elementPaie = salaireSchema.table(
+  "element_paie",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    periode_id: uuid("periode_id")
+      .notNull()
+      .references(() => periode.id, { onDelete: "cascade" }),
+    employe_id: uuid("employe_id")
+      .notNull()
+      .references(() => employe.id, { onDelete: "restrict" }),
+    type_element_id: uuid("type_element_id")
+      .notNull()
+      .references(() => typeElementPaie.id, { onDelete: "restrict" }),
+    valeur_numerique: numeric("valeur_numerique", { precision: 12, scale: 4 }),
+    valeur_texte: text("valeur_texte"),
+    commentaire: text("commentaire"),
+    source: sourceElementEnum("source").notNull(),
+    origine_element_id: uuid("origine_element_id"),
+    modifie_par_acteur_type: acteurModifEnum("modifie_par_acteur_type"),
+    modifie_par_acteur_id: uuid("modifie_par_acteur_id"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("uniq_element_paie").on(t.periode_id, t.employe_id, t.type_element_id),
+    index("idx_element_paie_periode").on(t.cabinet_id, t.periode_id, t.employe_id),
+    index("idx_element_paie_type").on(t.periode_id, t.type_element_id),
+  ],
+);
+
+// ─── salaire.absence ──────────────────────────────────────────────────────────
+export const absence = salaireSchema.table(
+  "absence",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    periode_id: uuid("periode_id")
+      .notNull()
+      .references(() => periode.id, { onDelete: "cascade" }),
+    employe_id: uuid("employe_id")
+      .notNull()
+      .references(() => employe.id, { onDelete: "restrict" }),
+    type: typeAbsenceEnum("type").notNull(),
+    date_debut: date("date_debut").notNull(),
+    date_fin: date("date_fin").notNull(),
+    nb_jours_ouvres: numeric("nb_jours_ouvres", { precision: 4, scale: 1 }),
+    nb_jours_calendaires: integer("nb_jours_calendaires"),
+    pourcentage_incapacite: integer("pourcentage_incapacite"),
+    certificat_medical_recu: boolean("certificat_medical_recu").notNull().default(false),
+    certificat_document_id: uuid("certificat_document_id").references(() => document.id, {
+      onDelete: "set null",
+    }),
+    assurance_concernee: assuranceAbsenceEnum("assurance_concernee"),
+    montant_avance_employeur: numeric("montant_avance_employeur", { precision: 10, scale: 2 }),
+    source: sourceAbsenceEnum("source").notNull(),
+    commentaire: text("commentaire"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_absence_periode").on(t.cabinet_id, t.periode_id, t.employe_id),
+    index("idx_absence_employe").on(t.employe_id, t.date_debut),
+  ],
+);
+
+// ─── salaire.changement ───────────────────────────────────────────────────────
+export const changement = salaireSchema.table(
+  "changement",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    periode_id: uuid("periode_id")
+      .notNull()
+      .references(() => periode.id, { onDelete: "cascade" }),
+    employe_id: uuid("employe_id").references(() => employe.id, { onDelete: "set null" }),
+    type: typeChangementEnum("type").notNull(),
+    date_effet: date("date_effet").notNull(),
+    description: text("description"),
+    montant_impact: numeric("montant_impact", { precision: 10, scale: 2 }),
+    ancien_taux_activite: numeric("ancien_taux_activite", { precision: 5, scale: 2 }),
+    nouveau_taux_activite: numeric("nouveau_taux_activite", { precision: 5, scale: 2 }),
+    ancien_salaire_base: numeric("ancien_salaire_base", { precision: 10, scale: 2 }),
+    nouveau_salaire_base: numeric("nouveau_salaire_base", { precision: 10, scale: 2 }),
+    piece_justificative_id: uuid("piece_justificative_id").references(() => document.id, {
+      onDelete: "set null",
+    }),
+    source: sourceChangementEnum("source").notNull(),
+    confiance_extraction: numeric("confiance_extraction", { precision: 3, scale: 2 }),
+    valide_par_fiduciaire: boolean("valide_par_fiduciaire").notNull().default(false),
+    applique_dans_referentiel: boolean("applique_dans_referentiel").notNull().default(false),
+    confirme_dans_paie: boolean("confirme_dans_paie").notNull().default(false),
+    notes: text("notes"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_changement_periode").on(t.cabinet_id, t.periode_id),
+    index("idx_changement_employe").on(t.employe_id),
+  ],
+);
+
+// ─── salaire.validation (1 par période) ──────────────────────────────────────
+export const validationPeriode = salaireSchema.table(
+  "validation",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    client_id: uuid("client_id")
+      .notNull()
+      .references(() => client.id, { onDelete: "restrict" }),
+    periode_id: uuid("periode_id")
+      .notNull()
+      .unique()
+      .references(() => periode.id, { onDelete: "cascade" }),
+    valide_par_type: valideParValidationEnum("valide_par_type").notNull(),
+    valideur_contact_id: uuid("valideur_contact_id").references(() => contact.id, {
+      onDelete: "set null",
+    }),
+    valideur_user_id: uuid("valideur_user_id"),
+    methode: methodeValidationEnum("methode").notNull(),
+    date_validation: timestamp("date_validation", { withTimezone: true }).notNull().defaultNow(),
+    message: text("message"),
+    sans_changement_confirme: boolean("sans_changement_confirme").notNull().default(false),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_validation_periode").on(t.cabinet_id, t.periode_id)],
+);
+
+// ─── salaire.evenement (journal append-only) ─────────────────────────────────
+export const evenementSalaire = salaireSchema.table(
+  "evenement",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    periode_id: uuid("periode_id").references(() => periode.id, { onDelete: "set null" }),
+    client_id: uuid("client_id").references(() => client.id, { onDelete: "set null" }),
+    type: typeEvenementSalaireEnum("type").notNull(),
+    acteur_type: acteurEvenementSalaireEnum("acteur_type"),
+    acteur_id: uuid("acteur_id"),
+    description: text("description"),
+    metadata: jsonb("metadata"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_evenement_periode").on(t.cabinet_id, t.periode_id, t.created_at),
+    index("idx_evenement_client").on(t.cabinet_id, t.client_id, t.created_at),
+  ],
+);
