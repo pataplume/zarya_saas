@@ -124,6 +124,16 @@ tard à l'entrée de H2.
 - **Séquence H** inchangée (H1 schéma + index → H2 indexation → H3 récupération → H4 réponse sourcée
   → H5 sécurité), mais **débloquée** : H1 peut figer `search.document_chunk` en `vector(3584)`.
 
+## Addendum 2026-06-03 — type `halfvec(3584)` pour la colonne indexée (H1)
+
+À l'implémentation de H1 (migration 0041), contrainte technique pgvector confirmée : l'index
+**HNSW du type `vector` est plafonné à 2000 dimensions**. L'embedding faisant 3584 dim, la colonne
+`search.document_chunk.embedding` est typée **`halfvec(3584)`** (demi-précision FP16), dont l'index
+HNSW (`halfvec_cosine_ops`) supporte jusqu'à 4000 dim (pgvector ≥ 0.7 ; base ZARYA en 0.8.0).
+Conséquences : perte de rappel négligeable pour la récupération, **stockage divisé par 2**, opérateur
+de distance cosinus `<=>` inchangé. La décision §2 (« vector(3584) ») se lit donc **`halfvec(3584)`**
+pour la colonne stockée et indexée. Décision **founder** (AskUserQuestion, 2026-06-03).
+
 ## Références
 
 - `CLAUDE.md` règle 6 (souveraineté IK) · ADR 0010 (couche IA Infomaniak)

@@ -35,6 +35,7 @@ import {
   db,
   document,
   documentAttendu,
+  documentChunk,
   echeance,
   elementPaie,
   emailBrut,
@@ -70,6 +71,7 @@ import {
   relation,
   risque,
   salaireConfig,
+  searchRequete,
   service,
   sessionOnboarding,
   sessionOnboardingFiduciaire,
@@ -98,6 +100,7 @@ import {
   seedContact,
   seedDocument,
   seedDocumentAttendu,
+  seedDocumentChunk,
   seedEcheance,
   seedElementPaie,
   seedEmailBrut,
@@ -132,6 +135,7 @@ import {
   seedRelation,
   seedRisque,
   seedSalaireConfig,
+  seedSearchRequete,
   seedService,
   seedSessionOnboarding,
   seedTemplateEcheance,
@@ -569,6 +573,21 @@ const METIER_TABLES: MetierTableSpec[] = [
     idCol: piece.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
+  // Bloc H1 — module Search.
+  {
+    name: "search.document_chunk",
+    table: documentChunk,
+    scopeCol: documentChunk.cabinet_id,
+    idCol: documentChunk.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "search.requete",
+    table: searchRequete,
+    scopeCol: searchRequete.cabinet_id,
+    idCol: searchRequete.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
 ];
 
 // Tables dont la RLS doit rester ACTIVÉE en DB (défense en profondeur).
@@ -640,6 +659,9 @@ const RLS_TABLES = [
   ["salaire", "notification"],
   ["salaire", "relance"],
   ["salaire", "piece"],
+  // Bloc H1 — module Search.
+  ["search", "document_chunk"],
+  ["search", "requete"],
 ] as const;
 
 let sql: postgres.Sql;
@@ -878,6 +900,15 @@ beforeAll(async () => {
     await seedPiece(sql, cabinetA.id, clientA.id, periodeA.id),
     await seedPiece(sql, cabinetB.id, clientB.id, periodeB.id),
   ];
+  // Bloc H1 — search.* (chunk sur doc.document existant ; requete sur l'utilisateur du cabinet).
+  const [chunkA, chunkB] = [
+    await seedDocumentChunk(sql, cabinetA.id, clientA.id, docA.id),
+    await seedDocumentChunk(sql, cabinetB.id, clientB.id, docB.id),
+  ];
+  const [reqA, reqB] = [
+    await seedSearchRequete(sql, cabinetA.id, cabinetA.user_id),
+    await seedSearchRequete(sql, cabinetB.id, cabinetB.user_id),
+  ];
 
   Object.assign(idsA, {
     "crm.cabinet": cabinetA.id,
@@ -936,6 +967,8 @@ beforeAll(async () => {
     "salaire.notification": notifA.id,
     "salaire.relance": relSalA.id,
     "salaire.piece": pieceA.id,
+    "search.document_chunk": chunkA.id,
+    "search.requete": reqA.id,
   });
   Object.assign(idsB, {
     "crm.cabinet": cabinetB.id,
@@ -994,6 +1027,8 @@ beforeAll(async () => {
     "salaire.notification": notifB.id,
     "salaire.relance": relSalB.id,
     "salaire.piece": pieceB.id,
+    "search.document_chunk": chunkB.id,
+    "search.requete": reqB.id,
   });
 }, 120_000); // ~150 inserts séquentiels × 2 cabinets sur DB distante : le hookTimeout
 // global (30 s) est insuffisant sous la latence réseau CI (≈200 ms/round-trip). Ce seeding
