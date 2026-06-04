@@ -1,6 +1,13 @@
 // @zarya/extraction — Phase 2 : pipeline IA générique (proposition → validation → entité)
 
 export {
+  AGGREGATION_TEMPLATES,
+  AggregationError,
+  aggregationCatalog,
+  type RunAggregationInput,
+  runAggregation,
+} from "./aggregation-templates";
+export {
   buildNomStandardise,
   type NomStandardise,
   type NomStandardiseInput,
@@ -55,6 +62,12 @@ export {
   SEUIL_MONTANT_ELEVE,
   TAUX_TVA_CH_VALIDES,
 } from "./detect-facture-anomalies";
+export {
+  detectIntent,
+  INTENT_PROMPT_VERSION,
+  SEARCH_INTENTS,
+  type SearchIntent,
+} from "./detect-intent";
 export {
   CATEGORIE_PAR_CHAMP,
   type CategorieChamp,
