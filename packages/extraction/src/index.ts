@@ -262,6 +262,13 @@ export {
   scoreClients,
 } from "./resolve-client";
 export {
+  BGE_QUERY_INSTRUCTION,
+  type RetrievedChunk,
+  type RetrieveInput,
+  retrieveChunks,
+} from "./retrieve";
+export { RRF_K, reciprocalRankFusion } from "./rrf";
+export {
   buildNotificationTemplate,
   type EmailTemplate,
   type EnvoyerNotificationInput,
