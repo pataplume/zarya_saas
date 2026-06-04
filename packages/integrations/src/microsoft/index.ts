@@ -72,9 +72,13 @@ export {
 } from "./tenant-region";
 export {
   acknowledgeTenantRegion,
+  archiveMicrosoftIntegration,
+  getMicrosoftIntegrationStatus,
   getValidMicrosoftAccessToken,
   type LoadedMicrosoftTokens,
   loadMicrosoftTokens,
+  type MicrosoftIntegrationStatus,
+  type MicrosoftIntegrationStatut,
   saveMicrosoftTokens,
   saveTenantRegionVerdict,
 } from "./token-store";

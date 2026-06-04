@@ -145,4 +145,4 @@ export {
   zefixRechercheCabinet,
 } from "./schema";
 // Supabase Vault — chiffrement au repos des secrets (ADR 0013 addendum)
-export { vaultCreateSecret, vaultGetSecret, vaultUpdateSecret } from "./vault";
+export { vaultCreateSecret, vaultDeleteSecret, vaultGetSecret, vaultUpdateSecret } from "./vault";
