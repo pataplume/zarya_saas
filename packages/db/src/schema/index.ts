@@ -91,6 +91,7 @@ export {
   extractionSchema,
   extractionStatusEnum,
   invocation,
+  vCoutParCabinet,
 } from "./extraction";
 export {
   deviseEnum,

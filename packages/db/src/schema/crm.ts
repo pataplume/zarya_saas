@@ -317,6 +317,9 @@ export const cabinet = crmSchema.table(
     politique_classement: politiqueClassementEnum("politique_classement")
       .notNull()
       .default("strict"),
+    // Activation IA par cabinet (ADR 0023) — OFF par défaut. live ssi EXTRACTION_MODE=live
+    // (kill-switch global maître) ET ce flag = true. Câblage cabinet-aware en IA-b.
+    extraction_ia_active: boolean("extraction_ia_active").notNull().default(false),
 
     // ── Branding dashboard client (F2, dashboard-client.md §4.1) — défauts ZARYA si null ──
     logo_url: text("logo_url"),

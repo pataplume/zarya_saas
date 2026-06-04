@@ -101,3 +101,16 @@ export const invocation = extractionSchema.table(
     index("idx_invocation_cost").on(t.cabinet_id, t.created_at),
   ],
 );
+
+// Vue de suivi des coûts IA par cabinet (ADR 0023, migration 0043) — agrège invocation.
+// Monitoring + future facturation à l'usage. Définie en SQL (migration) ; déclarée `.existing()`.
+export const vCoutParCabinet = extractionSchema
+  .view("v_cout_par_cabinet", {
+    cabinet_id: uuid("cabinet_id").notNull(),
+    nb_invocations: bigint("nb_invocations", { mode: "number" }).notNull(),
+    cout_usd_total: numeric("cout_usd_total").notNull(),
+    tokens_input_total: bigint("tokens_input_total", { mode: "number" }).notNull(),
+    tokens_output_total: bigint("tokens_output_total", { mode: "number" }).notNull(),
+    derniere_invocation_at: timestamp("derniere_invocation_at", { withTimezone: true }),
+  })
+  .existing();
