@@ -74,6 +74,20 @@ activée en DB, défense en profondeur — `crm.cabinet` exclu, c'est la racine 
 **RÈGLE NON NÉGOCIABLE** : toute nouvelle table métier DOIT être ajoutée à
 `METIER_TABLES` (+ `RLS_TABLES` si RLS activée). Cf. ADR 0005 addendum.
 
+### 1ter. Sceau anti-clair — colonnes ultra-sensibles (bloquant CI)
+
+Fichiers : `tests/integration/anti-plaintext/sensitive-columns.ts` (registre) +
+`sensitive-columns.test.ts` (test). Source de vérité du chiffrement au repos (ADR 0013 +
+addendum Phase I). Le test scanne `information_schema` et **échoue** si une colonne au nom
+sensible (`%iban%`, `%avs%`, `%token%`, `%credential%`, `%secret%`, `%open_banking%`,
+`%acces_logiciel%`) n'est ni dans `SENSITIVE_COLUMNS` ni dans `NON_SENSITIVE_ALLOWLIST`.
+
+**RÈGLE NON NÉGOCIABLE** : toute nouvelle colonne ultra-sensible DOIT être inscrite dans
+`SENSITIVE_COLUMNS` avec son mécanisme (`vault` = chiffré via indirection `*_vault_id` ;
+`clair_differe` = sans write-path, ADR 0013 ; `clair_accepte` = non-secret justifié). Un
+1er write-path vers une colonne `clair_differe` doit la basculer en `vault` + test anti-clair
+**avant merge** (ADR 0013 condition de révision).
+
 ### 2. Auth et autorisation
 ```typescript
 describe('Auth & RBAC', () => {

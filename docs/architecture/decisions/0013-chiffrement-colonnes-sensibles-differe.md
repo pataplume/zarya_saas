@@ -150,3 +150,70 @@ ce qui est **exactement** ce que cette ADR prévoyait : « l'enforcement est por
 qui ouvre le premier chemin d'écriture, pas par le run de schéma ». Le write-path tokens existe
 maintenant (D1) ⇒ on chiffre maintenant. Aucune contradiction ; les colonnes IBAN/AVS (toujours
 sans write-path) restent en Phase I.
+
+---
+
+## Addendum (2026-06-04) — Phase I : Vault confirmé pour tous les write-paths ouverts + sceau anti-clair (registre + test CI systématique)
+
+### Déclencheur
+La **Phase I** (placée après le Bloc H, désormais complet) arrive. Arbitrage founder explicite
+(04/06) : option **« audit + sceau léger »** — formaliser et verrouiller l'existant plutôt que
+construire une nouvelle brique crypto. Justifié par le constat ci-dessous.
+
+### Constat (audit 04/06)
+Depuis l'addendum D1 (qui laissait les colonnes métier IBAN/AVS « ouvertes, pressenti AEAD »),
+**deux write-paths supplémentaires se sont ouverts, et tous deux ont choisi Supabase Vault** :
+
+| Colonne (indirection) | Donnée protégée | Bloc | Décision / réf |
+|---|---|---|---|
+| `crm.cabinet_integration.vault_secret_id` (uuid) | tokens OAuth Microsoft | D1 | addendum D1 ci-dessus |
+| `facture.fournisseur.iban_principal_vault_id` (uuid) | IBAN fournisseur | E5a | migration 0030 |
+| `facture.facture.iban_paiement_vault_id` (uuid) | IBAN de paiement | E5a | migration 0030 |
+| `salaire.employe.numero_avs_vault_id` (uuid) | numéro AVS employé | F6 | **ADR 0021** + migration 0031 |
+| `salaire.employe.iban_vault_id` (uuid) | IBAN versement salaire | F6 | **ADR 0021** + migration 0031 |
+
+Le mécanisme « ouvert / pressenti AEAD » est donc **de facto Vault partout où un write-path existe**.
+Le pattern est uniforme : la donnée en clair n'est **jamais** stockée ; seul l'UUID du secret Vault
+(`*_vault_id`) vit dans la table ; lecture via `vault.decrypted_secrets` (service role serveur).
+
+Restent **quatre** colonnes ultra-sensibles **sans aucun write-path** (contrat de schéma seul) :
+`crm.banque.iban`, `crm.banque.credentials_open_banking`, `crm.relation.iban_facturation`,
+`crm.param_comptable.acces_logiciel_externe`.
+
+### Décision
+1. **Vault est acté comme mécanisme retenu** pour toute colonne ultra-sensible **dès qu'un
+   write-path s'ouvre** — il remplace l'AEAD applicatif comme **défaut**. Raison : cohérence D1/E/F,
+   indirection `*_vault_id` éprouvée, et la cardinalité réelle reste maîtrisable (un secret par
+   entité, créé à la finalisation). L'AEAD applicatif n'est **pas** abandonné comme option : il
+   reste réouvrable **par exception explicite** si une colonne future présente une cardinalité ou
+   un pattern de lecture qui contre-indique Vault (à acter alors dans un nouvel addendum).
+2. **Les 4 colonnes sans write-path restent différées** (inchangé), mais leur 1er write-path
+   **devra** : (a) passer par Vault (indirection `*_vault_id`), (b) être inscrit au registre
+   `SENSITIVE_COLUMNS`, (c) être couvert par le test anti-clair systématique. Leur `COMMENT ON
+   COLUMN` anti-oubli est désormais **uniforme** sur les 4 (migration 0042 complète les 2 manquants
+   — `acces_logiciel_externe`, `iban_facturation` — prévu par le § Garde-fous de cette ADR).
+3. **Sceau anti-clair durci (anti-oubli centralisé).** Remplacement des garde-fous épars par **une
+   source de vérité unique** : le registre `tests/integration/anti-plaintext/sensitive-columns.ts`
+   (`SENSITIVE_COLUMNS` + `NON_SENSITIVE_ALLOWLIST`) et un **test CI bloquant**
+   `sensitive-columns.test.ts` qui :
+   - **(complétude)** scanne `information_schema` (tables de base des schémas métier) pour toute
+     colonne au nom sensible (`%iban%`, `%avs%`, `%token%`, `%credential%`, `%secret%`,
+     `%open_banking%`, `%acces_logiciel%`) et **échoue** si elle n'est ni au registre ni à
+     l'allowlist documentée → force la classification de toute nouvelle colonne sensible ;
+   - **(indirection Vault)** pour chaque entrée `vault`, vérifie que la colonne est de type `uuid`
+     et qu'**aucune colonne sœur en clair** de la donnée protégée n'existe dans la table ;
+   - **(garde-fou doc)** pour chaque colonne `clair_differe`, vérifie la présence du `COMMENT ON
+     COLUMN` anti-oubli.
+4. **Règle non négociable** : toute nouvelle colonne ultra-sensible DOIT être inscrite au registre
+   `SENSITIVE_COLUMNS` (analogue à `METIER_TABLES` pour l'anti-fuite). Cf. `tests/CLAUDE.md`.
+
+### Conséquences
+- **Positif** : zéro nouvelle brique crypto à maintenir ; cohérence garantie par un test qui
+  attrape toute colonne sensible non classée ; documentation alignée sur le code réel.
+- **Négatif (assumé)** : Vault impose un appel applicatif (pas de finalisation par trigger SQL pur —
+  déjà acté ADR 0021). Le registre doit être tenu à jour (garde-fou : le test de complétude échoue
+  sinon).
+
+### Références
+- ADR 0021 (finalisation employé en app-code, Vault AVS/IBAN), migrations 0024 / 0030 / 0031 / 0042
+- `tests/integration/anti-plaintext/sensitive-columns.{ts,test.ts}` (registre + test)
