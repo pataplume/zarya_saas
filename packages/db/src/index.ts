@@ -137,6 +137,7 @@ export {
   usageBanqueEnum,
   validationPeriode,
   vClientDashboard,
+  vCoutParCabinet,
   vDocumentsManquants,
   vEcheancesAVenir,
   vInboxAValider,
