@@ -233,3 +233,6 @@ TAGS
 
 # Documents locaux / données sensibles (jamais commiter — benchmarks, vrais docs clients)
 data/
+
+# Verrou runtime du loop /schedule (ne pas committer)
+.claude/scheduled_tasks.lock
