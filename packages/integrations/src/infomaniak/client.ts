@@ -1,6 +1,8 @@
 import type {
   IkChatCompletionParams,
   IkChatCompletionResponse,
+  IkEmbeddingsParams,
+  IkEmbeddingsResponse,
   IkModel,
   IkModelsResponse,
   ModelCategory,
@@ -296,6 +298,15 @@ export class InfomaniakClient {
   /** POST /v1/chat/completions. */
   async chatCompletion(params: IkChatCompletionParams): Promise<IkChatCompletionResponse> {
     return this.request<IkChatCompletionResponse>("/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+  }
+
+  /** POST /v1/embeddings — vectorise un texte ou un lot (batch). */
+  async embeddings(params: IkEmbeddingsParams): Promise<IkEmbeddingsResponse> {
+    return this.request<IkEmbeddingsResponse>("/embeddings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),

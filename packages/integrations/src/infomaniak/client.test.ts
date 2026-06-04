@@ -139,6 +139,41 @@ describe("InfomaniakClient — chatCompletion", () => {
   });
 });
 
+describe("InfomaniakClient — embeddings", () => {
+  it("POST /v1/embeddings avec input batch + retourne les vecteurs", async () => {
+    const payload = {
+      model: "bge_multilingual_gemma2",
+      data: [
+        { index: 0, embedding: [0.1, 0.2, 0.3] },
+        { index: 1, embedding: [0.4, 0.5, 0.6] },
+      ],
+      usage: { prompt_tokens: 8, completion_tokens: 0, total_tokens: 8 },
+    };
+    const fetchImpl = vi.fn(async () => jsonResponse(payload));
+    const res = await makeClient(fetchImpl as unknown as typeof fetch).embeddings({
+      model: "bge_multilingual_gemma2",
+      input: ["page 1", "page 2"],
+    });
+
+    expect(res.data).toHaveLength(2);
+    expect(res.data[0]?.embedding).toEqual([0.1, 0.2, 0.3]);
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`https://api.infomaniak.com/2/ai/${PRODUCT}/openai/v1/embeddings`);
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body as string);
+    expect(body).toMatchObject({ model: "bge_multilingual_gemma2", input: ["page 1", "page 2"] });
+  });
+
+  it("propage une erreur 429 (rate_limit, réessayable)", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({}, { status: 429 }));
+    const err = await makeClient(fetchImpl as unknown as typeof fetch)
+      .embeddings({ model: "bge_multilingual_gemma2", input: "x" })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(InfomaniakError);
+    expect(err.code).toBe("rate_limit");
+  });
+});
+
 describe("InfomaniakClient — mapping des erreurs HTTP", () => {
   it("401 → unauthorized (sans fuite de token)", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({}, { status: 401 }));
