@@ -172,6 +172,13 @@ export {
   type TypeFacture,
 } from "./finalize-facture";
 export {
+  ANSWER_PROMPT_VERSION,
+  ANSWER_SYSTEM_PROMPT,
+  type AnswerSource,
+  type GenerateAnswerResult,
+  generateAnswer,
+} from "./generate-answer";
+export {
   deriverDateLimite,
   type GenererPeriodesInput,
   type GenererPeriodesResult,
