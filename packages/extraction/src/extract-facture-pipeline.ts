@@ -14,7 +14,7 @@
 // créancier) ne sont pas sensibles et sont conservées.
 
 import { db, invocation, propositionFacture } from "@zarya/db";
-import type { ExtractionMode } from "./classifier";
+import { type ExtractionMode, resolveExtractionModeForCabinet } from "./classifier";
 import { mapErrorToInvocationStatus } from "./classify-document";
 import {
   FACTURE_PROMPT_VERSION,
@@ -59,9 +59,14 @@ function num(v: number | null, scale = 2): string | null {
  */
 export async function extraireFactureDepuisDocument(
   input: ExtraireFactureInput,
-  extractor: FactureExtractor = getFactureExtractor(),
+  injectedExtractor?: FactureExtractor,
   qrExtract?: QrPayloadExtractor,
 ): Promise<ExtraireFactureResult> {
+  // Cabinet-aware (ADR 0023) : live ssi env live ∧ flag cabinet. Extractor injecté (tests)
+  // → court-circuite la résolution (aucune lecture DB du flag).
+  const extractor =
+    injectedExtractor ??
+    getFactureExtractor(await resolveExtractionModeForCabinet(input.cabinet_id));
   // 1. Décodage QR-bill déterministe (E2). Seam image non câblé → isSwissQrBill=false.
   const qr = await decodeQrFromDocument({ storagePath: input.storage_path ?? "" }, qrExtract);
 

@@ -31,6 +31,7 @@ export {
   ExtractionNotImplementedError,
   getClassifier,
   resolveExtractionMode,
+  resolveExtractionModeForCabinet,
   STUB_PROMPT_VERSION,
   StubClassifier,
 } from "./classifier";

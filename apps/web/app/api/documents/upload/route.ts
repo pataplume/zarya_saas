@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@zarya/auth";
 import { db, fichierPhysique, uploadBrut } from "@zarya/db";
-import { classifyDocument, ocrDocument, resolveExtractionMode } from "@zarya/extraction";
+import { classifyDocument, ocrDocument, resolveExtractionModeForCabinet } from "@zarya/extraction";
 import { logger } from "@zarya/logger";
 import { and, eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // classable sur son nom, sans perdre le fichier. Le texte extrait alimente la
   // classification en aval. Les bytes sont déjà en mémoire (pas de re-download).
   let ocr_text: string | null = null;
-  if (resolveExtractionMode() === "live") {
+  if ((await resolveExtractionModeForCabinet(cabinet_id)) === "live") {
     try {
       const ocr = await ocrDocument({
         cabinet_id,
