@@ -43,3 +43,12 @@ export async function vaultGetSecret(secretId: string): Promise<string | null> {
   );
   return rows[0]?.decrypted_secret ?? null;
 }
+
+/**
+ * Supprime définitivement un secret Vault par son UUID (idempotent). Utilisé à la
+ * déconnexion d'une intégration : on retire le secret chiffré pour ne pas laisser de
+ * matériel d'auth orphelin. La ligne métier reste (soft delete `archived_at`).
+ */
+export async function vaultDeleteSecret(secretId: string): Promise<void> {
+  await db.execute(sql`DELETE FROM vault.secrets WHERE id = ${secretId}::uuid`);
+}

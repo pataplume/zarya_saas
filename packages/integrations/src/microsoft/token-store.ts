@@ -11,6 +11,7 @@ import {
   eq,
   isNull,
   vaultCreateSecret,
+  vaultDeleteSecret,
   vaultGetSecret,
   vaultUpdateSecret,
 } from "@zarya/db";
@@ -107,6 +108,72 @@ export async function loadMicrosoftTokens(
     tokens: JSON.parse(secret) as MicrosoftTokenSet,
     parametres: (row.parametres ?? {}) as MicrosoftIntegrationParams,
   };
+}
+
+export type MicrosoftIntegrationStatut = "en_attente" | "actif" | "revoque" | "erreur";
+
+export interface MicrosoftIntegrationStatus {
+  /** true ssi une intégration active existe avec statut 'actif'. */
+  connected: boolean;
+  statut: MicrosoftIntegrationStatut | null;
+  parametres: MicrosoftIntegrationParams;
+  derniere_erreur: string | null;
+}
+
+/**
+ * Lecture LÉGÈRE du statut d'intégration Microsoft d'un cabinet — pour l'écran
+ * /parametres/integrations. NE déchiffre PAS les tokens (pas d'appel Vault) ; ne
+ * retourne que des `parametres` non sensibles (identité, région, expiry). Scopé cabinet.
+ */
+export async function getMicrosoftIntegrationStatus(
+  cabinet_id: string,
+): Promise<MicrosoftIntegrationStatus> {
+  const rows = await db
+    .select({
+      statut: cabinetIntegration.statut,
+      parametres: cabinetIntegration.parametres,
+      derniere_erreur: cabinetIntegration.derniere_erreur,
+    })
+    .from(cabinetIntegration)
+    .where(
+      and(
+        eq(cabinetIntegration.cabinet_id, cabinet_id),
+        eq(cabinetIntegration.provider, PROVIDER),
+        isNull(cabinetIntegration.archived_at),
+      ),
+    )
+    .limit(1);
+  const row = rows[0];
+  if (!row) return { connected: false, statut: null, parametres: {}, derniere_erreur: null };
+  const statut = row.statut as MicrosoftIntegrationStatut;
+  return {
+    connected: statut === "actif",
+    statut,
+    parametres: (row.parametres ?? {}) as MicrosoftIntegrationParams,
+    derniere_erreur: row.derniere_erreur,
+  };
+}
+
+/**
+ * Déconnecte l'intégration Microsoft d'un cabinet (idempotent) : archive la ligne
+ * (`archived_at`, statut → 'revoque') et supprime le secret Vault associé pour ne
+ * laisser aucun token chiffré orphelin. Scopé cabinet. Best-effort sur la suppression
+ * Vault (l'archivage de la ligne prime ; un secret résiduel reste inerte et chiffré).
+ */
+export async function archiveMicrosoftIntegration(cabinet_id: string): Promise<void> {
+  const row = await findActiveRow(cabinet_id);
+  if (!row) return;
+  await db
+    .update(cabinetIntegration)
+    .set({ archived_at: new Date(), statut: "revoque", updated_at: new Date() })
+    .where(eq(cabinetIntegration.id, row.id));
+  if (row.vault_secret_id) {
+    try {
+      await vaultDeleteSecret(row.vault_secret_id);
+    } catch {
+      // Suppression Vault best-effort : la ligne est déjà archivée (plus aucun accès).
+    }
+  }
 }
 
 /**
