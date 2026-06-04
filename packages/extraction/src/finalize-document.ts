@@ -30,7 +30,7 @@ import {
 import { logger } from "@zarya/logger";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { buildNomStandardise } from "./build-nom-standardise";
-import type { CategorieDocument } from "./classifier";
+import { type CategorieDocument, resolveExtractionMode } from "./classifier";
 import { computeScoreRisque, type RisqueFacteurs, type RisqueSignals } from "./compute-risque";
 import { type AttenduRow, matchDocumentAttendu } from "./match-document-attendu";
 
@@ -226,6 +226,47 @@ export async function finaliserDocument(
           error: err instanceof Error ? err.message : String(err),
         },
         "extraction facture best-effort échouée",
+      );
+    }
+  }
+
+  // 8. H2b — indexation RAG du document validé (signal B5). BEST-EFFORT : un échec d'indexation
+  // (ou l'absence d'embeddings configurés) ne casse PAS la finalisation Doc. Le texte indexé est
+  // celui du fichier (natif ou OCRisé). Gated EXTRACTION_MODE=live (comme la classification) :
+  // en mode stub (défaut CI/prod) on n'émet aucun appel embeddings live. Import dynamique
+  // (évite tout cycle de modules).
+  if (resolveExtractionMode() === "live") {
+    try {
+      const [fichierIdx] = await db
+        .select({ ocr_text: fichierPhysique.ocr_text })
+        .from(fichierPhysique)
+        .where(
+          and(
+            eq(fichierPhysique.id, input.fichier_physique_id),
+            eq(fichierPhysique.cabinet_id, input.cabinet_id),
+          ),
+        )
+        .limit(1);
+      const texte = fichierIdx?.ocr_text ?? "";
+      if (texte.trim()) {
+        const { indexDocument } = await import("./index-document");
+        await indexDocument({
+          cabinet_id: input.cabinet_id,
+          document_id: doc.id,
+          client_id: input.client_id,
+          text: texte,
+          document_type: input.type,
+          ...(input.cree_par ? { invoked_by_user_id: input.cree_par } : {}),
+        });
+      }
+    } catch (err) {
+      logger.warn(
+        {
+          document_id: doc.id,
+          cabinet_id: input.cabinet_id,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        "indexation RAG best-effort échouée",
       );
     }
   }

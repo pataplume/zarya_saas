@@ -6,6 +6,7 @@ export {
   type NomStandardiseInput,
   slugify,
 } from "./build-nom-standardise";
+export { type ChunkOptions, chunkText } from "./chunk-text";
 export {
   type CategorieDocument,
   type ClassificationInput,
@@ -165,6 +166,13 @@ export {
   joursDansMois,
   moisPrecedent,
 } from "./generer-periodes";
+export {
+  type EmbeddingsClient,
+  type IndexDocumentInput,
+  type IndexDocumentResult,
+  indexDocument,
+  SEARCH_INDEX_VERSION,
+} from "./index-document";
 export { type ChatModelClient, InfomaniakClassifier } from "./infomaniak-classifier";
 export { InfomaniakFactureExtractor } from "./infomaniak-facture-extractor";
 export {
