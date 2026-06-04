@@ -8,6 +8,11 @@ export {
   runAggregation,
 } from "./aggregation-templates";
 export {
+  type AnswerQuestionInput,
+  type AnswerQuestionResult,
+  answerQuestion,
+} from "./answer-question";
+export {
   buildNomStandardise,
   type NomStandardise,
   type NomStandardiseInput,
