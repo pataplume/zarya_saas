@@ -81,6 +81,24 @@ export interface IkChatCompletionResponse {
   usage?: IkUsage;
 }
 
+// ─── Embeddings (POST /v1/embeddings, OpenAI-compatible) ─────────────────────
+export interface IkEmbeddingsParams {
+  model: string;
+  /** Un texte ou un lot de textes (batch). */
+  input: string | string[];
+}
+
+export interface IkEmbeddingData {
+  index: number;
+  embedding: number[];
+}
+
+export interface IkEmbeddingsResponse {
+  model: string;
+  data: IkEmbeddingData[];
+  usage?: IkUsage;
+}
+
 // Catégories logiques de tâches → un id réel est résolu par catégorie au runtime
 // (jamais par nom de modèle codé en dur). Mapping via env IK_MODEL_<CATEGORY>.
 export type ModelCategory = "chat_small" | "chat_large" | "vision" | "embeddings" | "reranker";
