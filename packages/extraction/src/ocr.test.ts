@@ -150,16 +150,31 @@ trailer<</Root 1 0 R>>
     expect(chat).not.toHaveBeenCalled(); // texte natif suffisant → aucun LLM
   });
 
-  it("PDF scanné (texte natif insuffisant) → needs_image_ocr, source aucune", async () => {
-    const chat = vi.fn<VisionModelClient["chatCompletion"]>(async () => visionResponse("x"));
-    // Seuil élevé pour forcer l'échec de la porte qualité sur un texte court.
+  it("PDF scanné SANS client vision → needs_image_ocr, source aucune (non bloquant)", async () => {
+    // Seuil élevé pour forcer l'échec de la porte qualité sur un texte court → « scanné ».
     const res = await extractText(
       { cabinet_id: "cab-1", bytes: pdfWithText("x"), type_mime: "application/pdf" },
-      makeVisionClient(chat),
+      undefined,
       { quality: { minCharsPerPage: 5000 } },
     );
     expect(res.source).toBe("aucune");
     expect(res.needs_image_ocr).toBe(true);
-    expect(chat).not.toHaveBeenCalled(); // rasterisation différée, pas d'appel vision
+  });
+
+  it("PDF scanné AVEC client vision → rasterise + OCR chaque page (source vision)", async () => {
+    const chat = vi.fn<VisionModelClient["chatCompletion"]>(async () =>
+      visionResponse("Texte OCR de la page"),
+    );
+    const res = await extractText(
+      { cabinet_id: "cab-1", bytes: pdfWithText("scan"), type_mime: "application/pdf" },
+      makeVisionClient(chat),
+      { quality: { minCharsPerPage: 5000 } }, // force le chemin scanné
+    );
+    expect(res.source).toBe("vision");
+    expect(res.needs_image_ocr).toBe(false);
+    expect(res.text).toContain("Texte OCR de la page");
+    expect(res.nb_pages).toBe(1);
+    expect(chat).toHaveBeenCalledTimes(1); // 1 page rasterisée → 1 appel vision
+    expect(res.usage?.tokens_input).toBeGreaterThanOrEqual(0);
   });
 });
