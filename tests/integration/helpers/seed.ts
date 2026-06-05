@@ -859,6 +859,20 @@ export async function seedRelance(
   return { id, cabinet_id, client_id };
 }
 
+/** Crée une demande de suppression (Run I1) cible 'client' (service role). */
+export async function seedDemandeSuppression(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<{ id: string; cabinet_id: string; client_id: string }> {
+  const id = randomUUID();
+  await sql`
+    INSERT INTO crm.demande_suppression (id, cabinet_id, cible, client_id, motif)
+    VALUES (${id}, ${cabinet_id}, 'client', ${client_id}, 'Demande de test')
+  `;
+  return { id, cabinet_id, client_id };
+}
+
 /**
  * Crée un override cabinet de calendar.template_echeance (service role).
  * Le catalogue global (cabinet_id NULL) est seedé par la migration 0006 ;
@@ -1008,6 +1022,8 @@ export async function cleanupCabinets(sql: postgres.Sql, ...ids: string[]): Prom
   // Bloc A3 (service / param_comptable, enfants de crm.client)
   await sql`DELETE FROM crm.service                 WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.param_comptable         WHERE cabinet_id = ANY(${arr}::uuid[])`;
+  // Run I1 (demande_suppression, enfant de crm.client via client_id RESTRICT)
+  await sql`DELETE FROM crm.demande_suppression     WHERE cabinet_id = ANY(${arr}::uuid[])`;
   await sql`DELETE FROM crm.client                  WHERE cabinet_id = ANY(${arr}::uuid[])`;
   // Bloc D1 (cabinet_integration, enfant direct de crm.cabinet — pas de client_id)
   await sql`DELETE FROM crm.cabinet_integration    WHERE cabinet_id = ANY(${arr}::uuid[])`;

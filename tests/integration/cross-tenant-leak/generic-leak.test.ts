@@ -33,6 +33,7 @@ import {
   client,
   contact,
   db,
+  demandeSuppression,
   document,
   documentAttendu,
   documentChunk,
@@ -98,6 +99,7 @@ import {
   seedChangement,
   seedClient,
   seedContact,
+  seedDemandeSuppression,
   seedDocument,
   seedDocumentAttendu,
   seedDocumentChunk,
@@ -351,6 +353,13 @@ const METIER_TABLES: MetierTableSpec[] = [
     table: relance,
     scopeCol: relance.cabinet_id,
     idCol: relance.id,
+    noopSet: { cabinet_id: NIL_UUID },
+  },
+  {
+    name: "crm.demande_suppression",
+    table: demandeSuppression,
+    scopeCol: demandeSuppression.cabinet_id,
+    idCol: demandeSuppression.id,
     noopSet: { cabinet_id: NIL_UUID },
   },
   // calendar.template_echeance / modele_relance sont des CATALOGUES GLOBAUX
@@ -619,6 +628,7 @@ const RLS_TABLES = [
   ["doc", "document"],
   ["crm", "echeance"],
   ["crm", "relance"],
+  ["crm", "demande_suppression"],
   ["calendar", "template_echeance"],
   ["calendar", "modele_relance"],
   ["calendar", "cabinet_config"],
@@ -775,6 +785,10 @@ beforeAll(async () => {
   const [relA, relB] = [
     await seedRelance(sql, cabinetA.id, clientA.id, echA.id),
     await seedRelance(sql, cabinetB.id, clientB.id, echB.id),
+  ];
+  const [demSupA, demSupB] = [
+    await seedDemandeSuppression(sql, cabinetA.id, clientA.id),
+    await seedDemandeSuppression(sql, cabinetB.id, clientB.id),
   ];
   // Module Calendar Run 2 — overrides cabinet (catalogues globaux ignorés ici).
   const [tplA, tplB] = [
@@ -937,6 +951,7 @@ beforeAll(async () => {
     "doc.document": docA.id,
     "crm.echeance": echA.id,
     "crm.relance": relA.id,
+    "crm.demande_suppression": demSupA.id,
     "calendar.template_echeance": tplA.id,
     "calendar.modele_relance": modA.id,
     "calendar.cabinet_config": cabinetA.id,
@@ -997,6 +1012,7 @@ beforeAll(async () => {
     "doc.document": docB.id,
     "crm.echeance": echB.id,
     "crm.relance": relB.id,
+    "crm.demande_suppression": demSupB.id,
     "calendar.template_echeance": tplB.id,
     "calendar.modele_relance": modB.id,
     "calendar.cabinet_config": cabinetB.id,
