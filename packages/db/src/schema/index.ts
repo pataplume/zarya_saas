@@ -23,6 +23,7 @@ export {
   client,
   contact,
   crmSchema,
+  demandeAcces,
   documentAttendu,
   echeance,
   evenement,
