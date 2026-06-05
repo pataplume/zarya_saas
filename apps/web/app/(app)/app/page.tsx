@@ -11,53 +11,53 @@ type Module = {
   label: string;
   description: string;
   icon: string;
-  phase: string;
+  href: string;
 };
 
-// ─── Modules à venir ─────────────────────────────────────────────────────────
+// ─── Modules (raccourcis vers les écrans réels) ──────────────────────────────
 
-const MODULES_A_VENIR: Module[] = [
+const MODULES: Module[] = [
   {
-    id: "crm",
-    label: "CRM",
-    description: "Gestion de vos clients et contacts PME",
+    id: "clients",
+    label: "Clients",
+    description: "Vos clients PME et leurs contacts",
     icon: "👥",
-    phase: "Phase 2c",
+    href: "/app/clients",
   },
   {
     id: "documents",
     label: "Documents",
-    description: "Inbox documentaire et extraction IA",
+    description: "Dépôt, classement IA et file de validation",
     icon: "📄",
-    phase: "Phase 3",
+    href: "/app/documents",
   },
   {
     id: "calendrier",
     label: "Calendrier",
-    description: "Échéances fiscales et relances automatisées",
+    description: "Échéances fiscales et relances",
     icon: "📅",
-    phase: "Phase 4",
+    href: "/app/calendrier/echeances",
   },
   {
     id: "factures",
     label: "Factures",
-    description: "Extraction et validation des factures fournisseurs",
+    description: "Extraction et validation des factures",
     icon: "💰",
-    phase: "Phase 4",
-  },
-  {
-    id: "recherche",
-    label: "Recherche",
-    description: "Recherche sémantique sur vos documents",
-    icon: "🔍",
-    phase: "Phase 2",
+    href: "/app/factures/validation",
   },
   {
     id: "salaires",
     label: "Salaires",
-    description: "Gestion des salaires et cycle Swissdec ELM",
+    description: "Cycle mensuel et référentiel employés",
     icon: "💼",
-    phase: "Phase 3",
+    href: "/app/salaire",
+  },
+  {
+    id: "recherche",
+    label: "Recherche",
+    description: "Recherche conversationnelle sur vos documents",
+    icon: "🔍",
+    href: "/app/recherche",
   },
 ];
 
@@ -170,59 +170,29 @@ export default async function AppHomePage() {
         </div>
       )}
 
-      {/* ─── Modules à venir ─────────────────────────────────────────────────── */}
+      {/* ─── Modules ─────────────────────────────────────────────────────────── */}
       <div>
-        <h2 className="mb-4 text-base font-semibold text-slate-700">
-          Modules en cours de développement
-        </h2>
+        <h2 className="mb-4 text-base font-semibold text-slate-700">Modules</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {MODULES_A_VENIR.map((mod) => (
-            <div
+          {MODULES.map((mod) => (
+            <Link
               key={mod.id}
-              className="relative rounded-xl border border-slate-200 bg-white p-5 opacity-75"
+              href={mod.href}
+              className="group relative rounded-xl border border-slate-200 bg-white p-5 transition-colors hover:border-blue-300 hover:bg-blue-50/40"
             >
-              {/* Badge phase */}
-              <span className="absolute right-4 top-4 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
-                {mod.phase}
-              </span>
-
               <div className="mb-3 text-2xl" aria-hidden>
                 {mod.icon}
               </div>
-              <h3 className="text-sm font-semibold text-slate-700">{mod.label}</h3>
+              <h3 className="text-sm font-semibold text-slate-800 group-hover:text-blue-700">
+                {mod.label}
+              </h3>
               <p className="mt-1 text-xs text-slate-500">{mod.description}</p>
-
-              <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-400">
-                <svg
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
-                En construction
-              </div>
-            </div>
+              <span className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-blue-600 opacity-0 transition-opacity group-hover:opacity-100">
+                Ouvrir →
+              </span>
+            </Link>
           ))}
         </div>
-      </div>
-
-      {/* ─── Message de bienvenue ─────────────────────────────────────────────── */}
-      <div className="mt-8 rounded-xl border border-blue-100 bg-blue-50 p-5">
-        <p className="text-sm font-medium text-blue-800">
-          Votre cabinet est configuré et opérationnel.
-        </p>
-        <p className="mt-1 text-xs text-blue-600">
-          Les modules métier seront déployés progressivement. Vous serez notifié dès qu'un nouveau
-          module est disponible.
-        </p>
       </div>
     </div>
   );
