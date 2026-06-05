@@ -22,6 +22,12 @@ export function createServiceClient(): postgres.Sql {
   return postgres(url, {
     // Désactiver le prepare pour les queries dynamiques de test
     prepare: false,
+    // Footprint connexions minimal : la base de test est PARTAGÉE et plafonnée à
+    // max_connections=60 (~57 utilisables), en concurrence avec le singleton `db`, GoTrue,
+    // PostgREST et les déploiements Vercel. Un pool large (défaut 10) par fichier de test
+    // sature la base (`53300`). Les tests sont sérialisés (singleFork) → 2 suffisent.
+    max: 2,
+    idle_timeout: 10,
   });
 }
 

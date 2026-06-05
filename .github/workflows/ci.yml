@@ -95,6 +95,12 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Base Supabase PARTAGÉE plafonnée à max_connections=60 (~57 utilisables), en concurrence
+      # avec PostgREST/GoTrue/pg_cron + les déploiements Vercel. On borne le footprint du singleton
+      # `db` (sinon 10 connexions par défaut) pour éviter la saturation `53300`. Tests sérialisés
+      # (singleFork) → 3 suffisent ; idle_timeout libère vite les slots entre fichiers.
+      DB_POOL_MAX: "3"
+      DB_IDLE_TIMEOUT: "10"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
