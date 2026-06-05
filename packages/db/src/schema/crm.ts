@@ -902,6 +902,24 @@ export const cabinetIntegration = crmSchema.table(
   ],
 );
 
+// ─── crm.demande_acces — demandes d'accès (prospects, page d'entrée, Run D1) ──
+// EXCEPTION documentée : PAS de cabinet_id (lead PRÉ-cabinet, public, hors multi-tenant).
+// Comme crm.standard_* : exclue de METIER_TABLES/RLS_TABLES. Écriture via server action
+// service-role depuis la page publique ; lecture back-office équipe ZARYA (futur).
+export const demandeAcces = crmSchema.table(
+  "demande_acces",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    nom: text("nom").notNull(),
+    email: text("email").notNull(),
+    cabinet_nom: text("cabinet_nom"),
+    message: text("message"),
+    statut: text("statut").notNull().default("nouvelle"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_demande_acces_statut").on(t.statut, t.created_at)],
+);
+
 // ── Bloc A9 — Catalogues globaux crm.standard_* (§20) ────────────────────────
 //
 // EXCEPTION DOCUMENTÉE à la règle multi-tenant (packages/db/CLAUDE.md §1,

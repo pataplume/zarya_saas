@@ -31,6 +31,7 @@ export {
   confessionEnum,
   contact,
   crmSchema,
+  demandeAcces,
   deviseEnum,
   docSchema,
   document,
