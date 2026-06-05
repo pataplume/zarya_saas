@@ -19,6 +19,28 @@ import type postgres from "postgres";
 
 export type CabinetRole = "responsable" | "gestionnaire_salaires" | "collaborateur" | "lecteur";
 
+// Erreurs GoTrue/réseau TRANSITOIRES observées en CI sur la base partagée (l'API admin
+// interroge auth.users pour vérifier l'unicité de l'email ; un hoquet DB côté GoTrue lève
+// « Database error checking email » AVANT toute insertion — réessayer avec le même email est
+// donc sûr). On absorbe ces aléas par un retry à backoff ; toute autre erreur échoue immédiatement.
+const TRANSIENT_AUTH_ERROR_FRAGMENTS = [
+  "database error",
+  "fetch failed",
+  "econnreset",
+  "etimedout",
+  "timeout",
+  "503",
+  "502",
+  "unexpected_failure",
+];
+
+function isTransientAuthError(message: string): boolean {
+  const m = message.toLowerCase();
+  return TRANSIENT_AUTH_ERROR_FRAGMENTS.some((f) => m.includes(f));
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export interface TestUser {
   /** auth.users.id */
   id: string;
@@ -49,16 +71,31 @@ export async function createTestUser(
   // >= 12 caractères (politique mot de passe, packages/auth/CLAUDE.md).
   const password = `Test-${randomUUID()}`;
 
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    app_metadata: { cabinet_id: opts.cabinet_id, role },
-  });
-  if (error || !data.user) {
-    throw new Error(`[createTestUser] échec création user: ${error?.message ?? "user vide"}`);
+  // Retry à backoff sur les erreurs GoTrue/réseau transitoires (cf. note ci-dessus).
+  const MAX_ATTEMPTS = 4;
+  let id: string | undefined;
+  let lastError = "user vide";
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      app_metadata: { cabinet_id: opts.cabinet_id, role },
+    });
+    if (!error && data.user) {
+      id = data.user.id;
+      break;
+    }
+    lastError = error?.message ?? "user vide";
+    // Erreur non transitoire (ex. validation, conflit réel) → échec immédiat, pas de retry.
+    if (!isTransientAuthError(lastError)) break;
+    if (attempt < MAX_ATTEMPTS - 1) await sleep(300 * 2 ** attempt); // 300/600/1200 ms
   }
-  const id = data.user.id;
+  if (!id) {
+    throw new Error(
+      `[createTestUser] échec création user (après ${MAX_ATTEMPTS} tentatives): ${lastError}`,
+    );
+  }
 
   const membre_id = randomUUID();
   await sql`
