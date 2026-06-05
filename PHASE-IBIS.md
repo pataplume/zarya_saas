@@ -40,14 +40,14 @@ email** ; plus deux interrupteurs ops (allumer l'IA, app Azure réelle).
 | H1 | Setup app Azure réelle (multi-tenant, ADR 0018) + validation E2E vrai tenant. **Action OPS founder (plus tard)** | Ops+infra | M | ⬜ founder |
 | H2 | UI renouvellement/reconnexion Microsoft (token expiré) — bannière de reconnexion proéminente quand statut `revoque` | UI | S | ✅ **MERGÉ (#138)** |
 | **I — Polish & conformité** | | | | |
-| I1 | RGPD / suppression compte (client + cabinet) | UI+API | M | ⬜ **← prochain** |
-| I2 | Profil fiduciaire complet (`/parametres/profil`) | UI | S | ⬜ |
+| I1 | RGPD / suppression compte (client + cabinet) — demande enregistrée (`crm.demande_suppression`) + soft-archive cabinet ; client route vers cabinet ; effacement = process DPO | UI+API | M | ✅ **MERGÉ (#139)** |
+| I2 | Profil fiduciaire complet (`/parametres/profil`) | UI | S | ⬜ **← prochain** |
 | I3 | Remplacer le placeholder Calendly (onboarding import) | UI | XS | ⬜ |
 | I4 | Page contact espace client (`/espace/contact`) | UI | S | ⬜ |
 
 ## Prochain
-**I1** (RGPD / suppression compte), puis I2→I4. G1/H1 = actions founder (ops, hors code).
-Faits : A1, B1, B2, C1, D1, E1, F1, H2.
+**I2** (profil fiduciaire), puis I3→I4. G1/H1 = actions founder (ops, hors code).
+Faits : A1, B1, B2, C1, D1, E1, F1, H2, I1.
 
 ## Hors Phase Ibis (différé Phase 2+)
 OCR vision + embeddings/recherche avancée (streaming, Cmd+K), base éphémère CI, import auto

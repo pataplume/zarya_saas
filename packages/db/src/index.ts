@@ -32,6 +32,7 @@ export {
   contact,
   crmSchema,
   demandeAcces,
+  demandeSuppression,
   deviseEnum,
   docSchema,
   document,

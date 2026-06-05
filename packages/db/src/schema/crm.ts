@@ -920,6 +920,36 @@ export const demandeAcces = crmSchema.table(
   (t) => [index("idx_demande_acces_statut").on(t.statut, t.created_at)],
 );
 
+// ── Run I1 — Demande de suppression de compte (RGPD/nLPD, droits-personnes.md) ──
+// Table métier : demande de suppression cabinet ou client, traitée par le DPO (process
+// hors app : soft-delete → anonymisation PII → conservation audit 6 ans / comptable 10 ans).
+export const statutDemandeSuppressionEnum = crmSchema.enum("statut_demande_suppression", [
+  "nouvelle",
+  "en_cours",
+  "traitee",
+  "rejetee",
+]);
+
+export const demandeSuppression = crmSchema.table(
+  "demande_suppression",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cabinet_id: uuid("cabinet_id")
+      .notNull()
+      .references(() => cabinet.id, { onDelete: "restrict" }),
+    // 'cabinet' | 'client' — renseigne client_id ssi 'client' (CHECK en DB).
+    cible: text("cible").notNull(),
+    client_id: uuid("client_id").references(() => client.id, { onDelete: "restrict" }),
+    demandeur_user_id: uuid("demandeur_user_id"),
+    demandeur_email: text("demandeur_email"),
+    motif: text("motif"),
+    statut: statutDemandeSuppressionEnum("statut").notNull().default("nouvelle"),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_demande_suppression_cabinet").on(t.cabinet_id, t.statut)],
+);
+
 // ── Bloc A9 — Catalogues globaux crm.standard_* (§20) ────────────────────────
 //
 // EXCEPTION DOCUMENTÉE à la règle multi-tenant (packages/db/CLAUDE.md §1,

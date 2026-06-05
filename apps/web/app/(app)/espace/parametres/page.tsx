@@ -1,7 +1,8 @@
 import { getEspaceClientContext } from "@/lib/espace-context";
+import { DemandeSuppressionForm } from "./demande-suppression-form";
 
 // F8 — Paramètres (dashboard-client.md §11). Profil utilisateur (lecture seule au MVP).
-// L'export RGPD / la suppression de compte (§11.3) sont DIFFÉRÉS (process conformité dédié).
+// Run I1 — demande de suppression d'accès (routée vers le cabinet responsable du traitement).
 export default async function EspaceParametresPage() {
   const { email } = await getEspaceClientContext();
 
@@ -17,9 +18,11 @@ export default async function EspaceParametresPage() {
       <div className="mt-4 rounded-lg border border-gray-200 bg-white p-5">
         <p className="text-sm font-medium text-gray-900">Mes données personnelles</p>
         <p className="mt-1 text-sm text-gray-600">
-          L'export de vos données et la suppression de votre compte (conformité nLPD/RGPD) seront
-          disponibles prochainement. En attendant, adressez votre demande à votre fiduciaire.
+          Vous pouvez demander la suppression de votre accès. La demande est transmise à votre
+          fiduciaire, responsable du traitement de vos données. Certaines données sont conservées
+          puis anonymisées selon les obligations légales (audit, comptabilité).
         </p>
+        <DemandeSuppressionForm />
       </div>
     </section>
   );
