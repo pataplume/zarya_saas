@@ -15,6 +15,7 @@ import {
   ExtractionError,
   type ExtractionMode,
   getClassifier,
+  resolveExtractionModeForCabinet,
   STUB_PROMPT_VERSION,
 } from "./classifier";
 import { decideAutoClassement, type PolitiqueClassement } from "./decide-auto-classement";
@@ -79,8 +80,12 @@ export interface ClassifyDocumentResult {
 // en prod il est résolu par getClassifier() selon EXTRACTION_MODE (défaut stub).
 export async function classifyDocument(
   input: ClassifyDocumentInput,
-  classifier: Classifier = getClassifier(),
+  injectedClassifier?: Classifier,
 ): Promise<ClassifyDocumentResult> {
+  // Cabinet-aware (ADR 0023) : live ssi env live ∧ flag cabinet. Tests : classifier injecté
+  // → on court-circuite la résolution (aucune lecture DB du flag).
+  const classifier =
+    injectedClassifier ?? getClassifier(await resolveExtractionModeForCabinet(input.cabinet_id));
   const classificationInput: ClassificationInput = {
     nom_fichier: input.nom_fichier,
     ocr_text: input.ocr_text ?? null,

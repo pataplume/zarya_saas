@@ -30,7 +30,7 @@ import {
 import { logger } from "@zarya/logger";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { buildNomStandardise } from "./build-nom-standardise";
-import { type CategorieDocument, resolveExtractionMode } from "./classifier";
+import { type CategorieDocument, resolveExtractionModeForCabinet } from "./classifier";
 import { computeScoreRisque, type RisqueFacteurs, type RisqueSignals } from "./compute-risque";
 import { type AttenduRow, matchDocumentAttendu } from "./match-document-attendu";
 
@@ -235,7 +235,7 @@ export async function finaliserDocument(
   // celui du fichier (natif ou OCRisé). Gated EXTRACTION_MODE=live (comme la classification) :
   // en mode stub (défaut CI/prod) on n'émet aucun appel embeddings live. Import dynamique
   // (évite tout cycle de modules).
-  if (resolveExtractionMode() === "live") {
+  if ((await resolveExtractionModeForCabinet(input.cabinet_id)) === "live") {
     try {
       const [fichierIdx] = await db
         .select({ ocr_text: fichierPhysique.ocr_text })

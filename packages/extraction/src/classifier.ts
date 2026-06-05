@@ -9,6 +9,7 @@
 
 // Import du mode live. La résolution se fait à l'instanciation (runtime), pas à
 // l'évaluation du module : le cycle classifier ↔ infomaniak-classifier est donc sûr.
+import { cabinet, db, eq } from "@zarya/db";
 import { InfomaniakClassifier } from "./infomaniak-classifier";
 
 export type ExtractionMode = "stub" | "live";
@@ -183,6 +184,26 @@ export class StubClassifier implements Classifier {
 
 export function resolveExtractionMode(value = process.env.EXTRACTION_MODE): ExtractionMode {
   return value === "live" ? "live" : "stub";
+}
+
+/**
+ * Résolution cabinet-aware (ADR 0023). L'IA d'un cabinet est `live` SSI :
+ *  - le kill-switch global l'autorise (`EXTRACTION_MODE=live`) — maître, court-circuit en
+ *    mode stub (aucune lecture DB), ET
+ *  - le flag `crm.cabinet.extraction_ia_active = true`.
+ * Sinon `stub`. Utilisée par tous les chemins IA (classif, extraction, indexation, OCR).
+ */
+export async function resolveExtractionModeForCabinet(
+  cabinet_id: string,
+  envValue = process.env.EXTRACTION_MODE,
+): Promise<ExtractionMode> {
+  if (resolveExtractionMode(envValue) !== "live") return "stub";
+  const [row] = await db
+    .select({ active: cabinet.extraction_ia_active })
+    .from(cabinet)
+    .where(eq(cabinet.id, cabinet_id))
+    .limit(1);
+  return row?.active ? "live" : "stub";
 }
 
 export function getClassifier(mode: ExtractionMode = resolveExtractionMode()): Classifier {
