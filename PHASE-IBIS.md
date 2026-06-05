@@ -42,12 +42,12 @@ email** ; plus deux interrupteurs ops (allumer l'IA, app Azure réelle).
 | **I — Polish & conformité** | | | | |
 | I1 | RGPD / suppression compte (client + cabinet) — demande enregistrée (`crm.demande_suppression`) + soft-archive cabinet ; client route vers cabinet ; effacement = process DPO | UI+API | M | ✅ **MERGÉ (#139)** |
 | I2 | Profil fiduciaire complet (`/parametres/profil`) — téléphone + signature email (migration additive 0047 ; câblage signature→relances différé) | UI | S | ✅ **MERGÉ (#140)** |
-| I3 | Remplacer le placeholder Calendly (onboarding import) | UI | XS | ⬜ **← prochain** |
-| I4 | Page contact espace client (`/espace/contact`) | UI | S | ⬜ |
+| I3 | Remplacer le placeholder Calendly (onboarding import) — URL configurable `ONBOARDING_BOOKING_URL` + fallback mailto | UI | XS | ✅ **MERGÉ (#141)** |
+| I4 | Page contact espace client (`/espace/contact`) | UI | S | ⬜ **← prochain** |
 
 ## Prochain
-**I3** (remplacer placeholder Calendly), puis I4. G1/H1 = actions founder (ops, hors code).
-Faits : A1, B1, B2, C1, D1, E1, F1, H2, I1, I2.
+**I4** (page contact espace client) — dernier run avant vérif globale. G1/H1 = actions founder (ops).
+Faits : A1, B1, B2, C1, D1, E1, F1, H2, I1, I2, I3.
 
 ## Hors Phase Ibis (différé Phase 2+)
 OCR vision + embeddings/recherche avancée (streaming, Cmd+K), base éphémère CI, import auto

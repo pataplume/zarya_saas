@@ -35,6 +35,12 @@ export default async function ImportPage() {
     .where(eq(sessionOnboardingFiduciaire.cabinet_id, cabinet_id))
     .limit(1);
 
+  // Run I3 — lien de réservation configurable (remplace le placeholder Calendly en dur).
+  // Si ONBOARDING_BOOKING_URL n'est pas défini, on retombe sur un email de contact.
+  const bookingUrl =
+    process.env.ONBOARDING_BOOKING_URL ??
+    "mailto:contact@zarya.ch?subject=Session%20d'import%20de%20portefeuille%20ZARYA";
+
   // Vérifier que l'étape B est bien terminée
   const etapesBlocantes = [
     "inscrit",
@@ -90,9 +96,9 @@ export default async function ImportPage() {
         </p>
 
         <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-          {/* Bouton Calendly (placeholder) */}
+          {/* Lien de réservation (configurable via ONBOARDING_BOOKING_URL, sinon email) */}
           <a
-            href="https://calendly.com/zarya"
+            href={bookingUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
