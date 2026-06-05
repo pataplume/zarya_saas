@@ -35,6 +35,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", origin));
   }
 
+  // Contact RH client (invitation acces-client) : app_metadata déjà posé à l'invitation.
+  // → activation (définir mot de passe) puis espace client. (Run C1)
+  const role = user.app_metadata.role as string | undefined;
+  if (role === "client_contact") {
+    return NextResponse.redirect(new URL("/activer?next=/espace", origin));
+  }
+
   // Cas : membre invité (pas encore de cabinet_id dans app_metadata)
   const hasCabinetId = Boolean(user.app_metadata.cabinet_id);
   if (!hasCabinetId && user.email) {
@@ -44,8 +51,8 @@ export async function GET(request: NextRequest) {
         email: user.email,
       });
       if (result) {
-        // Invitation acceptée → app (onboarding non requis pour les membres)
-        return NextResponse.redirect(new URL("/app", origin));
+        // Invitation acceptée → activation (définir mot de passe) puis app. (Run C1)
+        return NextResponse.redirect(new URL("/activer?next=/app", origin));
       }
     } catch {
       // Invitation introuvable ou déjà acceptée — continuer vers redirect standard
