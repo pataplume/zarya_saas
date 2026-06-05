@@ -75,7 +75,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const role = (user.app_metadata.role as string | undefined) ?? "lecteur";
-  if (!ROLES_UPLOAD.has(role)) {
+  // Run B1 — un contact RH client (role client_contact) peut DÉPOSER pour SON client.
+  // Le client_id est lu UNIQUEMENT depuis le JWT (app_metadata), jamais depuis le body
+  // → un client ne peut pas usurper un autre client/cabinet (anti-fuite).
+  const isClientContact = role === "client_contact";
+  const clientIdContact = user.app_metadata.client_id as string | undefined;
+  if (isClientContact) {
+    if (!clientIdContact) {
+      return NextResponse.json({ error: "Compte client incomplet" }, { status: 403 });
+    }
+  } else if (!ROLES_UPLOAD.has(role)) {
     return NextResponse.json({ error: "Action non autorisée pour votre rôle" }, { status: 403 });
   }
 
@@ -114,8 +123,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     .insert(uploadBrut)
     .values({
       cabinet_id,
-      source: "upload_fiduciaire",
+      source: isClientContact ? "upload_client" : "upload_fiduciaire",
       uploaded_par: user.id,
+      // Dépôt client : pré-rattaché à SON client (JWT). Fiduciaire : NULL → l'IA résout.
+      ...(isClientContact && clientIdContact ? { client_id: clientIdContact } : {}),
       nom_fichier_original: nom_fichier,
       taille_octets,
       type_mime,
@@ -234,6 +245,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       type_mime,
       ocr_text,
       invoked_by_user_id: user.id,
+      // Dépôt client : le client est CONNU (JWT) → on force le rattachement (pas de devinette IA).
+      ...(isClientContact && clientIdContact ? { client_id_connu: clientIdContact } : {}),
     });
     // B4 — auto-classé (doc.document créé sans humain) → 'valide' ; sinon file 'a_valider'.
     await db

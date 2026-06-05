@@ -64,6 +64,9 @@ export interface ClassifyDocumentInput {
   // Email de l'expéditeur (flux email entrant) — signal de rattachement client B2.
   // Absent pour les uploads manuels ; le rattachement retombe alors sur IDE + nom.
   expediteur_email?: string | null;
+  // Run B1 — dépôt côté client : le client est CONNU (JWT du contact RH). On force le
+  // rattachement à ce client (pas de devinette IA), tout en gardant les candidats tracés.
+  client_id_connu?: string | null;
 }
 
 export interface ClassifyDocumentResult {
@@ -143,6 +146,8 @@ export async function classifyDocument(
     texte: `${input.nom_fichier}\n${input.ocr_text ?? ""}`,
     expediteur_email: input.expediteur_email ?? null,
   });
+  // Dépôt client : on force le client connu (JWT) ; sinon résolution IA (B2).
+  const clientIdPropose = input.client_id_connu ?? clientRes.client_id_propose;
 
   // 2. Proposition en attente de validation humaine.
   const [proposition] = await db
@@ -160,7 +165,8 @@ export async function classifyDocument(
       confiance_par_champ: proposal.confiance_par_champ,
       anomalies_detectees: proposal.anomalies,
       // Rattachement client B2 : top candidat (si palier ≥ proposer) + top-3 tracés.
-      client_id_propose: clientRes.client_id_propose,
+      // Dépôt client (B1) : forcé au client connu.
+      client_id_propose: clientIdPropose,
       client_candidats:
         clientRes.candidats.length > 0
           ? {
@@ -190,10 +196,10 @@ export async function classifyDocument(
     politique,
     confiance_globale: proposal.confiance_globale,
     nb_anomalies: proposal.anomalies.length,
-    has_client: clientRes.client_id_propose != null,
+    has_client: clientIdPropose != null,
   });
 
-  if (!auto || clientRes.client_id_propose == null) {
+  if (!auto || clientIdPropose == null) {
     return {
       invocation_id: inv.id,
       proposition_id: proposition.id,
@@ -206,7 +212,7 @@ export async function classifyDocument(
   // le chemin de finalisation partagé avec la validation humaine (B3 + appariement attente).
   const fin = await finaliserDocument({
     cabinet_id: input.cabinet_id,
-    client_id: clientRes.client_id_propose,
+    client_id: clientIdPropose,
     fichier_physique_id: input.fichier_physique_id,
     proposition_classement_id: proposition.id,
     type: proposal.type,
