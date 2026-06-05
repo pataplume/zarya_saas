@@ -117,6 +117,27 @@ export default async function ImportPage() {
         </p>
       </div>
 
+      {/* Run E1 — Connecter la messagerie Microsoft 365 (optionnel, depuis l'onboarding) */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">
+              Connectez votre messagerie Microsoft 365
+            </h2>
+            <p className="mt-1 text-sm text-gray-500 max-w-md">
+              Pour que ZARYA ingère les emails de vos clients et envoie les relances depuis votre
+              boîte. Optionnel — vous pourrez aussi le faire plus tard depuis les paramètres.
+            </p>
+          </div>
+          <a
+            href="/app/parametres/integrations"
+            className="shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+          >
+            Connecter
+          </a>
+        </div>
+      </div>
+
       {/* Note Phase 3 — import automatisé */}
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-xs text-amber-800">
