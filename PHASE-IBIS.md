@@ -21,8 +21,8 @@ email** ; plus deux interrupteurs ops (allumer l'IA, app Azure réelle).
 | **A — Navigation** | | | | |
 | A1 | Déverrouiller sidebar + corriger hrefs (`/app/salaire`, redirects `/app/calendrier`,`/app/factures`) + home en tuiles cliquables | UI | S | ✅ **MERGÉ (#129)** |
 | **B — Flux client (dépôt → traitement)** | | | | |
-| B1 | Upload de document côté client (espace client → `/api/documents/upload` scopé client) | UI+API | M | ⬜ |
-| B2 | Accueil espace client = vrai tableau de bord (actions, docs à fournir, validations) | UI | M | ⬜ |
+| B1 | Upload de document côté client (espace client → `/api/documents/upload` scopé client) | UI+API | M | ✅ **MERGÉ (#131)** |
+| B2 | Accueil espace client = vrai tableau de bord (actions, docs à fournir, validations) | UI | M | ✅ **PR en cours** |
 | **C — Acquisition & onboarding client** | | | | |
 | C1 | Signup client self-service (landing client + inscription / activation améliorée) | UI+auth | M-L | ⬜ |
 | C2 | Onboarding client guidé (1re connexion) | UI | M | ⬜ |
