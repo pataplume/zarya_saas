@@ -257,10 +257,10 @@ const NAV_MAIN: NavItem[] = [
   { href: "/app", label: "Dashboard", icon: <IconDashboard /> },
   { href: "/app/clients", label: "Clients", icon: <IconUsers /> },
   { href: "/app/documents", label: "Documents", icon: <IconDocument /> },
-  { href: "/app/calendrier", label: "Calendrier", icon: <IconCalendar />, locked: true },
-  { href: "/app/factures", label: "Factures", icon: <IconCurrency />, locked: true },
-  { href: "/app/recherche", label: "Recherche", icon: <IconSearch />, locked: true },
-  { href: "/app/salaires", label: "Salaires", icon: <IconBriefcase />, locked: true },
+  { href: "/app/calendrier", label: "Calendrier", icon: <IconCalendar /> },
+  { href: "/app/factures", label: "Factures", icon: <IconCurrency /> },
+  { href: "/app/recherche", label: "Recherche", icon: <IconSearch /> },
+  { href: "/app/salaire", label: "Salaires", icon: <IconBriefcase /> },
 ];
 
 const NAV_BOTTOM: NavItem[] = [
