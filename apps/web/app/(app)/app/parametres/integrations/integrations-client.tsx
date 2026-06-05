@@ -34,6 +34,9 @@ export function IntegrationsClient({
   const regionHorsZone = params.region_adequate === false;
   const regionAcknowledged = Boolean(params.region_acknowledged_at);
   const showRegionBanner = connected && regionHorsZone && !regionAcknowledged;
+  // H2 — connexion expirée/révoquée : l'envoi d'emails (relances, notifs salaire) est
+  // suspendu tant que le cabinet n'a pas reconnecté Microsoft 365.
+  const showReconnectBanner = !connected && statut === "revoque";
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -56,6 +59,10 @@ export function IntegrationsClient({
           Échec de la connexion Microsoft{callback.detail ? ` (${callback.detail})` : ""}.
           Réessayez.
         </p>
+      )}
+
+      {showReconnectBanner && (
+        <ReconnectBanner isResponsable={isResponsable} derniereErreur={derniereErreur} />
       )}
 
       <section className="rounded-lg border border-gray-200 bg-white p-5">
@@ -85,6 +92,40 @@ export function IntegrationsClient({
           </p>
         )}
       </section>
+    </div>
+  );
+}
+
+function ReconnectBanner({
+  isResponsable,
+  derniereErreur,
+}: {
+  isResponsable: boolean;
+  derniereErreur: string | null;
+}) {
+  return (
+    <div className="rounded-md border-l-4 border-amber-400 bg-amber-50 p-4">
+      <p className="text-sm font-medium text-amber-800">
+        Connexion Microsoft 365 expirée — reconnexion requise
+      </p>
+      <p className="mt-1 text-sm text-amber-700">
+        L'envoi des emails depuis votre boîte (relances documents et salaires, notifications) est
+        suspendu jusqu'à la reconnexion. L'ingestion des nouveaux emails est également interrompue.
+        Reconnectez-vous pour reprendre.
+      </p>
+      {derniereErreur && <p className="mt-1 text-xs text-amber-600">Détail : {derniereErreur}</p>}
+      {isResponsable ? (
+        <a
+          href={CONNECT_URL}
+          className="mt-3 inline-block rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700"
+        >
+          Reconnecter Microsoft 365
+        </a>
+      ) : (
+        <p className="mt-2 text-xs text-amber-600">
+          Un responsable du cabinet doit effectuer la reconnexion.
+        </p>
+      )}
     </div>
   );
 }

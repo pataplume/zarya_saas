@@ -32,21 +32,22 @@ email** ; plus deux interrupteurs ops (allumer l'IA, app Azure réelle).
 | **E — Onboarding ↔ connecteurs** | | | | |
 | E1 | CTA « Connecter Microsoft 365 » dans l'onboarding fiduciaire | UI | S | ✅ **MERGÉ (#133)** *(fait hors-ordre, inoffensif)* |
 | **F — Chaîne email salaire** | | | | |
-| F1 | Salaire : surfacer la validation des notifications/relances (G5 construit) | UI | S-M | ⬜ **← prochain** |
+| F1 | Salaire : surfacer la validation des relances (G5b construit ; notifications = envoi direct, pas de file) | UI | S-M | ✅ **MERGÉ (#137)** |
 | ~~F2~~ | ~~Facture : envoi au client~~ — **SUPPRIMÉ** (erreur : module = factures fournisseurs, pas d'envoi client) | — | — | ❌ retiré |
 | **G — Activation IA prod** | | | | |
 | G1 | Mettre `EXTRACTION_MODE=live` sur Vercel (1 réglage) + activer flags cabinets pilotes. **Action OPS founder** (IA déjà branchée Infomaniak ; switch off par défaut) | Ops | XS | ⬜ founder |
 | **H — Pré-bêta Microsoft réel** | | | | |
 | H1 | Setup app Azure réelle (multi-tenant, ADR 0018) + validation E2E vrai tenant. **Action OPS founder (plus tard)** | Ops+infra | M | ⬜ founder |
-| H2 | UI renouvellement/reconnexion Microsoft (token expiré) | UI | S | ⬜ |
+| H2 | UI renouvellement/reconnexion Microsoft (token expiré) — bannière de reconnexion proéminente quand statut `revoque` | UI | S | ✅ **MERGÉ (#138)** |
 | **I — Polish & conformité** | | | | |
-| I1 | RGPD / suppression compte (client + cabinet) | UI+API | M | ⬜ |
+| I1 | RGPD / suppression compte (client + cabinet) | UI+API | M | ⬜ **← prochain** |
 | I2 | Profil fiduciaire complet (`/parametres/profil`) | UI | S | ⬜ |
 | I3 | Remplacer le placeholder Calendly (onboarding import) | UI | XS | ⬜ |
 | I4 | Page contact espace client (`/espace/contact`) | UI | S | ⬜ |
 
 ## Prochain
-**C1** (onboarding client guidé), puis D1, F1, H2, I*. G1/H1 = actions founder.
+**I1** (RGPD / suppression compte), puis I2→I4. G1/H1 = actions founder (ops, hors code).
+Faits : A1, B1, B2, C1, D1, E1, F1, H2.
 
 ## Hors Phase Ibis (différé Phase 2+)
 OCR vision + embeddings/recherche avancée (streaming, Cmd+K), base éphémère CI, import auto
