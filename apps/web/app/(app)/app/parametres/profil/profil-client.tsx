@@ -13,6 +13,8 @@ type Props = {
   prenom: string;
   nom: string;
   role: string;
+  telephone: string;
+  signatureEmail: string;
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -22,7 +24,7 @@ const ROLE_LABELS: Record<string, string> = {
   lecteur: "Lecteur",
 };
 
-export function ProfilClient({ email, prenom, nom, role }: Props) {
+export function ProfilClient({ email, prenom, nom, role, telephone, signatureEmail }: Props) {
   const [profilState, profilAction, isProfilPending] = useActionState<ProfilState, FormData>(
     mettreAJourProfilAction,
     {},
@@ -83,6 +85,42 @@ export function ProfilClient({ email, prenom, nom, role }: Props) {
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="telephone" className="mb-1 block text-sm font-medium text-gray-700">
+              Téléphone <span className="text-gray-400">(optionnel)</span>
+            </label>
+            <input
+              id="telephone"
+              type="tel"
+              name="telephone"
+              defaultValue={telephone}
+              maxLength={40}
+              placeholder="+41 22 000 00 00"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="signatureEmail"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
+              Signature email <span className="text-gray-400">(optionnel)</span>
+            </label>
+            <textarea
+              id="signatureEmail"
+              name="signatureEmail"
+              defaultValue={signatureEmail}
+              rows={4}
+              maxLength={2000}
+              placeholder="Jane Dupont&#10;Fiduciaire Exemple SA&#10;+41 22 000 00 00"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              Apparaîtra au bas des emails (relances) envoyés depuis votre boîte.
+            </p>
           </div>
 
           <div className="flex items-center gap-4">

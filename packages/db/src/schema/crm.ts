@@ -371,6 +371,9 @@ export const cabinetMembre = crmSchema.table(
     role: roleMembreEnum("role").notNull(),
     prenom: text("prenom"),
     nom: text("nom"),
+    // Run I2 — profil enrichi (téléphone + signature email apposable aux relances).
+    telephone: text("telephone"),
+    signature_email: text("signature_email"),
     actif: boolean("actif").notNull().default(true),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

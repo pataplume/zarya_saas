@@ -11,6 +11,8 @@ import { z } from "zod";
 const ProfilSchema = z.object({
   prenom: z.string().min(1, "Prénom requis").max(100),
   nom: z.string().min(1, "Nom requis").max(100),
+  telephone: z.string().trim().max(40).optional(),
+  signatureEmail: z.string().trim().max(2000).optional(),
 });
 
 export type ProfilState = { error?: string; success?: boolean };
@@ -26,6 +28,8 @@ export async function mettreAJourProfilAction(
   const parsed = ProfilSchema.safeParse({
     prenom: formData.get("prenom"),
     nom: formData.get("nom"),
+    telephone: formData.get("telephone") || undefined,
+    signatureEmail: formData.get("signatureEmail") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
@@ -33,7 +37,13 @@ export async function mettreAJourProfilAction(
 
   await db
     .update(cabinetMembre)
-    .set({ prenom: parsed.data.prenom, nom: parsed.data.nom, updated_at: new Date() })
+    .set({
+      prenom: parsed.data.prenom,
+      nom: parsed.data.nom,
+      telephone: parsed.data.telephone ?? null,
+      signature_email: parsed.data.signatureEmail ?? null,
+      updated_at: new Date(),
+    })
     .where(and(eq(cabinetMembre.user_id, user.id), eq(cabinetMembre.cabinet_id, cabinet_id)));
 
   revalidatePath("/app/parametres/profil");
