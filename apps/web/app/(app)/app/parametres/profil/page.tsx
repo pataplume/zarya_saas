@@ -14,6 +14,8 @@ export default async function ProfilPage() {
       prenom: cabinetMembre.prenom,
       nom: cabinetMembre.nom,
       role: cabinetMembre.role,
+      telephone: cabinetMembre.telephone,
+      signature_email: cabinetMembre.signature_email,
     })
     .from(cabinetMembre)
     .where(and(eq(cabinetMembre.user_id, user.id), eq(cabinetMembre.cabinet_id, cabinet_id)))
@@ -25,6 +27,8 @@ export default async function ProfilPage() {
       prenom={membre?.prenom ?? ""}
       nom={membre?.nom ?? ""}
       role={membre?.role ?? "collaborateur"}
+      telephone={membre?.telephone ?? ""}
+      signatureEmail={membre?.signature_email ?? ""}
     />
   );
 }
