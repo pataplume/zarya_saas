@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@zarya/auth";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LancerCampagneForm } from "@/components/salaire/campagne-form";
 import { getKpisFiduciaire, getPeriodesFiduciaire } from "@/lib/salaire-fiduciaire-data";
@@ -65,8 +66,14 @@ export default async function SalaireFiduciairePage({
         Suivi du cycle mensuel de validation des salaires.
       </p>
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap items-center gap-3">
         <LancerCampagneForm annee={annee} mois={mois} />
+        <Link
+          href="/app/salaire/relances"
+          className="text-sm font-medium text-blue-600 hover:underline"
+        >
+          Relances à valider →
+        </Link>
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">

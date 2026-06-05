@@ -26,13 +26,13 @@ email** ; plus deux interrupteurs ops (allumer l'IA, app Azure réelle).
 | B1 | Upload de document côté client (espace client → `/api/documents/upload` scopé client) | UI+API | M | ✅ **MERGÉ (#131)** |
 | B2 | Accueil espace client = vrai tableau de bord (actions, docs à fournir, validations) | UI | M | ✅ **MERGÉ (#132)** |
 | **C — Onboarding client guidé** (PAS de signup public — le fiduciaire invite ses clients) | | | | |
-| C1 | Onboarding/activation client guidé à la 1re connexion (post-invitation) | UI | M | ⬜ **← prochain** |
+| C1 | Onboarding/activation client guidé à la 1re connexion (post-invitation) | UI | M | ✅ **MERGÉ (#135)** |
 | **D — Page d'entrée** (login + signup) | | | | |
-| D1 | Landing d'entrée : Login + Signup → **formulaire de demande de RDV** (pas de marketing/pricing). Détails à venir : `LANDING-NOTES.md` | UI | S-M | ⬜ |
+| D1 | Landing d'entrée : Login + Demander un accès → **formulaire interne en base** (`crm.demande_acces`, hors multi-tenant). Détails copy à venir : `LANDING-NOTES.md` | UI | S-M | ✅ **MERGÉ (#136)** |
 | **E — Onboarding ↔ connecteurs** | | | | |
 | E1 | CTA « Connecter Microsoft 365 » dans l'onboarding fiduciaire | UI | S | ✅ **MERGÉ (#133)** *(fait hors-ordre, inoffensif)* |
 | **F — Chaîne email salaire** | | | | |
-| F1 | Salaire : surfacer la validation des notifications/relances (G5 construit) | UI | S-M | ⬜ |
+| F1 | Salaire : surfacer la validation des notifications/relances (G5 construit) | UI | S-M | ⬜ **← prochain** |
 | ~~F2~~ | ~~Facture : envoi au client~~ — **SUPPRIMÉ** (erreur : module = factures fournisseurs, pas d'envoi client) | — | — | ❌ retiré |
 | **G — Activation IA prod** | | | | |
 | G1 | Mettre `EXTRACTION_MODE=live` sur Vercel (1 réglage) + activer flags cabinets pilotes. **Action OPS founder** (IA déjà branchée Infomaniak ; switch off par défaut) | Ops | XS | ⬜ founder |
