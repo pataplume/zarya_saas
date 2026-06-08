@@ -13,8 +13,23 @@ export type ClientType = "pme" | "independant" | "prive" | "association";
 export type CategorieDoc = "bancaire" | "fiscal" | "salaire" | "commercial" | "administratif";
 export type Frequence = "mensuelle" | "trimestrielle" | "semestrielle" | "annuelle" | "ponctuelle";
 
+// Slug canonique du catalogue crm.standard_type_document (mig 0017). Aligne le vocabulaire de
+// couverture doc→échéance (template.documents_requis_types ↔ document_attendu.type_code, mig 0048).
+// null = pas de slug catalogue dédié → le document n'est gaté par aucune échéance (sûr).
+export type TypeCodeCanonique =
+  | "releve_bancaire"
+  | "facture_fournisseur"
+  | "declaration_tva"
+  | "declaration_impot"
+  | "certificat_salaire"
+  | "decompte_salaire"
+  | "declaration_avs"
+  | null;
+
 export interface DocAttenduChecklist {
   type_document: string;
+  /** Slug canonique pour la couverture C4 (null si non gaté). */
+  type_code: TypeCodeCanonique;
   categorie: CategorieDoc;
   frequence: Frequence;
   obligatoire: boolean;
@@ -27,6 +42,7 @@ const PAR_SERVICE: Record<ServiceType, DocAttenduChecklist[]> = {
   comptabilite: [
     {
       type_document: "releve_bancaire",
+      type_code: "releve_bancaire",
       categorie: "bancaire",
       frequence: "mensuelle",
       obligatoire: true,
@@ -34,6 +50,7 @@ const PAR_SERVICE: Record<ServiceType, DocAttenduChecklist[]> = {
     },
     {
       type_document: "factures_achats",
+      type_code: "facture_fournisseur",
       categorie: "commercial",
       frequence: "mensuelle",
       obligatoire: true,
@@ -41,6 +58,7 @@ const PAR_SERVICE: Record<ServiceType, DocAttenduChecklist[]> = {
     },
     {
       type_document: "factures_ventes",
+      type_code: null,
       categorie: "commercial",
       frequence: "mensuelle",
       obligatoire: true,
@@ -50,6 +68,7 @@ const PAR_SERVICE: Record<ServiceType, DocAttenduChecklist[]> = {
   tva: [
     {
       type_document: "decompte_tva",
+      type_code: "declaration_tva",
       categorie: "fiscal",
       frequence: "trimestrielle",
       obligatoire: true,
@@ -59,6 +78,7 @@ const PAR_SERVICE: Record<ServiceType, DocAttenduChecklist[]> = {
   salaires: [
     {
       type_document: "decompte_salaire",
+      type_code: "decompte_salaire",
       categorie: "salaire",
       frequence: "mensuelle",
       obligatoire: true,
@@ -66,6 +86,7 @@ const PAR_SERVICE: Record<ServiceType, DocAttenduChecklist[]> = {
     },
     {
       type_document: "certificat_salaire",
+      type_code: "certificat_salaire",
       categorie: "salaire",
       frequence: "annuelle",
       obligatoire: true,
@@ -75,6 +96,7 @@ const PAR_SERVICE: Record<ServiceType, DocAttenduChecklist[]> = {
   bouclement: [
     {
       type_document: "bilan_comptes",
+      type_code: null,
       categorie: "fiscal",
       frequence: "annuelle",
       obligatoire: true,
@@ -84,6 +106,7 @@ const PAR_SERVICE: Record<ServiceType, DocAttenduChecklist[]> = {
   fiscalite: [
     {
       type_document: "declaration_impot",
+      type_code: "declaration_impot",
       categorie: "fiscal",
       frequence: "annuelle",
       obligatoire: true,

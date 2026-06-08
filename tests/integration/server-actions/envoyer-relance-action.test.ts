@@ -105,7 +105,9 @@ describe("Server actions file relances (C3a)", () => {
     authState.user = responsable.authUser;
     const res = await envoyerRelanceAction(relanceId);
     expect(res.success).toBe(true);
-    expect(calendarMock.envoyerRelance).toHaveBeenCalledWith(relanceId);
+    // 1er argument = relanceId ; le 2e (opts signature) dépend du membre acteur (ici sans
+    // signature → {}). On vérifie l'identifiant, pas la forme exacte des opts.
+    expect(calendarMock.envoyerRelance.mock.calls[0]?.[0]).toBe(relanceId);
   });
 
   test("lot : les ids hors cabinet sont ignorés (comptés)", async () => {
