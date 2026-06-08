@@ -139,6 +139,8 @@ export interface EnvoyerRelanceInput {
   cabinet_id: string;
   relance_id: string;
   destinataire_email: string;
+  /** Signature à apposer au corps (membre acteur, Run I2). Optionnelle. */
+  signature?: string;
   /** Sender injectable (tests). */
   sender?: TrackedSenderLike;
 }
@@ -195,7 +197,12 @@ export async function envoyerRelanceSalaire(
 
   const outcome = await sendCabinetEmailTracked(
     input.cabinet_id,
-    { to: [input.destinataire_email], subject: tpl.sujet, body: tpl.corps },
+    {
+      to: [input.destinataire_email],
+      subject: tpl.sujet,
+      body: tpl.corps,
+      ...(input.signature ? { signature: input.signature } : {}),
+    },
     input.sender ? { client: input.sender as never } : {},
   );
   if (outcome.status !== "sent") return { status: "echec", raison: outcome.status };
