@@ -6,6 +6,7 @@ import { db, relance } from "@zarya/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getMembreSignature } from "@/lib/membre-signature";
 
 // File des relances à valider — module Calendar (calendar.md §6.4, Bloc C3a).
 // Mode A : l'humain valide puis envoie. L'envoi réel (draft+send + tracking) vit dans
@@ -33,7 +34,8 @@ function acteur(user: { app_metadata: Record<string, unknown> }) {
 
 /** Envoie une relance en brouillon (1-clic). */
 export async function envoyerRelanceAction(relanceId: string): Promise<RelanceActionState> {
-  const { cabinet_id, role } = acteur(await requireAuth());
+  const user = await requireAuth();
+  const { cabinet_id, role } = acteur(user);
   if (!cabinet_id) return { error: "Cabinet introuvable." };
   if (!ROLES_VALIDATION.has(role)) return { error: "Droits insuffisants." };
 
@@ -45,7 +47,8 @@ export async function envoyerRelanceAction(relanceId: string): Promise<RelanceAc
   if (!row) return { error: "Relance introuvable." };
   if (row.statut !== "brouillon") return { error: "Relance déjà envoyée." };
 
-  const res = await envoyerRelance(relanceId);
+  const signature = await getMembreSignature(user.id, cabinet_id);
+  const res = await envoyerRelance(relanceId, signature ? { signature } : {});
   revalidatePath(RELANCES_PATH);
   if (res.status === "envoyee") return { success: true };
   if (res.status === "revoked") return { error: "Reconnexion Microsoft requise." };
@@ -56,7 +59,8 @@ export async function envoyerRelanceAction(relanceId: string): Promise<RelanceAc
 
 /** Envoie un lot de relances sélectionnées (anti-fuite : seules celles du cabinet). */
 export async function envoyerLotAction(relanceIds: string[]): Promise<RelanceLotState> {
-  const { cabinet_id, role } = acteur(await requireAuth());
+  const user = await requireAuth();
+  const { cabinet_id, role } = acteur(user);
   if (!cabinet_id) return { error: "Cabinet introuvable." };
   if (!ROLES_VALIDATION.has(role)) return { error: "Droits insuffisants." };
   if (relanceIds.length === 0) return { envoyees: 0, echecs: 0, ignores: 0 };
@@ -72,7 +76,8 @@ export async function envoyerLotAction(relanceIds: string[]): Promise<RelanceLot
       ),
     );
   const ids = owned.map((o) => o.id);
-  const res = await envoyerRelancesValidees(ids);
+  const signature = await getMembreSignature(user.id, cabinet_id);
+  const res = await envoyerRelancesValidees(ids, signature ? { signature } : {});
   revalidatePath(RELANCES_PATH);
   return {
     envoyees: res.envoyees,

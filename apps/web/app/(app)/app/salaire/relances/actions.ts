@@ -4,6 +4,7 @@ import { requireAuth } from "@zarya/auth";
 import { accesClient, and, db, eq, relanceSalaire } from "@zarya/db";
 import { envoyerRelanceSalaire } from "@zarya/extraction";
 import { revalidatePath } from "next/cache";
+import { getMembreSignature } from "@/lib/membre-signature";
 
 // Run F1 — server actions de la file de validation des relances salaire (mode A, G5b).
 // L'envoi réel (Graph tracé + transition période + journal) vit dans @zarya/extraction
@@ -33,6 +34,7 @@ function acteur(user: { app_metadata: Record<string, unknown> }) {
 async function envoyerUneRelance(
   relanceId: string,
   cabinet_id: string,
+  signature?: string,
 ): Promise<"envoyee" | "sans_destinataire" | "ignoree" | "echec"> {
   const [row] = await db
     .select({
@@ -56,6 +58,7 @@ async function envoyerUneRelance(
     cabinet_id,
     relance_id: relanceId,
     destinataire_email: acces.email,
+    ...(signature ? { signature } : {}),
   });
   if (res.status === "envoyee") return "envoyee";
   if (res.status === "ignoree") return "ignoree";
@@ -66,11 +69,13 @@ async function envoyerUneRelance(
 export async function envoyerRelanceSalaireAction(
   relanceId: string,
 ): Promise<RelanceSalaireActionState> {
-  const { cabinet_id, role } = acteur(await requireAuth());
+  const user = await requireAuth();
+  const { cabinet_id, role } = acteur(user);
   if (!cabinet_id) return { error: "Cabinet introuvable." };
   if (!ROLES_VALIDATION.has(role)) return { error: "Droits insuffisants." };
 
-  const outcome = await envoyerUneRelance(relanceId, cabinet_id);
+  const signature = await getMembreSignature(user.id, cabinet_id);
+  const outcome = await envoyerUneRelance(relanceId, cabinet_id, signature);
   revalidatePath(RELANCES_PATH);
   if (outcome === "envoyee") return { success: true };
   if (outcome === "sans_destinataire") return { error: "Aucun destinataire actif pour ce client." };
@@ -82,16 +87,18 @@ export async function envoyerRelanceSalaireAction(
 export async function envoyerLotRelancesSalaireAction(
   relanceIds: string[],
 ): Promise<RelanceSalaireLotState> {
-  const { cabinet_id, role } = acteur(await requireAuth());
+  const user = await requireAuth();
+  const { cabinet_id, role } = acteur(user);
   if (!cabinet_id) return { error: "Cabinet introuvable." };
   if (!ROLES_VALIDATION.has(role)) return { error: "Droits insuffisants." };
   if (relanceIds.length === 0) return { envoyees: 0, echecs: 0, ignores: 0 };
 
+  const signature = await getMembreSignature(user.id, cabinet_id);
   let envoyees = 0;
   let echecs = 0;
   let ignores = 0;
   for (const id of relanceIds) {
-    const outcome = await envoyerUneRelance(id, cabinet_id);
+    const outcome = await envoyerUneRelance(id, cabinet_id, signature);
     if (outcome === "envoyee") envoyees++;
     else if (outcome === "ignoree" || outcome === "sans_destinataire") ignores++;
     else echecs++;
