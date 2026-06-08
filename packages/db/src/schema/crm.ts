@@ -611,6 +611,11 @@ export const documentAttendu = crmSchema.table(
       .references(() => client.id, { onDelete: "restrict" }),
     service_id: uuid("service_id").references(() => service.id, { onDelete: "set null" }),
     type_document: text("type_document").notNull(),
+    // Run boucle doc→échéance : slug canonique (crm.standard_type_document) pour la couverture
+    // C4. type_document reste le libellé d'origine ; type_code aligne le vocabulaire. (mig 0048)
+    type_code: text("type_code").references(() => standardTypeDocument.code, {
+      onDelete: "set null",
+    }),
     categorie: categorieDocAttenduEnum("categorie"),
     frequence: frequenceServiceEnum("frequence").notNull(),
     obligatoire: boolean("obligatoire").notNull().default(true),

@@ -36,6 +36,24 @@ describe("checklistPourServices", () => {
     expect(checklistPourServices("pme", [])).toEqual([]);
   });
 
+  it("porte un type_code canonique aligné sur le catalogue (couverture C4, mig 0048)", () => {
+    const byDoc = new Map(
+      checklistPourServices("pme", ["comptabilite", "tva", "salaires", "fiscalite"]).map((d) => [
+        d.type_document,
+        d.type_code,
+      ]),
+    );
+    // Slugs onboarding → slugs catalogue crm.standard_type_document.
+    expect(byDoc.get("releve_bancaire")).toBe("releve_bancaire");
+    expect(byDoc.get("factures_achats")).toBe("facture_fournisseur");
+    expect(byDoc.get("decompte_tva")).toBe("declaration_tva");
+    expect(byDoc.get("decompte_salaire")).toBe("decompte_salaire");
+    expect(byDoc.get("certificat_salaire")).toBe("certificat_salaire");
+    expect(byDoc.get("declaration_impot")).toBe("declaration_impot");
+    // Pas de slug catalogue dédié → null (non gaté, sûr).
+    expect(byDoc.get("factures_ventes")).toBeNull();
+  });
+
   it("chaque doc porte une fréquence et une catégorie valides", () => {
     for (const d of checklistPourServices("pme", [
       "comptabilite",

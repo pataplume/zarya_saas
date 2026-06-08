@@ -143,6 +143,7 @@ export async function configurerServicesClientAction(
       client_id: v.client_id,
       service_id: doc.service ? (serviceIdParType.get(doc.service) ?? null) : null,
       type_document: doc.type_document,
+      type_code: doc.type_code,
       categorie: doc.categorie,
       frequence: doc.frequence,
       obligatoire: doc.obligatoire,
