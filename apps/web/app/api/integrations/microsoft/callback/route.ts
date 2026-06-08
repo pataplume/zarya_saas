@@ -26,11 +26,13 @@ function redirectToSettings(
   status: "connected" | "error",
   detail?: string,
   region?: "ok" | "hors_zone",
+  webhook?: string,
 ): NextResponse {
   const url = new URL("/app/parametres/integrations", request.nextUrl.origin);
   url.searchParams.set("microsoft", status);
   if (detail) url.searchParams.set("detail", detail);
   if (region) url.searchParams.set("region", region);
+  if (webhook) url.searchParams.set("webhook", webhook);
   return NextResponse.redirect(url);
 }
 
@@ -76,15 +78,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // D4b — création de la subscription webhook best-effort (ne bloque pas la connexion ;
     // nécessite que l'endpoint /webhook soit joignable publiquement par Microsoft).
+    let webhook = "ok";
     try {
       await createEmailSubscription(cabinet_id);
     } catch (subErr) {
+      const message = subErr instanceof Error ? subErr.message : "inconnu";
+      // Remonté dans l'URL (tronqué) pour que l'échec d'ingestion soit visible côté
+      // responsable au lieu d'être avalé silencieusement.
+      webhook = message.slice(0, 200);
       logger.warn(
-        { cabinet_id, error: subErr instanceof Error ? subErr.message : "inconnu" },
+        { cabinet_id, error: message },
         "[microsoft.callback] création subscription webhook échouée (connexion maintenue)",
       );
     }
-    return redirectToSettings(request, "connected", undefined, region);
+    return redirectToSettings(request, "connected", undefined, region, webhook);
   } catch (err) {
     const detail = err instanceof MicrosoftGraphError ? err.code : "inconnu";
     return redirectToSettings(request, "error", detail);
