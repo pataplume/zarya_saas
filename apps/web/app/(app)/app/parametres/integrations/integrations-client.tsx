@@ -236,12 +236,14 @@ function RegionBanner({
   return (
     <div className="mt-4 rounded-md border-l-4 border-amber-400 bg-amber-50 p-4">
       <p className="text-sm font-medium text-amber-800">
-        Tenant hébergé hors zone adéquate ({region})
+        Votre messagerie Microsoft est hébergée hors d'Europe
       </p>
       <p className="mt-1 text-sm text-amber-700">
-        Votre tenant Microsoft 365 semble hébergé hors UE/EEE. Les emails transitant par ZARYA
-        restent en UE (Frankfurt), mais le contenu accessible côté Microsoft 365 reste régi par la
-        politique de votre tenant. Confirmez-vous vouloir continuer ?
+        Microsoft indique que les emails de votre cabinet sont stockés en dehors de l'Union
+        européenne ({region}). Rien d'inquiétant pour ZARYA : toutes les données que nous traitons
+        restent hébergées en Europe (Francfort). Cet avertissement concerne uniquement l'endroit où
+        Microsoft conserve vos emails — un réglage qui dépend de votre compte Microsoft, pas de
+        ZARYA. Vous pouvez continuer sereinement.
       </p>
       {isResponsable ? (
         <form action={action} className="mt-3">
@@ -250,7 +252,7 @@ function RegionBanner({
             disabled={pending}
             className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
           >
-            {pending ? "Enregistrement…" : "Je confirme et continue"}
+            {pending ? "Enregistrement…" : "J'ai compris, continuer"}
           </button>
           {state.error && <p className="mt-2 text-xs text-red-600">{state.error}</p>}
         </form>
