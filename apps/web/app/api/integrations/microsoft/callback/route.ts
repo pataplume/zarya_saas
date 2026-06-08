@@ -27,7 +27,7 @@ function redirectToSettings(
   detail?: string,
   region?: "ok" | "hors_zone",
 ): NextResponse {
-  const url = new URL("/parametres/integrations", request.nextUrl.origin);
+  const url = new URL("/app/parametres/integrations", request.nextUrl.origin);
   url.searchParams.set("microsoft", status);
   if (detail) url.searchParams.set("detail", detail);
   if (region) url.searchParams.set("region", region);
