@@ -96,11 +96,19 @@ export default async function DocumentsPage() {
   return (
     <div className="px-4 py-8 sm:px-6 lg:px-8">
       {/* En-tête */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Documents</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Déposez vos documents : ZARYA propose un classement que vous validez en un clic.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Documents</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Déposez vos documents : ZARYA propose un classement que vous validez en un clic.
+          </p>
+        </div>
+        <Link
+          href="/app/documents/emails"
+          className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+        >
+          Emails reçus →
+        </Link>
       </div>
 
       {/* Action prioritaire : documents à valider (UX § 6) */}
