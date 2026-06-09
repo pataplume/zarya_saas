@@ -99,12 +99,16 @@ export async function classifyDocument(
   try {
     result = await classifier.classify(classificationInput);
   } catch (err) {
-    // Trace l'échec (notamment les 429 après retries épuisés) dans
-    // extraction.invocation : sans ça, un quota dépassé ne laisserait aucune
-    // trace auditable (ADR 0010 § 7). On RE-LÈVE ensuite l'erreur d'origine —
-    // le pipeline d'upload la logge (cf. fix échec silencieux, PR #24).
+    // Trace l'échec (429 épuisés, config IK manquante, coupure) dans
+    // extraction.invocation : sans ça, l'échec ne laisserait aucune trace auditable
+    // (ADR 0010 § 7).
     await traceFailedInvocation(input, classifier.mode, err);
-    throw err;
+    // Robustesse (V1) : si le mode LIVE échoue, on NE perd PAS le document — repli sur le
+    // classifieur stub pour produire quand même une proposition (visible dans la file de
+    // validation, reclassable plus tard quand le live est rétabli). En stub, pas de second
+    // filet : on re-lève (l'appelant logge et laisse le document 'recu').
+    if (classifier.mode !== "live") throw err;
+    result = await getClassifier("stub").classify(classificationInput);
   }
   const { proposal } = result;
 
