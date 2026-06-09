@@ -31,6 +31,19 @@ export interface EmailDetail extends EmailSummary {
   toRecipients: string[];
 }
 
+/** Métadonnée d'une pièce jointe (sans le contenu). */
+export interface AttachmentMeta {
+  id: string;
+  name: string | null;
+  contentType: string | null;
+  /** Taille en octets (telle que rapportée par Graph). */
+  size: number | null;
+  /** Image/contenu inline (signature, logo) — à ignorer pour l'ingestion documentaire. */
+  isInline: boolean;
+  /** true = `#microsoft.graph.fileAttachment` (téléchargeable via downloadAttachment). */
+  isFile: boolean;
+}
+
 export interface SendEmailParams {
   subject: string;
   body: string;

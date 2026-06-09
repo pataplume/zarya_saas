@@ -26,6 +26,7 @@ export {
   infomaniakClient,
 } from "./infomaniak";
 export type {
+  AttachmentMeta,
   CalendarEvent,
   CreateEmailSubscriptionOptions,
   CreateEventParams,

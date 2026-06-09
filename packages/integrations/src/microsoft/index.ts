@@ -26,6 +26,7 @@ export {
 export type { MicrosoftErrorCode } from "./errors";
 export { MicrosoftGraphError } from "./errors";
 export type {
+  AttachmentMeta,
   CalendarEvent,
   CreateEventParams,
   EmailDetail,

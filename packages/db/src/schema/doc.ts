@@ -84,8 +84,9 @@ export const uploadBrut = docSchema.table(
       .notNull()
       .references(() => cabinet.id, { onDelete: "restrict" }),
     source: sourceIngestionEnum("source").notNull(),
-    // Référence auth.users(id) — pas de FK explicite (Supabase gère auth.*)
-    uploaded_par: uuid("uploaded_par").notNull(),
+    // Référence auth.users(id) — pas de FK explicite (Supabase gère auth.*).
+    // NULLABLE (mig 0049) : NULL = ingestion système (pièce jointe email, cron) ; sinon humain.
+    uploaded_par: uuid("uploaded_par"),
     client_id: uuid("client_id").references(() => client.id, { onDelete: "set null" }),
     nom_fichier_original: text("nom_fichier_original").notNull(),
     taille_octets: bigint("taille_octets", { mode: "number" }).notNull(),
