@@ -2,14 +2,16 @@ import { logger } from "@zarya/logger";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { processPendingEmails } from "@/lib/process-emails";
+import { reprocessPendingDocuments } from "@/lib/reprocess-documents";
 
 export const runtime = "nodejs";
 // Le téléchargement des pièces jointes + OCR + classif peut être long sur un lot.
 export const maxDuration = 300;
 
-// Traitement des emails ingérés (doc.email_brut 'recu') → pièces jointes → documents classés.
-// Filet quotidien (le webhook déclenche aussi en temps quasi-réel). Job système → toutes cabinets.
-// Protégé par CRON_SECRET (Vercel envoie `Authorization: Bearer ${CRON_SECRET}`).
+// Job système (toutes cabinets), protégé par CRON_SECRET :
+//  1. ingère les pièces jointes des emails reçus (doc.email_brut 'recu') → documents classés ;
+//  2. RECLASSE les documents bloqués en 'recu' (classification jamais aboutie).
+// Filet périodique ; le webhook déclenche aussi le (1) en temps quasi-réel.
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const secret = process.env.CRON_SECRET;
   const authorization = request.headers.get("authorization");
@@ -18,9 +20,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const result = await processPendingEmails();
-    logger.info({ ...result }, "[documents.process-emails] traitement terminé");
-    return NextResponse.json(result);
+    const emails = await processPendingEmails();
+    const reclassement = await reprocessPendingDocuments();
+    logger.info({ emails, reclassement }, "[documents.process-emails] traitement terminé");
+    return NextResponse.json({ emails, reclassement });
   } catch (err) {
     logger.error(
       { error: err instanceof Error ? err.message : "inconnu" },
