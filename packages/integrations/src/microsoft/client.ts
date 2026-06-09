@@ -19,6 +19,7 @@ import { type ApiExterneAuditEntry, recordApiExterne } from "@zarya/db";
 import { logger } from "@zarya/logger";
 import { MicrosoftGraphError } from "./errors";
 import type {
+  AttachmentMeta,
   CalendarEvent,
   CreateEventParams,
   EmailDetail,
@@ -86,6 +87,15 @@ interface GraphMessage {
 
 interface GraphFileAttachment {
   contentBytes?: string;
+}
+
+interface GraphAttachmentMeta {
+  id: string;
+  name?: string | null;
+  contentType?: string | null;
+  size?: number | null;
+  isInline?: boolean;
+  "@odata.type"?: string;
 }
 
 interface GraphEvent {
@@ -166,6 +176,27 @@ export class MicrosoftGraphClient {
       auditEndpoint: "/me/messages/{id}",
     });
     return toEmailDetail(msg);
+  }
+
+  /** Liste les métadonnées des pièces jointes d'un message (sans le contenu). */
+  async listAttachments(messageId: string): Promise<AttachmentMeta[]> {
+    const res = await this.request<{ value?: GraphAttachmentMeta[] }>(
+      "GET",
+      `/me/messages/${encodeURIComponent(messageId)}/attachments`,
+      {
+        // $select léger ; @odata.type est structurel (toujours retourné) → distingue fileAttachment.
+        query: { $select: "id,name,contentType,size,isInline" },
+        auditEndpoint: "/me/messages/{id}/attachments",
+      },
+    );
+    return (res.value ?? []).map((a) => ({
+      id: a.id,
+      name: a.name ?? null,
+      contentType: a.contentType ?? null,
+      size: a.size ?? null,
+      isInline: a.isInline ?? false,
+      isFile: a["@odata.type"] === "#microsoft.graph.fileAttachment",
+    }));
   }
 
   async downloadAttachment(messageId: string, attachmentId: string): Promise<Buffer> {

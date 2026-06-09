@@ -1,7 +1,7 @@
 import { ingestEmailNotification, parseGraphNotifications } from "@zarya/integrations";
 import { logger } from "@zarya/logger";
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { after, type NextRequest, NextResponse } from "next/server";
+import { processPendingEmails } from "@/lib/process-emails";
 
 // Bloc D4b — endpoint webhook Microsoft Graph (notifications email temps réel).
 // PUBLIC (appelé par Microsoft, sans session) : l'authentification repose sur le
@@ -27,9 +27,11 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
   const body = await request.json().catch(() => null);
   const notifications = parseGraphNotifications(body);
 
+  let ingested = false;
   for (const notif of notifications) {
     try {
       const status = await ingestEmailNotification(notif);
+      if (status === "ingested") ingested = true;
       if (status === "unauthorized" || status === "unknown_subscription") {
         logger.warn(
           { subscription_id: notif.subscriptionId, status },
@@ -46,6 +48,22 @@ export async function POST(request: NextRequest): Promise<NextResponse | Respons
         "[microsoft.webhook] ingestion notification échouée",
       );
     }
+  }
+
+  // Traitement temps quasi-réel APRÈS la réponse (ne retarde pas l'accusé Graph). Déclenché
+  // uniquement si un email a réellement été ingéré (clientState vérifié) → pas d'abus de
+  // l'endpoint public. Le cron /api/documents/process-emails reste le filet de sécurité.
+  if (ingested) {
+    after(async () => {
+      try {
+        await processPendingEmails({ limit: 25 });
+      } catch (err) {
+        logger.error(
+          { error: err instanceof Error ? err.message : "inconnu" },
+          "[microsoft.webhook] traitement post-réponse échoué",
+        );
+      }
+    });
   }
 
   // 202 Accepted : reçu, traité au mieux. Graph ne rejoue pas.
