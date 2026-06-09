@@ -142,10 +142,11 @@ describe("classifyDocument — trace d'invocation live (B1)", () => {
     expect(prop?.anomalies_detectees).toEqual(["type_ambigu"]);
   });
 
-  test("échec live (429) : invocation tracée rate_limit, aucune proposition, erreur re-levée", async () => {
+  test("échec live (429) : trace rate_limit PUIS repli stub → proposition créée (doc non perdu)", async () => {
     const fichier: TestFichierPhysique = await seedFichierPhysique(sql, cabinet.id);
 
-    const err = await classifyDocument(
+    // Robustesse : un échec live ne lève PLUS — repli sur le stub pour ne pas perdre le doc.
+    const res = await classifyDocument(
       {
         cabinet_id: cabinet.id,
         fichier_physique_id: fichier.id,
@@ -156,27 +157,25 @@ describe("classifyDocument — trace d'invocation live (B1)", () => {
         invoked_by_user_id: cabinet.user_id,
       },
       throwingLiveClassifier(new ExtractionError("RATE_LIMIT", "429 quota Beta")),
-    ).catch((e) => e);
+    );
+    expect(res.proposition_id).toBeTruthy();
 
-    // L'erreur d'origine est re-levée à l'appelant (le pipeline d'upload la logge).
-    expect(err).toBeInstanceOf(ExtractionError);
-    expect((err as ExtractionError).code).toBe("RATE_LIMIT");
-
-    // Une trace d'échec existe pour ce fichier (audit du 429 après retries épuisés).
-    const [inv] = await sql`
-      SELECT model_used, prompt_version, status, nb_items_extracted, error_message
+    // Deux invocations tracées pour ce fichier : échec live (rate_limit) + succès stub (repli).
+    const invs = (await sql`
+      SELECT model_used, status, error_message
       FROM extraction.invocation WHERE input_document_id = ${fichier.id}
-    `;
-    expect(inv?.status).toBe("rate_limit");
-    expect(inv?.model_used).toBe("live");
-    expect(inv?.prompt_version).toBe(PROMPT_VERSION);
-    expect(inv?.nb_items_extracted).toBe(0);
-    expect(inv?.error_message).toContain("429");
+    `) as unknown as { model_used: string; status: string; error_message: string | null }[];
+    expect(invs).toHaveLength(2);
+    const live = invs.find((i) => i.model_used === "live");
+    const stub = invs.find((i) => i.model_used === "stub");
+    expect(live?.status).toBe("rate_limit");
+    expect(live?.error_message).toContain("429");
+    expect(stub?.status).toBe("success");
 
-    // Aucune proposition n'a été créée pour ce fichier (le doc reste reclassable).
+    // Une proposition (issue du repli stub) existe → le doc reste visible et validable.
     const props = await sql`
       SELECT id FROM doc.proposition_classement WHERE fichier_physique_id = ${fichier.id}
     `;
-    expect(props).toHaveLength(0);
+    expect(props).toHaveLength(1);
   });
 });
