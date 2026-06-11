@@ -9,6 +9,7 @@ const TABS = [
   { href: "/app/parametres/integrations", label: "Intégrations" },
   { href: "/app/parametres/ia", label: "IA" },
   { href: "/app/parametres/profil", label: "Mon profil" },
+  { href: "/app/parametres/conformite", label: "Demandes RGPD" },
   { href: "/app/parametres/compte", label: "Compte" },
 ];
 
