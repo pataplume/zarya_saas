@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@zarya/auth";
-import { client, db, propositionFacture } from "@zarya/db";
-import { and, desc, eq } from "drizzle-orm";
+import { client, db, facture, propositionFacture } from "@zarya/db";
+import { and, count, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { type FactureItem, FacturesValidation } from "./factures-client";
 
@@ -20,6 +20,13 @@ export default async function FacturesValidationPage() {
 
   const role = (user?.app_metadata.role as string | undefined) ?? "lecteur";
   const peutValider = role !== "lecteur";
+
+  // Factures validées prêtes à exporter vers la comptabilité (statut 'validee').
+  const [exportables] = await db
+    .select({ n: count() })
+    .from(facture)
+    .where(and(eq(facture.cabinet_id, cabinet_id), eq(facture.statut, "validee")));
+  const nbExportables = exportables?.n ?? 0;
 
   const rows = await db
     .select({
@@ -82,6 +89,23 @@ export default async function FacturesValidationPage() {
       <p className="mb-6 text-sm text-gray-500">
         {factures.length} facture{factures.length > 1 ? "s" : ""} en attente
       </p>
+
+      {/* Export comptable des factures validées (route /api/factures/export). */}
+      {peutValider && nbExportables > 0 && (
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <span className="text-sm font-medium text-emerald-800">
+            {nbExportables} facture{nbExportables > 1 ? "s" : ""} validée
+            {nbExportables > 1 ? "s" : ""} prête{nbExportables > 1 ? "s" : ""} à exporter
+          </span>
+          <a
+            href="/api/factures/export"
+            className="shrink-0 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            Exporter (CSV)
+          </a>
+        </div>
+      )}
+
       <FacturesValidation factures={factures} peutValider={peutValider} />
     </main>
   );
