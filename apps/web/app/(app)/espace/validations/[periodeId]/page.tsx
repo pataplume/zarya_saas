@@ -89,7 +89,14 @@ export default async function PeriodeDetailPage({
             <SaisieElementForm periode_id={periode.id} employes={employes} types={types} />
           ) : null}
           <DeclarerChangementForm periode_id={periode.id} employes={employes} />
-          <ValiderPeriodeForm periode_id={periode.id} />
+          {employes.length > 0 ? (
+            <ValiderPeriodeForm periode_id={periode.id} />
+          ) : (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              Aucun employé enregistré pour cette période. Contactez votre fiduciaire pour ajouter
+              vos employés.
+            </div>
+          )}
         </div>
       ) : (
         <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-500">

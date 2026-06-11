@@ -1,9 +1,10 @@
 /**
- * G3b — server actions client : déclarer un changement + attacher une pièce (DB réelle).
+ * G3b — server action client : déclarer un changement (DB réelle).
  *
  * `@zarya/auth` mocké (requireClientContact). Vérifie : déclaration changement (salaire.changement
- * + compteur période + événement + garde éditable), attache pièce (lien doc.document scopé client +
- * événement), anti-fuite. Réf : salaire.md §7.5-7.6 ; KICKOFF G3.
+ * + compteur période + événement + garde éditable), rejet d'un type invalide. Réf : salaire.md §7.5 ;
+ * KICKOFF G3. (L'attache de pièce a été retirée : action `attacherPieceClientAction` supprimée car
+ * non câblée à l'UI ; la table salaire.piece subsiste pour un futur câblage délibéré.)
  */
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "vitest";
@@ -11,9 +12,7 @@ import { createServiceClient } from "../helpers/rls";
 import {
   cleanupCabinets,
   seedClient,
-  seedDocument,
   seedEmploye,
-  seedFichierPhysique,
   seedPeriode,
   seedTwoCabinets,
   type TestCabinet,
@@ -31,7 +30,7 @@ vi.mock("@zarya/auth", () => ({
   },
 }));
 
-const { declarerChangementClientAction, attacherPieceClientAction } = await import(
+const { declarerChangementClientAction } = await import(
   "../../../apps/web/app/(app)/espace/validations/actions"
 );
 
@@ -113,42 +112,5 @@ describe("declarerChangementClientAction (G3b)", () => {
       fd({ periode_id: periodeId, type: "n_importe_quoi", date_effet: "2026-05-15" }),
     );
     expect(res.error).toBeTruthy();
-  });
-});
-
-describe("attacherPieceClientAction (G3b)", () => {
-  test("rattache un document du client à la période", async () => {
-    const fp = await seedFichierPhysique(sql, cabinetA.id);
-    const doc = await seedDocument(sql, cabinetA.id, clientA.id, fp.id);
-    actorClient(cabinetA.id, clientA.id);
-
-    const res = await attacherPieceClientAction(
-      {},
-      fd({
-        periode_id: periodeId,
-        document_id: doc.id,
-        categorie: "heures",
-        type_libre: "Décompte heures",
-      }),
-    );
-    expect(res.success).toBe(true);
-
-    const [pc] = await sql`
-      SELECT document_id, source, categorie FROM salaire.piece
-      WHERE periode_id = ${periodeId} AND document_id = ${doc.id}`;
-    expect(pc?.source).toBe("client_dashboard");
-    expect(pc?.categorie).toBe("heures");
-  });
-
-  test("anti-fuite : un document d'un autre client est refusé", async () => {
-    const clientB = await seedClient(sql, cabinetB.id);
-    const fpB = await seedFichierPhysique(sql, cabinetB.id);
-    const docB = await seedDocument(sql, cabinetB.id, clientB.id, fpB.id);
-    actorClient(cabinetA.id, clientA.id); // client A tente d'attacher le doc de B
-    const res = await attacherPieceClientAction(
-      {},
-      fd({ periode_id: periodeId, document_id: docB.id }),
-    );
-    expect(res.error).toMatch(/introuvable/i);
   });
 });

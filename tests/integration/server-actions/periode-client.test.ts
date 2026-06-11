@@ -47,6 +47,10 @@ beforeAll(async () => {
   cabinetB = r.cabinetB;
   clientA = await seedClient(sql, cabinetA.id);
   employeA = await seedEmploye(sql, cabinetA.id, clientA.id);
+  // seedEmploye crée l'employé en statut 'propose' (défaut DB) → absent de la matrice
+  // (getPeriodeDetailClient filtre statut='actif'). On l'active pour que la période ne soit
+  // pas une matrice vide, sinon le garde-fou de validation la refuse (à juste titre).
+  await sql`UPDATE salaire.employe SET statut = 'actif' WHERE id = ${employeA.id}`;
   const p = await seedPeriode(sql, cabinetA.id, clientA.id);
   periodeId = p.id;
   const [t] =
