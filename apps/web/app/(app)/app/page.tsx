@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@zarya/auth";
-import { cabinet, cabinetMembre, db } from "@zarya/db";
-import { count, eq } from "drizzle-orm";
+import { cabinet, cabinetMembre, client, db, uploadBrut } from "@zarya/db";
+import { and, count, eq, gte } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -71,8 +71,12 @@ export default async function AppHomePage() {
     redirect("/onboarding");
   }
 
-  // Données cabinet + nombre de membres en parallèle
-  const [cabinetResult, membresResult] = await Promise.all([
+  // Début du mois courant (UTC) pour le compteur « Documents ce mois ».
+  const now = new Date();
+  const debutMois = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+  // Données cabinet + KPIs (membres, clients actifs, documents du mois) en parallèle.
+  const [cabinetResult, membresResult, clientsResult, docsResult] = await Promise.all([
     db
       .select({
         raison_sociale: cabinet.raison_sociale,
@@ -89,11 +93,21 @@ export default async function AppHomePage() {
       .select({ total: count() })
       .from(cabinetMembre)
       .where(eq(cabinetMembre.cabinet_id, cabinet_id)),
+    db
+      .select({ total: count() })
+      .from(client)
+      .where(and(eq(client.cabinet_id, cabinet_id), eq(client.statut, "actif"))),
+    db
+      .select({ total: count() })
+      .from(uploadBrut)
+      .where(and(eq(uploadBrut.cabinet_id, cabinet_id), gte(uploadBrut.date_upload, debutMois))),
   ]);
 
   const [cabinetData] = cabinetResult;
   const [membresData] = membresResult;
   const nbMembres = membresData?.total ?? 0;
+  const nbClientsActifs = clientsResult[0]?.total ?? 0;
+  const nbDocsMois = docsResult[0]?.total ?? 0;
 
   const planLabel: Record<string, string> = {
     starter: "Starter",
@@ -158,14 +172,22 @@ export default async function AppHomePage() {
                 {nbMembres <= 1 ? "Membre" : "Membres"} d'équipe →
               </p>
             </Link>
-            <div>
-              <p className="text-2xl font-bold text-slate-300">—</p>
-              <p className="text-xs text-slate-400">Clients actifs</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-300">—</p>
-              <p className="text-xs text-slate-400">Documents ce mois</p>
-            </div>
+            <Link href="/app/clients" className="group">
+              <p className="text-2xl font-bold text-slate-900 transition-colors group-hover:text-blue-600">
+                {nbClientsActifs}
+              </p>
+              <p className="text-xs text-slate-500 transition-colors group-hover:text-blue-500">
+                Client{nbClientsActifs > 1 ? "s" : ""} actif{nbClientsActifs > 1 ? "s" : ""} →
+              </p>
+            </Link>
+            <Link href="/app/documents" className="group">
+              <p className="text-2xl font-bold text-slate-900 transition-colors group-hover:text-blue-600">
+                {nbDocsMois}
+              </p>
+              <p className="text-xs text-slate-500 transition-colors group-hover:text-blue-500">
+                Document{nbDocsMois > 1 ? "s" : ""} ce mois →
+              </p>
+            </Link>
           </div>
         </div>
       )}
