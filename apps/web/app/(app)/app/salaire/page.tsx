@@ -38,6 +38,8 @@ export default async function SalaireFiduciairePage({
   const user = await getCurrentUser();
   const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
   if (!cabinet_id) redirect("/app");
+  const role = (user?.app_metadata.role as string | undefined) ?? "lecteur";
+  const peutExporter = role !== "lecteur";
 
   const sp = await searchParams;
   const now = new Date();
@@ -100,21 +102,38 @@ export default async function SalaireFiduciairePage({
                 <th className="px-4 py-2 font-medium">Changements</th>
                 <th className="px-4 py-2 font-medium">Pièces</th>
                 <th className="px-4 py-2 font-medium">Limite</th>
+                <th className="px-4 py-2 text-right font-medium">Export</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {periodes.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-4 py-2 font-medium text-gray-900">{p.raison_sociale}</td>
-                  <td className="px-4 py-2 text-gray-600">
-                    {LIBELLE_STATUT[p.statut] ?? p.statut}
-                  </td>
-                  <td className="px-4 py-2 text-gray-600">{p.nb_employes_concernes}</td>
-                  <td className="px-4 py-2 text-gray-600">{p.nb_changements_declares}</td>
-                  <td className="px-4 py-2 text-gray-600">{p.nb_pieces}</td>
-                  <td className="px-4 py-2 text-gray-500">{p.date_limite_validation}</td>
-                </tr>
-              ))}
+              {periodes.map((p) => {
+                // Exportable dès que validée (ou déjà exportée → ré-export possible).
+                const exportable = p.statut === "validee" || p.statut === "exportee";
+                return (
+                  <tr key={p.id}>
+                    <td className="px-4 py-2 font-medium text-gray-900">{p.raison_sociale}</td>
+                    <td className="px-4 py-2 text-gray-600">
+                      {LIBELLE_STATUT[p.statut] ?? p.statut}
+                    </td>
+                    <td className="px-4 py-2 text-gray-600">{p.nb_employes_concernes}</td>
+                    <td className="px-4 py-2 text-gray-600">{p.nb_changements_declares}</td>
+                    <td className="px-4 py-2 text-gray-600">{p.nb_pieces}</td>
+                    <td className="px-4 py-2 text-gray-500">{p.date_limite_validation}</td>
+                    <td className="px-4 py-2 text-right">
+                      {peutExporter && exportable ? (
+                        <a
+                          href={`/app/salaire/export/${p.id}?format=xlsx`}
+                          className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                        >
+                          Exporter (Excel)
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
