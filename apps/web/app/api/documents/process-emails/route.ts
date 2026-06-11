@@ -1,16 +1,18 @@
 import { logger } from "@zarya/logger";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { indexPendingDocuments } from "@/lib/index-pending-documents";
 import { processPendingEmails } from "@/lib/process-emails";
 import { reprocessPendingDocuments } from "@/lib/reprocess-documents";
 
 export const runtime = "nodejs";
-// Le téléchargement des pièces jointes + OCR + classif peut être long sur un lot.
+// Le téléchargement des pièces jointes + OCR + classif + indexation peut être long sur un lot.
 export const maxDuration = 300;
 
 // Job système (toutes cabinets), protégé par CRON_SECRET :
 //  1. ingère les pièces jointes des emails reçus (doc.email_brut 'recu') → documents classés ;
-//  2. RECLASSE les documents bloqués en 'recu' (classification jamais aboutie).
+//  2. RECLASSE les documents bloqués en 'recu' (classification jamais aboutie) ;
+//  3. INDEXE (RAG) les documents validés non encore indexés (recherche sémantique).
 // Filet périodique ; le webhook déclenche aussi le (1) en temps quasi-réel.
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const secret = process.env.CRON_SECRET;
@@ -22,8 +24,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const emails = await processPendingEmails();
     const reclassement = await reprocessPendingDocuments();
-    logger.info({ emails, reclassement }, "[documents.process-emails] traitement terminé");
-    return NextResponse.json({ emails, reclassement });
+    const indexation = await indexPendingDocuments();
+    logger.info(
+      { emails, reclassement, indexation },
+      "[documents.process-emails] traitement terminé",
+    );
+    return NextResponse.json({ emails, reclassement, indexation });
   } catch (err) {
     logger.error(
       { error: err instanceof Error ? err.message : "inconnu" },
