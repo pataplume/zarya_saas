@@ -12,7 +12,7 @@ export function DemandeSuppressionForm() {
   if (state.success) {
     return (
       <p className="mt-3 rounded-md bg-green-50 px-3 py-2 text-sm font-medium text-green-700">
-        Votre demande a été transmise à votre fiduciaire. Elle vous recontactera pour la suite.
+        Votre demande a bien été enregistrée. Votre fiduciaire la traitera et vous recontactera.
       </p>
     );
   }
