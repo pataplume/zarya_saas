@@ -29,9 +29,8 @@ import { createServiceClient } from "../helpers/rls";
 import {
   cleanupCabinets,
   seedClient,
-  seedDocument,
+  seedDepotClient,
   seedEmploye,
-  seedFichierPhysique,
   seedPeriode,
   seedTwoCabinets,
   type TestCabinet,
@@ -50,6 +49,8 @@ let clientB: TestClient;
 let clientAutreCabinet: TestClient;
 
 // Données distinctes par client, repérées par id pour les assertions anti-fuite.
+// Pour les documents : getDocumentsClient renvoie l'id du dépôt (doc.upload_brut), pas du
+// doc.document → on conserve l'upload_id pour comparer.
 let employeA: { id: string };
 let employeB: { id: string };
 let documentA: { id: string };
@@ -68,16 +69,17 @@ beforeAll(async () => {
   // Un client de l'autre cabinet (cross-cabinet).
   clientAutreCabinet = await seedClient(sql, autreCabinet.id);
 
-  // Données distinctes pour CLIENT A.
+  // Données distinctes pour CLIENT A (le document est un vrai dépôt client : upload_brut
+  // source 'upload_client' + client_id → ce que lit getDocumentsClient).
   employeA = await seedEmploye(sql, cabinet.id, clientA.id);
-  const fpA = await seedFichierPhysique(sql, cabinet.id);
-  documentA = await seedDocument(sql, cabinet.id, clientA.id, fpA.id);
+  const depotA = await seedDepotClient(sql, cabinet.id, clientA.id);
+  documentA = { id: depotA.upload_id };
   periodeA = await seedPeriode(sql, cabinet.id, clientA.id);
 
   // Données distinctes pour CLIENT B (même cabinet).
   employeB = await seedEmploye(sql, cabinet.id, clientB.id);
-  const fpB = await seedFichierPhysique(sql, cabinet.id);
-  documentB = await seedDocument(sql, cabinet.id, clientB.id, fpB.id);
+  const depotB = await seedDepotClient(sql, cabinet.id, clientB.id);
+  documentB = { id: depotB.upload_id };
   periodeB = await seedPeriode(sql, cabinet.id, clientB.id);
 });
 
