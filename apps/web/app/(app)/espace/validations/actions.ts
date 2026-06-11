@@ -6,12 +6,11 @@ import {
   changement as changementTable,
   client as clientTable,
   db,
-  document as documentTable,
   elementPaie,
+  employe as employeTable,
   eq,
   evenementSalaire,
   periode as periodeTable,
-  piece as pieceTable,
   sql,
   validationPeriode,
 } from "@zarya/db";
@@ -211,81 +210,6 @@ export async function declarerChangementClientAction(
   return { success: true };
 }
 
-const PieceSchema = z.object({
-  periode_id: z.string().uuid(),
-  document_id: z.string().uuid(),
-  employe_id: z.string().uuid().optional(),
-  categorie: z.enum(["heures", "absences", "frais", "contrat", "medical", "autre"]).optional(),
-  type_libre: z.string().trim().max(200).optional(),
-});
-
-/**
- * Rattache une pièce (un doc.document DÉJÀ présent) à la période. L'upload physique du fichier
- * côté client est différé (dépend d'un chemin d'upload Doc pour client_contact) ; cette action
- * crée le lien salaire.piece une fois le document disponible.
- */
-export async function attacherPieceClientAction(
-  _prev: PeriodeActionState,
-  formData: FormData,
-): Promise<PeriodeActionState> {
-  const { user, client_id } = await requireClientContact();
-  const cabinet_id = user.app_metadata.cabinet_id as string | undefined;
-  if (!cabinet_id) return { error: "Cabinet introuvable." };
-
-  const raw = (k: string) => {
-    const x = formData.get(k);
-    return x === null || x === "" ? undefined : x;
-  };
-  const parsed = PieceSchema.safeParse({
-    periode_id: formData.get("periode_id"),
-    document_id: formData.get("document_id"),
-    employe_id: raw("employe_id"),
-    categorie: raw("categorie"),
-    type_libre: raw("type_libre"),
-  });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Pièce invalide." };
-  const v = parsed.data;
-
-  const editable = await chargerPeriodeEditable(cabinet_id, client_id, v.periode_id);
-  if (!editable.ok) return { error: editable.error };
-
-  // Le document doit appartenir au client (anti-fuite).
-  const [doc] = await db
-    .select({ id: documentTable.id })
-    .from(documentTable)
-    .where(
-      and(
-        eq(documentTable.id, v.document_id),
-        eq(documentTable.cabinet_id, cabinet_id),
-        eq(documentTable.client_id, client_id),
-      ),
-    )
-    .limit(1);
-  if (!doc) return { error: "Document introuvable." };
-
-  await db.insert(pieceTable).values({
-    cabinet_id,
-    client_id,
-    periode_id: v.periode_id,
-    ...(v.employe_id ? { employe_id: v.employe_id } : {}),
-    ...(v.categorie ? { categorie: v.categorie } : {}),
-    ...(v.type_libre ? { type_libre: v.type_libre } : {}),
-    document_id: v.document_id,
-    source: "client_dashboard",
-  });
-  await db.insert(evenementSalaire).values({
-    cabinet_id,
-    client_id,
-    periode_id: v.periode_id,
-    type: "piece_uploadee",
-    acteur_type: "humain_client",
-    acteur_id: user.id,
-  });
-
-  revalidatePath("/espace/validations");
-  return { success: true };
-}
-
 const ValiderSchema = z.object({
   periode_id: z.string().uuid(),
   sans_changement: z.coerce.boolean().optional(),
@@ -309,6 +233,27 @@ export async function validerPeriodeClientAction(
 
   const editable = await chargerPeriodeEditable(cabinet_id, client_id, v.periode_id);
   if (!editable.ok) return { error: editable.error };
+
+  // Garde-fou : on refuse de valider une matrice vide (aucun employé actif du client). Sans cela,
+  // une période sans aucun employé serait transmise « validée » au fiduciaire sans signal. On
+  // compte les employés actifs réels du client (même filtre que la matrice affichée), pas le
+  // compteur dénormalisé. Scope (cabinet_id, client_id) issu du contexte serveur uniquement.
+  const [compte] = await db
+    .select({ nb: sql<number>`count(*)::int` })
+    .from(employeTable)
+    .where(
+      and(
+        eq(employeTable.cabinet_id, cabinet_id),
+        eq(employeTable.client_id, client_id),
+        eq(employeTable.statut, "actif"),
+        sql`${employeTable.archived_at} IS NULL`,
+      ),
+    );
+  if (!compte || compte.nb === 0) {
+    return {
+      error: "Impossible de valider une période sans aucun employé. Contactez votre fiduciaire.",
+    };
+  }
 
   const now = new Date();
   await db.insert(validationPeriode).values({
