@@ -72,34 +72,91 @@ export async function getEmployesClient(
   }));
 }
 
+// Famille de statut côté client (UX §8 : pas de jargon). Pilote couleur + libellé.
+export type StatutClientFamille = "en_cours" | "classe" | "doublon" | "echec";
+
 export interface DocumentClient {
   id: string;
-  type: string;
-  categorie: string;
+  nom: string;
+  statut_famille: StatutClientFamille;
+  statut_label: string;
+  date_upload: string;
+  // Renseignés seulement une fois le document validé et classé par le cabinet.
+  type: string | null;
+  categorie: string | null;
   periode: string | null;
-  libelle: string;
-  statut_classement: string;
-  created_at: string;
 }
 
+/**
+ * Documents déposés PAR le client, visibles dès le dépôt (et non plus seulement
+ * après validation humaine). On lit la trace de dépôt `doc.upload_brut` (présente
+ * dès le drag&drop), et on rattache le document final `doc.document` s'il a été
+ * validé. Scopé (cabinet_id, client_id) du JWT — jamais d'URL/body. Aucune colonne
+ * sensible n'est projetée (pas de hash, storage_path, ocr_text, vault_id, coût).
+ */
 export async function getDocumentsClient(
   cabinet_id: string,
   client_id: string,
 ): Promise<DocumentClient[]> {
   const rows = (await db.execute(sql`
-    SELECT id, type, categorie, periode, libelle, statut_classement, created_at
-    FROM doc.v_dashboard_client_document
-    WHERE cabinet_id = ${cabinet_id} AND client_id = ${client_id}
-    ORDER BY created_at DESC
+    SELECT
+      ub.id,
+      ub.nom_fichier_original,
+      ub.statut AS statut_upload,
+      ub.date_upload,
+      d.id AS document_id,
+      d.libelle,
+      d.type,
+      d.categorie::text AS categorie,
+      d.periode
+    FROM doc.upload_brut ub
+    LEFT JOIN doc.fichier_physique fp ON fp.upload_brut_id = ub.id
+    LEFT JOIN doc.document d
+      ON d.fichier_physique_id = fp.id AND d.cabinet_id = ub.cabinet_id
+    WHERE ub.cabinet_id = ${cabinet_id}
+      AND ub.client_id = ${client_id}
+      AND ub.source = 'upload_client'
+    ORDER BY ub.date_upload DESC
     LIMIT 200
   `)) as unknown as Array<Record<string, unknown>>;
-  return rows.map((r) => ({
-    id: r.id as string,
-    type: r.type as string,
-    categorie: r.categorie as string,
-    periode: (r.periode as string | null) ?? null,
-    libelle: r.libelle as string,
-    statut_classement: r.statut_classement as string,
-    created_at: String(r.created_at),
-  }));
+
+  return rows.map((r) => {
+    const valide = r.document_id != null;
+    const statutUpload = r.statut_upload as string;
+    const { famille, label } = mapStatutClient(valide, statutUpload);
+    return {
+      id: r.id as string,
+      nom: valide
+        ? ((r.libelle as string | null) ?? (r.nom_fichier_original as string))
+        : (r.nom_fichier_original as string),
+      statut_famille: famille,
+      statut_label: label,
+      date_upload: String(r.date_upload),
+      type: valide ? ((r.type as string | null) ?? null) : null,
+      categorie: valide ? ((r.categorie as string | null) ?? null) : null,
+      periode: valide ? ((r.periode as string | null) ?? null) : null,
+    };
+  });
+}
+
+// Traduit l'état technique du dépôt en message client clair (UX §8).
+function mapStatutClient(
+  valide: boolean,
+  statutUpload: string,
+): { famille: StatutClientFamille; label: string } {
+  if (valide) return { famille: "classe", label: "Classé" };
+  switch (statutUpload) {
+    case "recu":
+    case "en_classification":
+    case "a_valider":
+      return { famille: "en_cours", label: "Reçu · en cours de traitement" };
+    case "valide":
+      return { famille: "classe", label: "Classé" };
+    case "doublon":
+      return { famille: "doublon", label: "Déjà reçu" };
+    case "erreur":
+      return { famille: "echec", label: "Échec — à redéposer" };
+    default:
+      return { famille: "en_cours", label: "En traitement" };
+  }
 }
