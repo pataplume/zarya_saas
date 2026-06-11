@@ -41,6 +41,8 @@ export interface IngestDocumentInput {
   uploaded_par?: string | null;
   /** Client pré-rattaché (dépôt client) → classification forcée ; sinon l'IA résout. */
   client_id_connu?: string | null;
+  /** Email d'origine (pièce jointe) — trace email ↔ document (mig 0050). */
+  email_brut_id?: string | null;
 }
 
 export interface IngestDocumentResult {
@@ -82,6 +84,7 @@ export async function ingestDocumentBytes(
       source,
       ...(input.uploaded_par ? { uploaded_par: input.uploaded_par } : {}),
       ...(clientId ? { client_id: clientId } : {}),
+      ...(input.email_brut_id ? { email_brut_id: input.email_brut_id } : {}),
       nom_fichier_original: nom_fichier,
       taille_octets,
       type_mime,

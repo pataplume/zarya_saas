@@ -6,7 +6,11 @@ export default function Loading() {
         <div className="mt-2 h-4 w-96 max-w-full animate-pulse rounded bg-slate-100" />
       </div>
       <div className="h-36 animate-pulse rounded-xl border-2 border-dashed border-slate-200 bg-white" />
-      <div className="mt-8 h-64 animate-pulse rounded-xl border border-slate-200 bg-white" />
+      <div className="mt-8 flex gap-2 border-b border-slate-200 pb-2">
+        <div className="h-6 w-40 animate-pulse rounded bg-slate-200" />
+        <div className="h-6 w-36 animate-pulse rounded bg-slate-100" />
+      </div>
+      <div className="mt-4 h-64 animate-pulse rounded-xl border border-slate-200 bg-white" />
     </div>
   );
 }
