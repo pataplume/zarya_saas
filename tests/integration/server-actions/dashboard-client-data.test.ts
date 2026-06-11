@@ -16,8 +16,7 @@ import { createServiceClient } from "../helpers/rls";
 import {
   cleanupCabinets,
   seedClient,
-  seedDocument,
-  seedFichierPhysique,
+  seedDepotClient,
   seedSessionOnboarding,
   seedTwoCabinets,
   seedUploadFichier,
@@ -71,9 +70,8 @@ beforeAll(async () => {
     VALUES (${cabinetA.id}, ${clientA.id}, 'Jean', 'Dupont', 'Comptable', 'actif',
             ${avs?.v}, ${iban?.v})`;
 
-  // Document transmis pour A.
-  const fpA = await seedFichierPhysique(sql, cabinetA.id);
-  await seedDocument(sql, cabinetA.id, clientA.id, fpA.id);
+  // Dépôt client transmis pour A (upload_brut source 'upload_client' → lu par getDocumentsClient).
+  await seedDepotClient(sql, cabinetA.id, clientA.id);
 });
 
 afterAll(async () => {
@@ -113,7 +111,8 @@ describe("vues dashboard client (F8)", () => {
   test("documents : scopés au client, métadonnées seulement", async () => {
     const docs = await getDocumentsClient(cabinetA.id, clientA.id);
     expect(docs.length).toBeGreaterThanOrEqual(1);
-    expect(docs[0]).toHaveProperty("libelle");
+    expect(docs[0]).toHaveProperty("nom");
+    expect(docs[0]).toHaveProperty("statut_label");
     expect(await getDocumentsClient(cabinetA.id, clientB.id)).toHaveLength(0);
   });
 });

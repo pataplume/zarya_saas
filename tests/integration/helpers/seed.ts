@@ -602,6 +602,31 @@ export async function seedDocument(
   return { id, cabinet_id, client_id };
 }
 
+/**
+ * Crée un DÉPÔT CLIENT complet : doc.upload_brut (source 'upload_client' + client_id) →
+ * fichier_physique → document. C'est la chaîne que lit `getDocumentsClient` (qui parcourt
+ * upload_brut filtré source='upload_client', pas doc.document directement). À utiliser dans
+ * les tests qui attendent qu'un document apparaisse dans l'espace client.
+ */
+export async function seedDepotClient(
+  sql: postgres.Sql,
+  cabinet_id: string,
+  client_id: string,
+): Promise<{ upload_id: string; fichier_id: string; document_id: string }> {
+  const upload_id = randomUUID();
+  await sql`
+    INSERT INTO doc.upload_brut
+      (id, cabinet_id, source, client_id, nom_fichier_original, taille_octets, type_mime, hash_contenu, statut)
+    VALUES (
+      ${upload_id}, ${cabinet_id}, 'upload_client', ${client_id},
+      ${`depot-${upload_id.slice(0, 8)}.pdf`}, 2048, 'application/pdf', ${`sha256-depot-${upload_id}`}, 'a_valider'
+    )
+  `;
+  const fichier = await seedFichierPhysique(sql, cabinet_id, upload_id);
+  const doc = await seedDocument(sql, cabinet_id, client_id, fichier.id);
+  return { upload_id, fichier_id: fichier.id, document_id: doc.id };
+}
+
 // ─── Bloc E1 — facture.* (référentiel + propositions + factures + mapping) ────
 
 export interface TestFournisseur {
