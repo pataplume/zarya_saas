@@ -25,7 +25,7 @@ export interface ReprocessResult {
 }
 
 export async function reprocessPendingDocuments(
-  opts: { cabinet_id?: string; limit?: number } = {},
+  opts: { cabinet_id?: string; upload_brut_id?: string; limit?: number } = {},
 ): Promise<ReprocessResult> {
   const limit = opts.limit ?? 50;
   const rows = (await db.execute(sql`
@@ -36,6 +36,7 @@ export async function reprocessPendingDocuments(
     JOIN doc.fichier_physique fp ON fp.upload_brut_id = ub.id
     WHERE ub.statut = 'recu'
       AND ${opts.cabinet_id ? sql`ub.cabinet_id = ${opts.cabinet_id}` : sql`true`}
+      AND ${opts.upload_brut_id ? sql`ub.id = ${opts.upload_brut_id}` : sql`true`}
       AND NOT EXISTS (
         SELECT 1 FROM doc.proposition_classement pc
         WHERE pc.fichier_physique_id = fp.id AND pc.cabinet_id = ub.cabinet_id

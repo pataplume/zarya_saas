@@ -87,6 +87,11 @@ export const uploadBrut = docSchema.table(
     // Référence auth.users(id) — pas de FK explicite (Supabase gère auth.*).
     // NULLABLE (mig 0049) : NULL = ingestion système (pièce jointe email, cron) ; sinon humain.
     uploaded_par: uuid("uploaded_par"),
+    // Email d'origine quand la pièce provient d'une pièce jointe (mig 0050) — trace UI
+    // « cet email → a produit N documents » / « reçu par email de … ».
+    email_brut_id: uuid("email_brut_id").references(() => emailBrut.id, {
+      onDelete: "set null",
+    }),
     client_id: uuid("client_id").references(() => client.id, { onDelete: "set null" }),
     nom_fichier_original: text("nom_fichier_original").notNull(),
     taille_octets: bigint("taille_octets", { mode: "number" }).notNull(),

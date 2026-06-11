@@ -97,6 +97,8 @@ async function traiterEmail(
         type_mime: att.contentType ?? "application/octet-stream",
         taille_octets: att.size ?? bytes.length,
         source: "email_microsoft",
+        // Trace email ↔ document (mig 0050) — affichée dans le hub Documents.
+        email_brut_id: row.id,
         // Rattachement client laissé à l'IA (email transféré possible) — pas de client forcé.
       });
       if (res.status === "recu" || res.status === "doublon") documents++;

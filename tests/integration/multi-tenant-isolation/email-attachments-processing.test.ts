@@ -84,6 +84,8 @@ describe("Ingestion email — pièces jointes → documents", () => {
       source: "email_microsoft",
       nom_fichier: "facture.pdf",
       type_mime: "application/pdf",
+      // Trace email ↔ document (mig 0050).
+      email_brut_id: emailId,
     });
     const [row] = await sql<{ statut: string }[]>`
       SELECT statut::text AS statut FROM doc.email_brut WHERE id = ${emailId}
