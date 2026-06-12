@@ -98,6 +98,12 @@ function clamp01(n: unknown): number {
  * PUR. Si `qr` est absent / non-QR / invalide, la proposition est renvoyée inchangée
  * (qr_facture_detecte=false). Sinon : IBAN, montant (si présent), devise et référence
  * proviennent du QR et écrasent toute valeur IA ; confiance de ces champs = 1.
+ *
+ * ⚠️ IBAN (ADR 0013) : l'IBAN issu du QR est porté ici sur la proposition EN MÉMOIRE (pour la
+ * détection d'anomalies), mais le pipeline E3b le RETIRE avant d'écrire proposition_facture
+ * (jamais d'IBAN en clair au repos). L'IBAN-from-QR au Vault à la finalisation est différé au
+ * Lot 2 ; le Lot 1 n'alimente que les champs déterministes NON sensibles (montant, référence,
+ * devise) + le flag qr_facture_detecte.
  */
 export function applyQrBill(
   proposal: FactureProposal,

@@ -367,6 +367,11 @@ export interface QrDocumentSource {
   storagePath: string;
   /** Octets du document si déjà en mémoire (sinon résolus par l'implémentation). */
   bytes?: Uint8Array;
+  /**
+   * Type MIME des `bytes` (PDF vs image), pour que le lecteur image (Lot 1, `decode-qr.ts`)
+   * sache s'il doit rasteriser ou décoder directement. Additif, optionnel : défaut PDF.
+   */
+  type_mime?: string;
 }
 
 /**

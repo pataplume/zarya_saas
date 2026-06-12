@@ -59,6 +59,7 @@ export {
   SEUIL_AUTO_AGGRESSIVE,
   SEUIL_AUTO_HYBRIDE,
 } from "./decide-auto-classement";
+export { decodeQrFromImageBytes, imageQrPayloadExtractor } from "./decode-qr";
 export {
   ANNEE_MIN_PLAUSIBLE,
   detectFactureAnomalies,
@@ -157,6 +158,7 @@ export {
 } from "./extract-facture-pipeline";
 export {
   couvrirEcheancesParDocumentAttendu,
+  type FinaliserDocumentDeps,
   type FinaliserDocumentInput,
   type FinaliserDocumentResult,
   finaliserDocument,
