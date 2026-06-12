@@ -33,6 +33,7 @@ import { buildNomStandardise } from "./build-nom-standardise";
 import { type CategorieDocument, resolveExtractionModeForCabinet } from "./classifier";
 import { computeScoreRisque, type RisqueFacteurs, type RisqueSignals } from "./compute-risque";
 import { type AttenduRow, matchDocumentAttendu } from "./match-document-attendu";
+import type { QrPayloadExtractor } from "./qr-bill";
 
 export interface FinaliserDocumentInput {
   cabinet_id: string;
@@ -56,8 +57,18 @@ export interface FinaliserDocumentResult {
   document_attendu_id: string | null;
 }
 
+/**
+ * Dépendances injectables de la finalisation. `downloadBytes` télécharge les octets du blob
+ * (depuis Supabase Storage côté apps/web) pour alimenter le lecteur QR-bill image (Lot 1).
+ * Optionnel : sans lui, le hook facture retombe sur le fallback IA (comportement inchangé).
+ */
+export interface FinaliserDocumentDeps {
+  downloadBytes?: (storagePath: string) => Promise<Uint8Array | null>;
+}
+
 export async function finaliserDocument(
   input: FinaliserDocumentInput,
+  deps?: FinaliserDocumentDeps,
 ): Promise<FinaliserDocumentResult> {
   // 1. Appariement à une attente (B3, doc.md §6.3). Scopé cabinet_id + client_id.
   const attendus: AttenduRow[] = await db
@@ -204,18 +215,36 @@ export async function finaliserDocument(
         )
         .limit(1);
 
+      // Lecteur QR-bill image (Lot 1, ADR 0020) : télécharge les octets du blob via le
+      // downloader injecté (apps/web → Supabase Storage), puis lit le QR depuis l'image.
+      // Sans downloader (ex. auto-classement) → null → fallback IA (comportement inchangé).
+      // Scan TRANSITOIRE : ni les octets ni le payload (qui contient un IBAN en clair) ne
+      // sont persistés ici (ADR 0013) ; le strip IBAN de proposition_facture reste en aval.
+      const qrExtract: QrPayloadExtractor = async (source) => {
+        const octets =
+          source.bytes ??
+          (deps?.downloadBytes ? await deps.downloadBytes(fichier?.storage_path ?? "") : null);
+        if (!octets) return null;
+        const { decodeQrFromImageBytes } = await import("./decode-qr");
+        return decodeQrFromImageBytes(octets, fichier?.type_mime ?? "application/pdf");
+      };
+
       const { extraireFactureDepuisDocument } = await import("./extract-facture-pipeline");
-      await extraireFactureDepuisDocument({
-        cabinet_id: input.cabinet_id,
-        client_id: input.client_id,
-        document_id: doc.id,
-        fichier_physique_id: input.fichier_physique_id,
-        nom_fichier: input.libelle,
-        ocr_text: fichier?.ocr_text ?? null,
-        ...(fichier?.type_mime ? { type_mime: fichier.type_mime } : {}),
-        storage_path: fichier?.storage_path ?? null,
-        invoked_by_user_id: input.cree_par,
-      });
+      await extraireFactureDepuisDocument(
+        {
+          cabinet_id: input.cabinet_id,
+          client_id: input.client_id,
+          document_id: doc.id,
+          fichier_physique_id: input.fichier_physique_id,
+          nom_fichier: input.libelle,
+          ocr_text: fichier?.ocr_text ?? null,
+          ...(fichier?.type_mime ? { type_mime: fichier.type_mime } : {}),
+          storage_path: fichier?.storage_path ?? null,
+          invoked_by_user_id: input.cree_par,
+        },
+        undefined,
+        qrExtract,
+      );
     } catch (err) {
       // Trace best-effort (l'invocation en échec est déjà loggée par le pipeline pour les
       // erreurs LLM ; ici on couvre tout autre échec sans casser la finalisation Doc).

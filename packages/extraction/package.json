@@ -15,10 +15,13 @@
     "@zarya/logger": "workspace:*",
     "drizzle-orm": "^0.44.0",
     "exceljs": "^4.4.0",
+    "jsqr": "^1.4.0",
     "unpdf": "^1.6.2"
   },
   "devDependencies": {
     "@types/node": "*",
+    "@types/qrcode": "^1.5.5",
+    "qrcode": "^1.5.4",
     "typescript": "*"
   }
 }

@@ -1,11 +1,32 @@
 "use server";
 
-import { requireAuth } from "@zarya/auth";
+import { createSupabaseAdminClient, requireAuth } from "@zarya/auth";
 import { db, fichierPhysique, propositionClassement, uploadBrut } from "@zarya/db";
 import { type ChampsProposition, diffValidation, finaliserDocument } from "@zarya/extraction";
+import { logger } from "@zarya/logger";
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { BUCKET } from "@/lib/ingest-document";
+
+// Downloader injecté dans finaliserDocument : télécharge les octets d'un blob depuis Supabase
+// Storage (service role) pour alimenter le lecteur QR-bill image (Lot 1, ADR 0020). BEST-EFFORT :
+// un échec → null → le hook facture retombe sur le fallback IA. Pas de PII en log (pas de chemin).
+async function downloadBytes(storagePath: string): Promise<Uint8Array | null> {
+  if (!storagePath) return null;
+  try {
+    const admin = createSupabaseAdminClient();
+    const { data, error } = await admin.storage.from(BUCKET).download(storagePath);
+    if (error || !data) return null;
+    return new Uint8Array(await data.arrayBuffer());
+  } catch (err) {
+    logger.warn(
+      { error: err instanceof Error ? err.name : "unknown" },
+      "[validation] téléchargement blob QR-bill échoué",
+    );
+    return null;
+  }
+}
 
 // Validation humaine d'une proposition de classement (pattern proposition →
 // validation → entité finale, ADR 0007). L'entité doc.document est créée ici en
@@ -96,21 +117,25 @@ async function finaliserUneProposition(
   // Finalisation : création doc.document + appariement attente (B3) + risque (B5) +
   // événement `document_recu`. Chemin partagé avec l'auto-classement (B4) — acteur
   // cabinet_membre ici. Le trigger doc.fn_check_client_cabinet vérifie l'appartenance.
-  const fin = await finaliserDocument({
-    cabinet_id,
-    client_id: retenu.client_id,
-    fichier_physique_id: prop.fichier_physique_id,
-    proposition_classement_id: prop.id,
-    type: retenu.type,
-    categorie: retenu.categorie,
-    periode: retenu.periode,
-    libelle: retenu.libelle,
-    statut_classement: diff.corrige ? "corrige_humain" : "valide_humain",
-    confiance_classement: prop.confiance_globale,
-    acteur_type: "cabinet_membre",
-    acteur_id: userId,
-    cree_par: userId,
-  });
+  const fin = await finaliserDocument(
+    {
+      cabinet_id,
+      client_id: retenu.client_id,
+      fichier_physique_id: prop.fichier_physique_id,
+      proposition_classement_id: prop.id,
+      type: retenu.type,
+      categorie: retenu.categorie,
+      periode: retenu.periode,
+      libelle: retenu.libelle,
+      statut_classement: diff.corrige ? "corrige_humain" : "valide_humain",
+      confiance_classement: prop.confiance_globale,
+      acteur_type: "cabinet_membre",
+      acteur_id: userId,
+      cree_par: userId,
+    },
+    // Lecteur QR-bill image (Lot 1) : alimente le hook facture en octets du blob.
+    { downloadBytes },
+  );
 
   // Note interne (feedback, doc.md §7.3) repliée dans corrections_apportees.note_interne.
   const baseCorrections = diff.corrige ? diff.corrections : null;
