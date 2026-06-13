@@ -46,6 +46,7 @@ export default async function EcheancesPage({
   const rows = await db
     .select({
       id: echeance.id,
+      client_id: echeance.client_id,
       client_nom: client.raison_sociale,
       type: echeance.type,
       libelle: echeance.libelle,
@@ -62,6 +63,7 @@ export default async function EcheancesPage({
 
   const echeances: EcheanceRow[] = rows.map((r) => ({
     id: r.id,
+    client_id: r.client_id,
     client_nom: r.client_nom,
     type: r.type,
     libelle: r.libelle,

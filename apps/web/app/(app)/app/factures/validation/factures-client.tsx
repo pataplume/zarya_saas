@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { type FactureActionState, rejeterFactureAction, validerFactureAction } from "./actions";
 
@@ -60,6 +61,8 @@ export function normaliserConfianceParChamp(raw: unknown): ConfianceParChampUi {
 
 export interface FactureItem {
   id: string;
+  /** Client rattaché (null si non encore associé) — sert au lien vers le dossier. */
+  client_id: string | null;
   client_nom: string;
   fournisseur_raison_sociale: string;
   fournisseur_ide: string;
@@ -186,7 +189,17 @@ function FactureCard({ f, peutValider }: { f: FactureItem; peutValider: boolean 
             {f.qr_facture_detecte ? <span title="QR-facture détectée">🔳</span> : null}
           </p>
           <p className="text-sm text-gray-500">
-            {f.client_nom} · {f.numero_facture || "n° ?"} ·{" "}
+            {f.client_id ? (
+              <Link
+                href={`/app/clients/${f.client_id}`}
+                className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                {f.client_nom}
+              </Link>
+            ) : (
+              f.client_nom
+            )}{" "}
+            · {f.numero_facture || "n° ?"} ·{" "}
             {f.total_ttc !== null ? `${f.total_ttc} ${f.devise}` : "montant ?"}
             {f.confiance_globale !== null
               ? ` · confiance ${Math.round(f.confiance_globale * 100)}%`

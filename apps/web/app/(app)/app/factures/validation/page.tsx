@@ -35,6 +35,7 @@ export default async function FacturesValidationPage() {
   const rows = await db
     .select({
       id: propositionFacture.id,
+      client_id: propositionFacture.client_id,
       client_nom: client.raison_sociale,
       fournisseur_propose_data: propositionFacture.fournisseur_propose_data,
       numero_facture_propose: propositionFacture.numero_facture_propose,
@@ -67,6 +68,7 @@ export default async function FacturesValidationPage() {
     const f = (r.fournisseur_propose_data ?? {}) as Record<string, string | null>;
     return {
       id: r.id,
+      client_id: r.client_id,
       client_nom: r.client_nom ?? "—",
       fournisseur_raison_sociale: f.raison_sociale ?? "",
       fournisseur_ide: f.ide ?? "",

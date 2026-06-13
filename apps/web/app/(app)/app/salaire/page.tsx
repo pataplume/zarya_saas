@@ -111,7 +111,14 @@ export default async function SalaireFiduciairePage({
                 const exportable = p.statut === "validee" || p.statut === "exportee";
                 return (
                   <tr key={p.id}>
-                    <td className="px-4 py-2 font-medium text-gray-900">{p.raison_sociale}</td>
+                    <td className="px-4 py-2 font-medium">
+                      <Link
+                        href={`/app/clients/${p.client_id}`}
+                        className="text-blue-600 hover:text-blue-700 hover:underline"
+                      >
+                        {p.raison_sociale}
+                      </Link>
+                    </td>
                     <td className="px-4 py-2 text-gray-600">
                       {LIBELLE_STATUT[p.statut] ?? p.statut}
                     </td>

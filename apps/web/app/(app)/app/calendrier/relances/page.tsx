@@ -20,6 +20,7 @@ export default async function RelancesPage() {
   const rows = await db
     .select({
       relance_id: vRelancesAValider.relance_id,
+      client_id: vRelancesAValider.client_id,
       client_nom: vRelancesAValider.client_nom,
       echeance_libelle: vRelancesAValider.echeance_libelle,
       date_echeance: vRelancesAValider.date_echeance,
@@ -36,6 +37,7 @@ export default async function RelancesPage() {
 
   const relances: RelanceItem[] = rows.map((r) => ({
     relance_id: r.relance_id,
+    client_id: r.client_id,
     client_nom: r.client_nom,
     echeance_libelle: r.echeance_libelle,
     date_echeance: r.date_echeance ? new Date(r.date_echeance).toISOString().slice(0, 10) : null,

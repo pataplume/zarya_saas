@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { annulerEcheanceAction, marquerTraiteeAction, reporterEcheanceAction } from "./actions";
 
 export interface EcheanceRow {
   id: string;
+  /** Client rattaché — sert au lien vers le dossier. */
+  client_id: string;
   client_nom: string | null;
   type: string;
   libelle: string;
@@ -124,7 +127,14 @@ export function EcheancesListe({
             {echeances.map((e) => (
               <tr key={e.id} className="border-b">
                 <td className="py-2">{e.date_echeance ?? "—"}</td>
-                <td>{e.client_nom ?? "—"}</td>
+                <td>
+                  <Link
+                    href={`/app/clients/${e.client_id}`}
+                    className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    {e.client_nom ?? "—"}
+                  </Link>
+                </td>
                 <td>{e.type}</td>
                 <td>
                   {e.libelle}
