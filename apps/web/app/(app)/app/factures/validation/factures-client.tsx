@@ -3,6 +3,41 @@
 import { useActionState, useState, useTransition } from "react";
 import { type FactureActionState, rejeterFactureAction, validerFactureAction } from "./actions";
 
+/** Provenance + confiance d'un champ proposé (ADR 0024). Côté UI (miroir de l'extraction). */
+export interface ConfianceChampUi {
+  source: "qr" | "ia" | "humain";
+  confiance: number;
+}
+
+/** Map champ → provenance, normalisée et sûre (jamais la forme brute jsonb). */
+export type ConfianceParChampUi = Record<string, ConfianceChampUi>;
+
+/**
+ * Lecteur DÉFENSIF de `confiance_par_champ` (jsonb). Gère les deux formes :
+ *  - nouvelle (ADR 0024) : `{ source, confiance }` par champ ;
+ *  - ancienne (legacy) : un simple `number` par champ → interprété `{ source: "ia", confiance }`.
+ * Toute entrée illisible est ignorée. Ne lève jamais.
+ */
+export function normaliserConfianceParChamp(raw: unknown): ConfianceParChampUi {
+  const out: ConfianceParChampUi = {};
+  if (raw === null || typeof raw !== "object") return out;
+  for (const [champ, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "number" && Number.isFinite(v)) {
+      out[champ] = { source: "ia", confiance: v };
+      continue;
+    }
+    if (v !== null && typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      const source =
+        o.source === "qr" || o.source === "ia" || o.source === "humain" ? o.source : "ia";
+      const confiance =
+        typeof o.confiance === "number" && Number.isFinite(o.confiance) ? o.confiance : 0;
+      out[champ] = { source, confiance };
+    }
+  }
+  return out;
+}
+
 export interface FactureItem {
   id: string;
   client_nom: string;
@@ -23,10 +58,72 @@ export interface FactureItem {
   qr_facture_detecte: boolean;
   anomalies: string[];
   confiance_globale: number | null;
+  /** Provenance + confiance par champ (normalisée, ADR 0024). */
+  confiance_par_champ: ConfianceParChampUi;
 }
 
 function val(n: number | null): string {
   return n === null ? "" : String(n);
+}
+
+// Confiance en dessous de laquelle on attire l'attention du validateur ("à vérifier").
+const SEUIL_CONFIANCE_FAIBLE = 0.6;
+
+/**
+ * Résout la provenance d'un champ de FORMULAIRE vers la clé stockée dans confiance_par_champ.
+ * L'extraction agrège certaines confiances : l'identité fournisseur sous `fournisseur`, les
+ * totaux sous `montants` ; le QR renseigne en plus `iban`, `montant_a_payer`, `devise`,
+ * `reference`. On essaie d'abord la clé exacte, puis la clé agrégée.
+ */
+const CHAMP_AGGREGE: Record<string, string> = {
+  fournisseur_raison_sociale: "fournisseur",
+  fournisseur_ide: "fournisseur",
+  fournisseur_numero_tva: "fournisseur",
+  fournisseur_bic: "fournisseur",
+  total_ht: "montants",
+  total_tva: "montants",
+  total_ttc: "montants",
+  taux_tva_principal: "montants",
+};
+
+function provenanceChamp(carte: ConfianceParChampUi, champ: string): ConfianceChampUi | undefined {
+  return carte[champ] ?? carte[CHAMP_AGGREGE[champ] ?? ""];
+}
+
+/**
+ * Petit badge de provenance par champ (ADR 0024) : QR = sûr (vert), IA = à confirmer (ambre).
+ * Une confiance faible ajoute un repère « à vérifier » (icône + texte, pas seulement la couleur).
+ */
+function ChampBadge({ prov }: { prov: ConfianceChampUi | undefined }) {
+  if (!prov) return null;
+  const faible = prov.confiance < SEUIL_CONFIANCE_FAIBLE;
+  if (prov.source === "qr") {
+    return (
+      <span
+        title="Issu du QR-bill : donnée sûre"
+        className="inline-flex items-center gap-0.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800"
+      >
+        QR ✓
+      </span>
+    );
+  }
+  // source "ia" (ou "humain" forward-compat) → proposé, à confirmer.
+  return (
+    <span
+      title={
+        faible
+          ? "Proposé par l'IA, confiance faible : à vérifier"
+          : "Proposé par l'IA : à confirmer"
+      }
+      className={
+        faible
+          ? "inline-flex items-center gap-0.5 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-800"
+          : "inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800"
+      }
+    >
+      {faible ? "IA · à vérifier" : "IA"}
+    </span>
+  );
 }
 
 function FactureCard({ f, peutValider }: { f: FactureItem; peutValider: boolean }) {
@@ -37,6 +134,10 @@ function FactureCard({ f, peutValider }: { f: FactureItem; peutValider: boolean 
   );
   const [rejet, setRejet] = useState<FactureActionState>({});
   const [rejetPending, startRejet] = useTransition();
+
+  // Provenance d'un champ de formulaire pour ce document (ADR 0024).
+  const prov = (champ: string): ConfianceChampUi | undefined =>
+    provenanceChamp(f.confiance_par_champ, champ);
 
   if (state.success) {
     return (
@@ -93,11 +194,34 @@ function FactureCard({ f, peutValider }: { f: FactureItem; peutValider: boolean 
             name="fournisseur_raison_sociale"
             def={f.fournisseur_raison_sociale}
             required
+            prov={prov("fournisseur_raison_sociale")}
           />
-          <Field label="IDE" name="fournisseur_ide" def={f.fournisseur_ide} />
-          <Field label="IBAN (à saisir)" name="fournisseur_iban" def="" placeholder="CHxx…" />
-          <Field label="N° TVA" name="fournisseur_numero_tva" def={f.fournisseur_numero_tva} />
-          <Field label="N° facture" name="numero_facture" def={f.numero_facture} required />
+          <Field
+            label="IDE"
+            name="fournisseur_ide"
+            def={f.fournisseur_ide}
+            prov={prov("fournisseur_ide")}
+          />
+          <Field
+            label="IBAN (à saisir)"
+            name="fournisseur_iban"
+            def=""
+            placeholder="CHxx…"
+            prov={prov("iban")}
+          />
+          <Field
+            label="N° TVA"
+            name="fournisseur_numero_tva"
+            def={f.fournisseur_numero_tva}
+            prov={prov("fournisseur_numero_tva")}
+          />
+          <Field
+            label="N° facture"
+            name="numero_facture"
+            def={f.numero_facture}
+            required
+            prov={prov("numero_facture")}
+          />
           <Field
             label="Compte de charge"
             name="compte_charge"
@@ -110,25 +234,53 @@ function FactureCard({ f, peutValider }: { f: FactureItem; peutValider: boolean 
             def={f.date_emission}
             placeholder="AAAA-MM-JJ"
             required
+            prov={prov("date_emission")}
           />
           <Field
             label="Date échéance"
             name="date_echeance"
             def={f.date_echeance}
             placeholder="AAAA-MM-JJ"
+            prov={prov("date_echeance")}
           />
-          <Field label="Total HT" name="total_ht" def={val(f.total_ht)} required />
-          <Field label="Total TVA" name="total_tva" def={val(f.total_tva)} />
-          <Field label="Total TTC" name="total_ttc" def={val(f.total_ttc)} required />
+          <Field
+            label="Total HT"
+            name="total_ht"
+            def={val(f.total_ht)}
+            required
+            prov={prov("total_ht")}
+          />
+          <Field
+            label="Total TVA"
+            name="total_tva"
+            def={val(f.total_tva)}
+            prov={prov("total_tva")}
+          />
+          <Field
+            label="Total TTC"
+            name="total_ttc"
+            def={val(f.total_ttc)}
+            required
+            prov={prov("total_ttc")}
+          />
           <Field
             label="Montant à payer"
             name="montant_a_payer"
             def={val(f.montant_a_payer ?? f.total_ttc)}
             required
+            prov={prov("montant_a_payer")}
           />
-          <Field label="Taux TVA %" name="taux_tva_principal" def={val(f.taux_tva_principal)} />
+          <Field
+            label="Taux TVA %"
+            name="taux_tva_principal"
+            def={val(f.taux_tva_principal)}
+            prov={prov("taux_tva_principal")}
+          />
           <label className="flex flex-col gap-1">
-            <span className="text-gray-600">Devise</span>
+            <span className="flex items-center gap-1.5 text-gray-600">
+              <span>Devise</span>
+              <ChampBadge prov={prov("devise")} />
+            </span>
             <select name="devise" defaultValue={f.devise} className="rounded border px-2 py-1">
               <option>CHF</option>
               <option>EUR</option>
@@ -172,12 +324,16 @@ function Field(props: {
   def: string;
   required?: boolean;
   placeholder?: string;
+  prov?: ConfianceChampUi | undefined;
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-gray-600">
-        {props.label}
-        {props.required ? " *" : ""}
+      <span className="flex items-center gap-1.5 text-gray-600">
+        <span>
+          {props.label}
+          {props.required ? " *" : ""}
+        </span>
+        <ChampBadge prov={props.prov} />
       </span>
       <input
         name={props.name}

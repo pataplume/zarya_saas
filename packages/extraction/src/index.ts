@@ -75,6 +75,7 @@ export {
   SEARCH_INTENTS,
   type SearchIntent,
 } from "./detect-intent";
+export { detectNatureFichier, type NatureFichier } from "./detect-nature-fichier";
 export {
   CATEGORIE_PAR_CHAMP,
   type CategorieChamp,
@@ -136,6 +137,7 @@ export {
 } from "./extract-employes-pipeline";
 export {
   applyQrBill,
+  type ConfianceChamp,
   coerceDevise,
   type Devise,
   FACTURE_PROMPT_VERSION,
@@ -146,6 +148,7 @@ export {
   type FactureFournisseurProposal,
   type FactureProposal,
   getFactureExtractor,
+  type SourceChamp,
   STUB_FACTURE_PROMPT_VERSION,
   StubFactureExtractor,
   toFactureProposal,
