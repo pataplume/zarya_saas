@@ -76,6 +76,12 @@ export interface FactureExtractionInput {
    * l'IA porte alors aussi les champs de paiement (fallback, ADR 0020).
    */
   qr_bill?: QrBillDecodeResult | null;
+  /**
+   * 2e passe IA ciblée (ADR 0024 §6) : clés de champs que la passe 1 n'a pas pu remplir / a
+   * mal remplis. Présent et non vide → l'extracteur live AJOUTE une consigne de focus au prompt
+   * (même schéma de sortie). Le stub l'ignore.
+   */
+  champs_a_completer?: string[];
 }
 
 export interface FactureExtractionUsage {
@@ -319,6 +325,156 @@ export function toFactureProposal(
   };
 
   return withDetectedAnomalies(applyQrBill(base, input.qr_bill));
+}
+
+// ─── 2e passe IA ciblée (Lot 3, ADR 0024 §6) — cœur PUR ─────────────────────────
+
+/** Seuil de confiance en-dessous duquel un champ IA est jugé « douteux » (ADR 0024 §6). */
+export const SEUIL_CONFIANCE_2E_PASSE = 0.6;
+
+/**
+ * Champs susceptibles d'une 2e passe IA (ADR 0024 §6). `montantKey`/`confKey` désignent la
+ * clé de provenance agrégée dans `confiance_par_champ` (l'IA n'émet que `fournisseur` et
+ * `montants` ; le QR émet des clés fines via applyQrBill). `valeur` lit la valeur courante
+ * pour le test de nullité.
+ */
+const CHAMPS_2E_PASSE: ReadonlyArray<{
+  cle: string;
+  /** Clé de provenance dans confiance_par_champ (agrégée côté IA). */
+  confKey: string;
+  valeur: (p: FactureProposal) => unknown;
+}> = [
+  { cle: "numero_facture", confKey: "fournisseur", valeur: (p) => p.numero_facture },
+  { cle: "date_emission", confKey: "montants", valeur: (p) => p.date_emission },
+  { cle: "date_echeance", confKey: "montants", valeur: (p) => p.date_echeance },
+  { cle: "total_ht", confKey: "montants", valeur: (p) => p.total_ht },
+  { cle: "total_tva", confKey: "montants", valeur: (p) => p.total_tva },
+  { cle: "total_ttc", confKey: "montants", valeur: (p) => p.total_ttc },
+  { cle: "montant_a_payer", confKey: "montants", valeur: (p) => p.montant_a_payer },
+  { cle: "taux_tva_principal", confKey: "montants", valeur: (p) => p.taux_tva_principal },
+  { cle: "fournisseur", confKey: "fournisseur", valeur: (p) => p.fournisseur.raison_sociale },
+  { cle: "categorie_comptable", confKey: "fournisseur", valeur: (p) => p.categorie_comptable },
+];
+
+/**
+ * Provenance d'un champ : on privilégie la clé FINE (nom du champ, posée par applyQrBill pour
+ * les champs de paiement déterministes) puis la clé AGRÉGÉE (`fournisseur`/`montants`, posée par
+ * l'IA via toFactureProposal). Cela garantit qu'un champ marqué "qr" au niveau fin est bien vu.
+ */
+function provenanceDe(p: FactureProposal, cle: string): ConfianceChamp | undefined {
+  const fine = p.confiance_par_champ[cle];
+  if (fine) return fine;
+  const meta = CHAMPS_2E_PASSE.find((c) => c.cle === cle);
+  return meta ? p.confiance_par_champ[meta.confKey] : undefined;
+}
+
+/**
+ * Renvoie les clés de champs à retravailler par une 2e passe IA (ADR 0024 §6) : valeur null
+ * OU (provenance "ia" ET confiance < SEUIL). PUR. **Exclut** tout champ porté par le QR
+ * (source "qr", déterministe — jamais re-questionné). `[]` si rien à compléter.
+ */
+export function champsACompleter(proposal: FactureProposal): string[] {
+  const champs: string[] = [];
+  for (const { cle, valeur } of CHAMPS_2E_PASSE) {
+    const prov = provenanceDe(proposal, cle);
+    // Champ déterministe (QR) : jamais re-questionné.
+    if (prov?.source === "qr") continue;
+    const estNull = valeur(proposal) === null;
+    const iaDouteux = prov?.source === "ia" && prov.confiance < SEUIL_CONFIANCE_2E_PASSE;
+    if (estNull || iaDouteux) champs.push(cle);
+  }
+  return champs;
+}
+
+/** Applique une valeur scalaire de champ « complétable » sur une copie de proposition. */
+function setChamp(p: FactureProposal, cle: string, source: FactureProposal): FactureProposal {
+  switch (cle) {
+    case "numero_facture":
+      return { ...p, numero_facture: source.numero_facture };
+    case "date_emission":
+      return { ...p, date_emission: source.date_emission };
+    case "date_echeance":
+      return { ...p, date_echeance: source.date_echeance };
+    case "total_ht":
+      return { ...p, total_ht: source.total_ht };
+    case "total_tva":
+      return { ...p, total_tva: source.total_tva };
+    case "total_ttc":
+      return { ...p, total_ttc: source.total_ttc };
+    case "montant_a_payer":
+      return { ...p, montant_a_payer: source.montant_a_payer };
+    case "taux_tva_principal":
+      return { ...p, taux_tva_principal: source.taux_tva_principal };
+    case "categorie_comptable":
+      return { ...p, categorie_comptable: source.categorie_comptable };
+    case "fournisseur":
+      // On comble l'identité fournisseur (hors IBAN, déterminé par le QR le cas échéant).
+      return {
+        ...p,
+        fournisseur: {
+          ...p.fournisseur,
+          raison_sociale: source.fournisseur.raison_sociale,
+          ide: source.fournisseur.ide,
+          numero_tva: source.fournisseur.numero_tva,
+          bic: source.fournisseur.bic,
+          adresse: source.fournisseur.adresse,
+        },
+      };
+    default:
+      return p;
+  }
+}
+
+/** Valeur « comble-able » d'un champ (pour décider si pass2 apporte une valeur non-null). */
+function valeurChamp(p: FactureProposal, cle: string): unknown {
+  return CHAMPS_2E_PASSE.find((c) => c.cle === cle)?.valeur(p) ?? null;
+}
+
+/**
+ * Fusionne la 2e passe IA dans la proposition de la passe 1 (ADR 0024 §6). PUR.
+ *
+ * Pour chaque clé de `champs` (dédupliquée) : on adopte la valeur de `pass2` SSI elle est
+ * non-null ET (pass1 était null OU la confiance de pass2 ≥ celle de pass1). La provenance du
+ * champ devient `{source:"ia", confiance}` de pass2.
+ *
+ * Garde-fous : on ne touche JAMAIS aux champs déterministes du QR de pass1 (provenance "qr" :
+ * iban/montant/devise/référence), ni à `qr_facture_detecte`/`qr_facture_data`. Les anomalies
+ * ne sont PAS recalculées ici (le pipeline rappelle withDetectedAnomalies).
+ */
+export function fusionnerDeuxiemePasse(
+  pass1: FactureProposal,
+  pass2: FactureProposal,
+  champs: string[],
+): FactureProposal {
+  let merged = pass1;
+  const confiance_par_champ: Record<string, ConfianceChamp> = { ...pass1.confiance_par_champ };
+  const cles = Array.from(new Set(champs));
+
+  for (const cle of cles) {
+    const prov1 = provenanceDe(pass1, cle);
+    // Champ déterministe (QR) : intouchable.
+    if (prov1?.source === "qr") continue;
+
+    const v2 = valeurChamp(pass2, cle);
+    if (v2 === null || v2 === undefined) continue;
+
+    const prov2 = provenanceDe(pass2, cle);
+    const conf2 = prov2?.confiance ?? 0;
+    const conf1 = prov1?.confiance ?? 0;
+    const pass1EtaitNull = valeurChamp(pass1, cle) === null;
+
+    if (pass1EtaitNull || conf2 >= conf1) {
+      merged = setChamp(merged, cle, pass2);
+      const meta = CHAMPS_2E_PASSE.find((c) => c.cle === cle);
+      const key = meta ? meta.confKey : cle;
+      // On ne dégrade jamais une provenance "qr" déjà posée (défense en profondeur).
+      if (confiance_par_champ[key]?.source !== "qr") {
+        confiance_par_champ[key] = { source: "ia", confiance: clamp01(conf2) };
+      }
+    }
+  }
+
+  return { ...merged, confiance_par_champ };
 }
 
 // ─── Résolution stub/live ───────────────────────────────────────────────────────
