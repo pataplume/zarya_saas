@@ -16,7 +16,7 @@
 import { db, invocation, propositionFacture } from "@zarya/db";
 import { type ExtractionMode, resolveExtractionModeForCabinet } from "./classifier";
 import { mapErrorToInvocationStatus } from "./classify-document";
-import { natureFichierDepuisMime, natureSupporteQr } from "./detect-nature-fichier";
+import { mimePeutPorterQr, natureFichierDepuisMime } from "./detect-nature-fichier";
 import {
   FACTURE_PROMPT_VERSION,
   type FactureExtractor,
@@ -70,11 +70,12 @@ export async function extraireFactureDepuisDocument(
     getFactureExtractor(await resolveExtractionModeForCabinet(input.cabinet_id));
   // 1. Détection de la nature du fichier (ADR 0024, cascade §1) puis décodage QR-bill.
   // Sans octets ici (le pipeline ne tient que le type_mime), on dérive une nature DÉGRADÉE
-  // depuis le MIME ; elle sert au routage (on ne tente le QR que pour PDF/image) et à la
-  // traçabilité. Le décodage fin (couche texte PDF) reste possible côté détecteur quand des
-  // octets sont disponibles (decode-qr.ts).
+  // depuis le MIME pour la traçabilité. Le GATE du scan QR n'EXCLUT que les MIME bureautiques
+  // connus (csv/xlsx/docx) ; un MIME absent/inconnu reste éligible (bénéfice du doute), pour
+  // ne pas court-circuiter le QR à tort. Le décodage fin (couche texte PDF) reste possible
+  // côté détecteur quand des octets sont disponibles (decode-qr.ts).
   const nature = natureFichierDepuisMime(input.type_mime);
-  const qr: QrBillDecodeResult = natureSupporteQr(nature)
+  const qr: QrBillDecodeResult = mimePeutPorterQr(input.type_mime)
     ? await decodeQrFromDocument({ storagePath: input.storage_path ?? "" }, qrExtract)
     : { isSwissQrBill: false, data: null, valid: false, validations: [] };
 

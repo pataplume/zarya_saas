@@ -42,6 +42,25 @@ export function natureSupporteQr(nature: NatureFichier): boolean {
   return NATURES_AVEC_QR.has(nature);
 }
 
+/** MIME bureautiques / données qui ne portent jamais de QR-bill image (court-circuit du scan). */
+const MIME_SANS_QR = new Set([
+  "text/csv",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+
+/**
+ * Gate du scan QR au niveau du pipeline (qui ne tient que le `type_mime`). On EXCLUT seulement
+ * les MIME bureautiques/données connus (csv, xlsx, docx…) ; un MIME absent/inconnu reste
+ * éligible (bénéfice du doute → on tente le QR, best-effort). Évite de court-circuiter le QR
+ * à tort tout en épargnant le téléchargement+scan pour les fichiers qui ne peuvent pas en porter.
+ */
+export function mimePeutPorterQr(type_mime: string | undefined): boolean {
+  return !(type_mime !== undefined && MIME_SANS_QR.has(type_mime));
+}
+
 /**
  * Détermine la nature d'un fichier à partir de ses octets et de son type MIME.
  *
