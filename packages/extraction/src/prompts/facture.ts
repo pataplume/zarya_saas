@@ -135,7 +135,7 @@ export const SYSTEM_PROMPT = [
 
 export function buildUserPrompt(input: FactureExtractionInput): string {
   const ocr = input.ocr_text?.trim();
-  return [
+  const lignes = [
     '<source type="facture">',
     `Nom de fichier : ${input.nom_fichier}`,
     input.type_mime ? `Type MIME : ${input.type_mime}` : "Type MIME : (inconnu)",
@@ -144,5 +144,20 @@ export function buildUserPrompt(input: FactureExtractionInput): string {
     "</source>",
     "",
     "Extrais les champs de cette facture en respectant strictement le schéma de sortie.",
-  ].join("\n");
+  ];
+
+  // 2e passe IA ciblée (ADR 0024 §6) : focalise le modèle sur les champs manquants/douteux.
+  // Même schéma de sortie : on N'AJOUTE pas de champ, on insiste sur ceux-ci.
+  const focus = input.champs_a_completer?.filter((c) => typeof c === "string" && c.length > 0);
+  if (focus && focus.length > 0) {
+    lignes.push(
+      "",
+      `Le premier passage n'a pas pu remplir ou était incertain sur : ${focus.join(", ")}. ` +
+        "Relis attentivement le document et fournis ces champs s'ils sont réellement présents. " +
+        "Ne renvoie que des valeurs effectivement lues ; sinon laisse null. Renseigne tout de " +
+        "même les autres champs comme demandé par le schéma.",
+    );
+  }
+
+  return lignes.join("\n");
 }

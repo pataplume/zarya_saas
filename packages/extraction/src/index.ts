@@ -138,6 +138,7 @@ export {
 export {
   applyQrBill,
   type ConfianceChamp,
+  champsACompleter,
   coerceDevise,
   type Devise,
   FACTURE_PROMPT_VERSION,
@@ -147,7 +148,9 @@ export {
   type FactureExtractor,
   type FactureFournisseurProposal,
   type FactureProposal,
+  fusionnerDeuxiemePasse,
   getFactureExtractor,
+  SEUIL_CONFIANCE_2E_PASSE,
   type SourceChamp,
   STUB_FACTURE_PROMPT_VERSION,
   StubFactureExtractor,

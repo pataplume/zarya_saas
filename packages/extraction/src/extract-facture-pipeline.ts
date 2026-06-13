@@ -18,10 +18,13 @@ import { type ExtractionMode, resolveExtractionModeForCabinet } from "./classifi
 import { mapErrorToInvocationStatus } from "./classify-document";
 import { mimePeutPorterQr, natureFichierDepuisMime } from "./detect-nature-fichier";
 import {
+  champsACompleter,
   FACTURE_PROMPT_VERSION,
   type FactureExtractor,
+  fusionnerDeuxiemePasse,
   getFactureExtractor,
   STUB_FACTURE_PROMPT_VERSION,
+  withDetectedAnomalies,
 } from "./extract-facture";
 import { decodeQrFromDocument, type QrBillDecodeResult, type QrPayloadExtractor } from "./qr-bill";
 
@@ -79,20 +82,21 @@ export async function extraireFactureDepuisDocument(
     ? await decodeQrFromDocument({ storagePath: input.storage_path ?? "" }, qrExtract)
     : { isSwissQrBill: false, data: null, valid: false, validations: [] };
 
-  // 2. Extraction (stub par défaut ; live = Infomaniak chat_large).
+  // 2. Extraction passe 1 (stub par défaut ; live = Infomaniak chat_large).
+  const baseInput = {
+    nom_fichier: input.nom_fichier,
+    ocr_text: input.ocr_text ?? null,
+    qr_bill: qr,
+    ...(input.type_mime ? { type_mime: input.type_mime } : {}),
+  };
   let result: Awaited<ReturnType<FactureExtractor["extract"]>>;
   try {
-    result = await extractor.extract({
-      nom_fichier: input.nom_fichier,
-      ocr_text: input.ocr_text ?? null,
-      qr_bill: qr,
-      ...(input.type_mime ? { type_mime: input.type_mime } : {}),
-    });
+    result = await extractor.extract(baseInput);
   } catch (err) {
     await traceFailedInvocation(input, extractor.mode, err);
     throw err;
   }
-  const { proposal } = result;
+  let proposal = result.proposal;
 
   // 3. Traçabilité de l'invocation (une ligne par appel, même en stub).
   const [inv] = await db
@@ -120,6 +124,43 @@ export async function extraireFactureDepuisDocument(
     .returning({ id: invocation.id });
 
   if (!inv) throw new Error("Échec de l'enregistrement de l'invocation facture");
+
+  // 2bis. 2e passe IA CIBLÉE (Lot 3, ADR 0024 §6). Gated live : aucune 2e passe en stub.
+  // Déclenchée UNIQUEMENT si la passe 1 laisse des champs manquants/douteux (coût borné).
+  // Best-effort : un échec laisse la proposition de la passe 1 intacte.
+  if (extractor.mode === "live") {
+    const aCompleter = champsACompleter(proposal);
+    if (aCompleter.length > 0) {
+      try {
+        const pass2 = await extractor.extract({ ...baseInput, champs_a_completer: aCompleter });
+        proposal = fusionnerDeuxiemePasse(proposal, pass2.proposal, aCompleter);
+        // Anomalies recalculées sur la proposition fusionnée (les valeurs comblées peuvent
+        // lever/résoudre des incohérences). withDetectedAnomalies est PUR et dédupliqué.
+        proposal = withDetectedAnomalies(proposal);
+        // Trace une 2e ligne d'invocation (audit + facturation, ADR 0010). Marqueur passe:2.
+        await db.insert(invocation).values({
+          cabinet_id: input.cabinet_id,
+          context: "facture",
+          invoked_by_module: "facture",
+          invoked_by_user_id: input.invoked_by_user_id ?? null,
+          input_type: "document_id",
+          input_document_id: input.document_id,
+          model_used: pass2.model_used,
+          prompt_version: pass2.prompt_version,
+          status: "success",
+          nb_items_extracted: 1,
+          nb_items_with_anomalies: proposal.anomalies.length > 0 ? 1 : 0,
+          raw_output: { passe: 2, champs: aCompleter, extraction: pass2.raw_output },
+          total_duration_ms: pass2.duration_ms,
+          cost_usd: pass2.usage?.cost_usd ?? "0",
+          tokens_input: pass2.usage?.tokens_input ?? 0,
+          tokens_output: pass2.usage?.tokens_output ?? 0,
+        });
+      } catch {
+        // Best-effort : on conserve la proposition de la passe 1 (déjà tracée), sans casser.
+      }
+    }
+  }
 
   // 4. Proposition en attente de validation humaine.
   // ANTI-CLAIR (ADR 0013) : on retire l'IBAN de fournisseur_propose_data ET de qr_facture_data.
