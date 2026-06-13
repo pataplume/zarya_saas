@@ -2,7 +2,11 @@ import { getCurrentUser } from "@zarya/auth";
 import { client, db, facture, propositionFacture } from "@zarya/db";
 import { and, count, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { type FactureItem, FacturesValidation } from "./factures-client";
+import {
+  type FactureItem,
+  FacturesValidation,
+  normaliserConfianceParChamp,
+} from "./factures-client";
 
 // File des factures à valider — module Facture (facture.md §6, Bloc E5b).
 // Lit facture.proposition_facture (statut a_valider) scopée cabinet_id (frontière de
@@ -46,6 +50,7 @@ export default async function FacturesValidationPage() {
       qr_facture_detecte: propositionFacture.qr_facture_detecte,
       anomalies_detectees: propositionFacture.anomalies_detectees,
       confiance_globale: propositionFacture.confiance_globale,
+      confiance_par_champ: propositionFacture.confiance_par_champ,
     })
     .from(propositionFacture)
     .leftJoin(client, eq(propositionFacture.client_id, client.id))
@@ -80,6 +85,7 @@ export default async function FacturesValidationPage() {
       qr_facture_detecte: r.qr_facture_detecte,
       anomalies: r.anomalies_detectees ?? [],
       confiance_globale: n(r.confiance_globale),
+      confiance_par_champ: normaliserConfianceParChamp(r.confiance_par_champ),
     };
   });
 

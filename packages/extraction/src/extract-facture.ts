@@ -22,6 +22,17 @@ import type { QrBillDecodeResult, SwissQrBill } from "./qr-bill";
 
 export type Devise = (typeof DEVISES)[number];
 
+/** Provenance d'un champ proposé (ADR 0024) : QR = déterministe/sûr, IA = à confirmer. */
+export type SourceChamp = "qr" | "ia" | "humain";
+
+/** Provenance + confiance d'UN champ proposé. */
+export interface ConfianceChamp {
+  /** D'où vient la valeur : "qr" (sûr), "ia" (à confirmer), "humain" (réservé/forward-compat). */
+  source: SourceChamp;
+  /** Confiance [0..1] sur ce champ. */
+  confiance: number;
+}
+
 /** Identité de fournisseur proposée (l'IBAN peut provenir du QR-bill). */
 export interface FactureFournisseurProposal {
   raison_sociale: string | null;
@@ -51,7 +62,8 @@ export interface FactureProposal {
   /** Payload QR-bill décodé (déterministe), source des champs de paiement. */
   qr_facture_data: SwissQrBill | null;
   confiance_globale: number;
-  confiance_par_champ: Record<string, number>;
+  /** Provenance + confiance PAR CHAMP (ADR 0024). Clé = nom du champ. */
+  confiance_par_champ: Record<string, ConfianceChamp>;
   anomalies: string[];
 }
 
@@ -123,11 +135,17 @@ export function applyQrBill(
     reference: d.reference.value ?? proposal.reference,
     qr_facture_detecte: true,
     qr_facture_data: d,
+    // Champs issus du QR (déterministes) → source "qr", confiance 1. Le montant n'est marqué
+    // QR que s'il est présent dans le QR (facture ouverte = montant absent → on garde l'IA).
     confiance_par_champ: {
       ...proposal.confiance_par_champ,
-      iban: 1,
-      montant_a_payer: d.amount !== null ? 1 : (proposal.confiance_par_champ.montant_a_payer ?? 0),
-      devise: 1,
+      iban: { source: "qr", confiance: 1 },
+      montant_a_payer:
+        d.amount !== null
+          ? { source: "qr", confiance: 1 }
+          : (proposal.confiance_par_champ.montant_a_payer ?? { source: "ia", confiance: 0 }),
+      devise: { source: "qr", confiance: 1 },
+      reference: { source: "qr", confiance: 1 },
     },
   };
 }
@@ -212,7 +230,10 @@ export class StubFactureExtractor implements FactureExtractor {
       qr_facture_detecte: false,
       qr_facture_data: null,
       confiance_globale: 0.1,
-      confiance_par_champ: { fournisseur: 0.1, montants: 0 },
+      confiance_par_champ: {
+        fournisseur: { source: "ia", confiance: 0.1 },
+        montants: { source: "ia", confiance: 0 },
+      },
       anomalies: ["extraction_stub"],
     };
     const proposal = withDetectedAnomalies(applyQrBill(base, input.qr_bill));
@@ -273,9 +294,11 @@ export function toFactureProposal(
     qr_facture_detecte: false,
     qr_facture_data: null,
     confiance_globale: clamp01(r.confiance_globale),
+    // Champs proposés par l'IA → source "ia". L'IA fournit deux confiances agrégées
+    // (fournisseur, montants) ; le QR écrasera ensuite par source "qr" via applyQrBill.
     confiance_par_champ: {
-      fournisseur: clamp01(r.confiance_fournisseur),
-      montants: clamp01(r.confiance_montants),
+      fournisseur: { source: "ia", confiance: clamp01(r.confiance_fournisseur) },
+      montants: { source: "ia", confiance: clamp01(r.confiance_montants) },
     },
     anomalies,
   };

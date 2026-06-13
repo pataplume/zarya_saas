@@ -16,13 +16,14 @@
 import { db, invocation, propositionFacture } from "@zarya/db";
 import { type ExtractionMode, resolveExtractionModeForCabinet } from "./classifier";
 import { mapErrorToInvocationStatus } from "./classify-document";
+import { natureFichierDepuisMime, natureSupporteQr } from "./detect-nature-fichier";
 import {
   FACTURE_PROMPT_VERSION,
   type FactureExtractor,
   getFactureExtractor,
   STUB_FACTURE_PROMPT_VERSION,
 } from "./extract-facture";
-import { decodeQrFromDocument, type QrPayloadExtractor } from "./qr-bill";
+import { decodeQrFromDocument, type QrBillDecodeResult, type QrPayloadExtractor } from "./qr-bill";
 
 export interface ExtraireFactureInput {
   cabinet_id: string;
@@ -67,8 +68,15 @@ export async function extraireFactureDepuisDocument(
   const extractor =
     injectedExtractor ??
     getFactureExtractor(await resolveExtractionModeForCabinet(input.cabinet_id));
-  // 1. Décodage QR-bill déterministe (E2). Seam image non câblé → isSwissQrBill=false.
-  const qr = await decodeQrFromDocument({ storagePath: input.storage_path ?? "" }, qrExtract);
+  // 1. Détection de la nature du fichier (ADR 0024, cascade §1) puis décodage QR-bill.
+  // Sans octets ici (le pipeline ne tient que le type_mime), on dérive une nature DÉGRADÉE
+  // depuis le MIME ; elle sert au routage (on ne tente le QR que pour PDF/image) et à la
+  // traçabilité. Le décodage fin (couche texte PDF) reste possible côté détecteur quand des
+  // octets sont disponibles (decode-qr.ts).
+  const nature = natureFichierDepuisMime(input.type_mime);
+  const qr: QrBillDecodeResult = natureSupporteQr(nature)
+    ? await decodeQrFromDocument({ storagePath: input.storage_path ?? "" }, qrExtract)
+    : { isSwissQrBill: false, data: null, valid: false, validations: [] };
 
   // 2. Extraction (stub par défaut ; live = Infomaniak chat_large).
   let result: Awaited<ReturnType<FactureExtractor["extract"]>>;
@@ -100,7 +108,9 @@ export async function extraireFactureDepuisDocument(
       status: "success",
       nb_items_extracted: 1,
       nb_items_with_anomalies: proposal.anomalies.length > 0 ? 1 : 0,
-      raw_output: result.raw_output,
+      // Trace la nature du fichier (ADR 0024 §3) à côté de la sortie brute de l'extracteur,
+      // pour audit/debug du routage — sans nouvelle colonne DB.
+      raw_output: { nature_fichier: nature, extraction: result.raw_output },
       total_duration_ms: result.duration_ms,
       cost_usd: result.usage?.cost_usd ?? "0",
       tokens_input: result.usage?.tokens_input ?? 0,
