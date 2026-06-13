@@ -246,10 +246,10 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
 
   return (
     <div className="px-4 py-8 sm:px-6 lg:px-8">
-      {/* Fil d'Ariane */}
+      {/* Fil d'Ariane + retour vers la liste des clients */}
       <nav className="mb-4 text-sm text-slate-500">
-        <Link href="/app/clients" className="hover:text-blue-700">
-          Clients
+        <Link href="/app/clients" className="font-medium text-blue-600 hover:text-blue-700">
+          ← Clients
         </Link>
         <span className="mx-1.5">/</span>
         <span className="text-slate-700">{identite.raison_sociale}</span>

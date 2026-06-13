@@ -3,6 +3,7 @@ import { cabinet, cabinetMembre, client, db, uploadBrut } from "@zarya/db";
 import { and, count, eq, gte } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { type DigestCabinet, getDigestCabinet } from "@/lib/dashboard-data";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -11,6 +12,16 @@ type Module = {
   label: string;
   description: string;
   icon: string;
+  href: string;
+};
+
+// Carte-compteur « à traiter » : libellé FR + icône (jamais couleur seule) + lien.
+type TuileDigest = {
+  id: string;
+  icon: string;
+  valeur: number;
+  label: string;
+  detail: string | null;
   href: string;
 };
 
@@ -61,6 +72,65 @@ const MODULES: Module[] = [
   },
 ];
 
+// ─── Digest « à traiter » (C3.1) ─────────────────────────────────────────────
+
+// Compteur abrégé : au-delà de 999 on plafonne l'affichage à « 999+ » pour rester lisible.
+function formatCompte(n: number): string {
+  if (n >= 1000) return "999+";
+  return String(n);
+}
+
+function construireTuilesDigest(d: DigestCabinet): TuileDigest[] {
+  const echeancesTotal = d.echeances_en_retard + d.echeances_a_venir;
+  return [
+    {
+      id: "documents",
+      icon: "📄",
+      valeur: d.documents_a_valider,
+      label: "Documents à valider",
+      detail: d.documents_a_valider > 0 ? "Classement IA à confirmer" : null,
+      href: "/app/documents",
+    },
+    {
+      id: "factures",
+      icon: "💰",
+      valeur: d.factures_a_valider,
+      label: "Factures à valider",
+      detail: d.factures_a_valider > 0 ? "Extraction à confirmer" : null,
+      href: "/app/factures/validation",
+    },
+    {
+      id: "echeances",
+      icon: "📅",
+      valeur: echeancesTotal,
+      label: "Échéances à traiter",
+      detail:
+        d.echeances_en_retard > 0
+          ? `Dont ${formatCompte(d.echeances_en_retard)} en retard`
+          : d.echeances_a_venir > 0
+            ? "À venir (30 jours)"
+            : null,
+      href: "/app/calendrier/echeances",
+    },
+    {
+      id: "relances",
+      icon: "✉️",
+      valeur: d.relances_a_valider,
+      label: "Relances à valider",
+      detail: d.relances_a_valider > 0 ? "Brouillons à envoyer" : null,
+      href: "/app/calendrier/relances",
+    },
+    {
+      id: "salaires",
+      icon: "💼",
+      valeur: d.periodes_salaire_a_traiter,
+      label: "Périodes salaire à traiter",
+      detail: d.periodes_salaire_a_traiter > 0 ? "À valider ou en retard" : null,
+      href: "/app/salaire",
+    },
+  ];
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AppHomePage() {
@@ -75,8 +145,10 @@ export default async function AppHomePage() {
   const now = new Date();
   const debutMois = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-  // Données cabinet + KPIs (membres, clients actifs, documents du mois) en parallèle.
-  const [cabinetResult, membresResult, clientsResult, docsResult] = await Promise.all([
+  // Données cabinet + KPIs (membres, clients actifs, documents du mois) + digest
+  // « à traiter » en parallèle. Tout est scopé cabinet_id (frontière de sécurité réelle
+  // sur le chemin service-role — ADR 0005 addendum).
+  const [cabinetResult, membresResult, clientsResult, docsResult, digest] = await Promise.all([
     db
       .select({
         raison_sociale: cabinet.raison_sociale,
@@ -101,7 +173,11 @@ export default async function AppHomePage() {
       .select({ total: count() })
       .from(uploadBrut)
       .where(and(eq(uploadBrut.cabinet_id, cabinet_id), gte(uploadBrut.date_upload, debutMois))),
+    getDigestCabinet(cabinet_id),
   ]);
+
+  const tuilesDigest = construireTuilesDigest(digest);
+  const totalATraiter = tuilesDigest.reduce((acc, t) => acc + t.valeur, 0);
 
   const [cabinetData] = cabinetResult;
   const [membresData] = membresResult;
@@ -191,6 +267,58 @@ export default async function AppHomePage() {
           </div>
         </div>
       )}
+
+      {/* ─── À traiter (digest cabinet, C3.1) ───────────────────────────────── */}
+      <section className="mb-8">
+        <h2 className="mb-4 text-base font-semibold text-slate-700">À traiter</h2>
+        {totalATraiter === 0 ? (
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+            <span className="text-2xl" aria-hidden>
+              ✅
+            </span>
+            <div>
+              <p className="text-sm font-medium text-emerald-800">
+                Rien à traiter, tout est à jour
+              </p>
+              <p className="text-xs text-emerald-700">
+                Aucun document, facture, échéance, relance ou salaire en attente.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {tuilesDigest.map((t) => {
+              const aTraiter = t.valeur > 0;
+              return (
+                <Link
+                  key={t.id}
+                  href={t.href}
+                  className={`group flex items-start gap-4 rounded-xl border p-5 transition-colors ${
+                    aTraiter
+                      ? "border-amber-200 bg-amber-50/50 hover:border-amber-300 hover:bg-amber-50"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <span className="text-2xl" aria-hidden>
+                    {t.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`text-2xl font-bold ${aTraiter ? "text-amber-700" : "text-slate-400"}`}
+                    >
+                      {formatCompte(t.valeur)}
+                    </p>
+                    <p className="text-sm font-medium text-slate-700">{t.label}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {aTraiter ? (t.detail ?? "À traiter") : "À jour"}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* ─── Modules ─────────────────────────────────────────────────────────── */}
       <div>

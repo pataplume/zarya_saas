@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { envoyerLotAction, envoyerRelanceAction, modifierRelanceAction } from "./actions";
 
 export interface RelanceItem {
   relance_id: string;
+  /** Client rattaché — sert au lien vers le dossier. */
+  client_id: string;
   client_nom: string | null;
   echeance_libelle: string | null;
   date_echeance: string | null;
@@ -98,7 +101,13 @@ export function RelancesFile({
               )}
               <div className="min-w-0 flex-1">
                 <p className="font-medium">
-                  {r.client_nom ?? "Client"} — {r.echeance_libelle ?? "Échéance"}
+                  <Link
+                    href={`/app/clients/${r.client_id}`}
+                    className="text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    {r.client_nom ?? "Client"}
+                  </Link>{" "}
+                  — {r.echeance_libelle ?? "Échéance"}
                 </p>
                 <p className="text-sm text-gray-500">
                   À : {r.destinataire_email ?? "— aucun destinataire —"}
