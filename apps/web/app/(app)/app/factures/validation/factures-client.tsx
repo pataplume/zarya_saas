@@ -18,7 +18,8 @@ const ANOMALIE_LABEL: Record<string, string> = {
   extraction_stub: "Extraction de démonstration (non IA)",
 };
 
-function libelleAnomalie(slug: string): string {
+/** Libellé lisible d'une anomalie d'extraction (fallback = le slug). Réutilisable (C2.3). */
+export function libelleAnomalie(slug: string): string {
   return ANOMALIE_LABEL[slug] ?? slug;
 }
 
@@ -112,8 +113,9 @@ function provenanceChamp(carte: ConfianceParChampUi, champ: string): ConfianceCh
 /**
  * Petit badge de provenance par champ (ADR 0024) : QR = sûr (vert), IA = à confirmer (ambre).
  * Une confiance faible ajoute un repère « à vérifier » (icône + texte, pas seulement la couleur).
+ * Réutilisé par la fiche document (C2.3) pour afficher la provenance de façon cohérente.
  */
-function ChampBadge({ prov }: { prov: ConfianceChampUi | undefined }) {
+export function ChampBadge({ prov }: { prov: ConfianceChampUi | undefined }) {
   if (!prov) return null;
   const faible = prov.confiance < SEUIL_CONFIANCE_FAIBLE;
   if (prov.source === "qr") {

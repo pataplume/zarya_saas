@@ -1,5 +1,16 @@
 import { getCurrentUser } from "@zarya/auth";
-import { client, db, emailBrut, fichierPhysique, uploadBrut, vInboxAValider } from "@zarya/db";
+import {
+  client,
+  db,
+  document,
+  emailBrut,
+  facture,
+  fichierPhysique,
+  fournisseur,
+  propositionFacture,
+  uploadBrut,
+  vInboxAValider,
+} from "@zarya/db";
 import { and, asc, count, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -76,6 +87,28 @@ function formatDate(d: Date | null): string {
   }).format(d);
 }
 
+// C2.1 — formatage montant + devise pour le résumé facture (null si non interprétable).
+function formatMontant(montant: string | null, devise: string | null): string | null {
+  if (montant == null) return null;
+  const n = Number(montant);
+  if (Number.isNaN(n)) return null;
+  return `${n.toLocaleString("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${devise ?? "CHF"}`;
+}
+
+// C2.1 — nom du fournisseur d'une proposition : référentiel sinon raison sociale extraite.
+function resumeFournisseurPropose(prop: {
+  fournisseur_nom: string | null;
+  fournisseur_propose_data: unknown;
+}): string | null {
+  if (prop.fournisseur_nom) return prop.fournisseur_nom;
+  const data = prop.fournisseur_propose_data;
+  if (data && typeof data === "object" && "raison_sociale" in data) {
+    const rs = (data as { raison_sociale?: unknown }).raison_sociale;
+    return typeof rs === "string" && rs.length > 0 ? rs : null;
+  }
+  return null;
+}
+
 const TH = "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500";
 
 // ─── Onglet « Documents reçus » (rendu serveur) ────────────────────────────────
@@ -90,6 +123,10 @@ type UploadRow = {
   email_brut_id: string | null;
   email_from: string | null;
   fichier_physique_id: string | null;
+  // C2.2 — présent quand l'upload a été validé en doc.document (→ lien fiche).
+  document_id: string | null;
+  // C2.1 — résumé extrait (facture → fournisseur + montant), null sinon.
+  resume: string | null;
 };
 
 function sourceUpload(u: UploadRow): string {
@@ -145,9 +182,26 @@ function DocumentsTable({ uploads, peutAgir }: { uploads: UploadRow[]; peutAgir:
             return (
               <tr key={u.id} className="hover:bg-slate-50">
                 <td className="max-w-xs px-4 py-3">
-                  <p className="truncate text-sm font-medium text-slate-800" title={u.nom}>
-                    {u.nom}
-                  </p>
+                  {/* C2.2 — libellé cliquable vers la fiche quand l'upload est validé */}
+                  {u.document_id ? (
+                    <Link
+                      href={`/app/documents/${u.document_id}`}
+                      className="block truncate text-sm font-medium text-slate-800 hover:text-blue-700"
+                      title={u.nom}
+                    >
+                      {u.nom}
+                    </Link>
+                  ) : (
+                    <p className="truncate text-sm font-medium text-slate-800" title={u.nom}>
+                      {u.nom}
+                    </p>
+                  )}
+                  {/* C2.1 — résumé extrait (facture → fournisseur + montant) si dispo */}
+                  {u.resume && (
+                    <p className="truncate text-xs text-slate-500" title={u.resume}>
+                      {u.resume}
+                    </p>
+                  )}
                   <p className="truncate text-xs text-slate-400 sm:hidden">
                     {sourceUpload(u)} · {formatTaille(u.taille)}
                   </p>
@@ -179,6 +233,15 @@ function DocumentsTable({ uploads, peutAgir }: { uploads: UploadRow[]; peutAgir:
                 <td className="px-4 py-3 text-right">
                   <span className="inline-flex items-center justify-end gap-2">
                     {reclassable && <ReclasserButton uploadBrutId={u.id} />}
+                    {/* C2.2 — lien fiche pour les documents validés (doc.document présent) */}
+                    {u.document_id && (
+                      <Link
+                        href={`/app/documents/${u.document_id}`}
+                        className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        Fiche
+                      </Link>
+                    )}
                     {u.fichier_physique_id && (
                       <a
                         href={`/api/documents/${u.fichier_physique_id}/apercu`}
@@ -330,65 +393,139 @@ export default async function DocumentsPage({
   const role = (user?.app_metadata.role as string | undefined) ?? "lecteur";
   const peutAgir = role !== "lecteur";
 
-  const [uploads, inboxRows, clients, emails, docsParEmailRows] = await Promise.all([
-    db
-      .select({
-        id: uploadBrut.id,
-        nom: uploadBrut.nom_fichier_original,
-        taille: uploadBrut.taille_octets,
-        source: uploadBrut.source,
-        statut: uploadBrut.statut,
-        date_upload: uploadBrut.date_upload,
-        email_brut_id: uploadBrut.email_brut_id,
-        email_from: emailBrut.from_address,
-        fichier_physique_id: fichierPhysique.id,
-      })
-      .from(uploadBrut)
-      .leftJoin(fichierPhysique, eq(fichierPhysique.upload_brut_id, uploadBrut.id))
-      .leftJoin(emailBrut, eq(emailBrut.id, uploadBrut.email_brut_id))
-      .where(eq(uploadBrut.cabinet_id, cabinet_id))
-      .orderBy(desc(uploadBrut.date_upload))
-      .limit(100),
-    db
-      .select({
-        proposition_id: vInboxAValider.proposition_id,
-        type_propose: vInboxAValider.type_propose,
-        categorie_proposee: vInboxAValider.categorie_proposee,
-        periode_proposee: vInboxAValider.periode_proposee,
-        libelle_propose: vInboxAValider.libelle_propose,
-        client_id_propose: vInboxAValider.client_id_propose,
-        client_nom: vInboxAValider.client_nom,
-        confiance_globale: vInboxAValider.confiance_globale,
-        anomalies: vInboxAValider.anomalies_detectees,
-        nom_fichier: vInboxAValider.nom_fichier_original,
-      })
-      .from(vInboxAValider)
-      .where(eq(vInboxAValider.cabinet_id, cabinet_id))
-      .limit(100),
-    db
-      .select({ id: client.id, raison_sociale: client.raison_sociale })
-      .from(client)
-      .where(and(eq(client.cabinet_id, cabinet_id), isNull(client.archived_at)))
-      .orderBy(asc(client.raison_sociale)),
-    db
-      .select({
-        id: emailBrut.id,
-        subject: emailBrut.subject,
-        from_address: emailBrut.from_address,
-        received_at: emailBrut.received_at,
-        has_attachments: emailBrut.has_attachments,
-        statut: emailBrut.statut,
-      })
-      .from(emailBrut)
-      .where(eq(emailBrut.cabinet_id, cabinet_id))
-      .orderBy(desc(emailBrut.received_at))
-      .limit(200),
-    db
-      .select({ email_brut_id: uploadBrut.email_brut_id, n: count() })
-      .from(uploadBrut)
-      .where(and(eq(uploadBrut.cabinet_id, cabinet_id), isNotNull(uploadBrut.email_brut_id)))
-      .groupBy(uploadBrut.email_brut_id),
-  ]);
+  const [uploadsRaw, inboxRows, clients, emails, docsParEmailRows, facturesRows, propositionsRows] =
+    await Promise.all([
+      // C2.2 — on joint doc.document (via fichier_physique) pour relier un upload validé
+      // à sa fiche, et facture_id pour le résumé. Toutes les jointures restent scopées
+      // cabinet_id (frontière de sécurité sur le chemin service-role — ADR 0005 addendum).
+      db
+        .select({
+          id: uploadBrut.id,
+          nom: uploadBrut.nom_fichier_original,
+          taille: uploadBrut.taille_octets,
+          source: uploadBrut.source,
+          statut: uploadBrut.statut,
+          date_upload: uploadBrut.date_upload,
+          email_brut_id: uploadBrut.email_brut_id,
+          email_from: emailBrut.from_address,
+          fichier_physique_id: fichierPhysique.id,
+          document_id: document.id,
+          document_facture_id: document.facture_id,
+        })
+        .from(uploadBrut)
+        .leftJoin(fichierPhysique, eq(fichierPhysique.upload_brut_id, uploadBrut.id))
+        .leftJoin(
+          document,
+          and(
+            eq(document.fichier_physique_id, fichierPhysique.id),
+            eq(document.cabinet_id, cabinet_id),
+          ),
+        )
+        .leftJoin(emailBrut, eq(emailBrut.id, uploadBrut.email_brut_id))
+        .where(eq(uploadBrut.cabinet_id, cabinet_id))
+        .orderBy(desc(uploadBrut.date_upload))
+        .limit(100),
+      db
+        .select({
+          proposition_id: vInboxAValider.proposition_id,
+          type_propose: vInboxAValider.type_propose,
+          categorie_proposee: vInboxAValider.categorie_proposee,
+          periode_proposee: vInboxAValider.periode_proposee,
+          libelle_propose: vInboxAValider.libelle_propose,
+          client_id_propose: vInboxAValider.client_id_propose,
+          client_nom: vInboxAValider.client_nom,
+          confiance_globale: vInboxAValider.confiance_globale,
+          anomalies: vInboxAValider.anomalies_detectees,
+          nom_fichier: vInboxAValider.nom_fichier_original,
+        })
+        .from(vInboxAValider)
+        .where(eq(vInboxAValider.cabinet_id, cabinet_id))
+        .limit(100),
+      db
+        .select({ id: client.id, raison_sociale: client.raison_sociale })
+        .from(client)
+        .where(and(eq(client.cabinet_id, cabinet_id), isNull(client.archived_at)))
+        .orderBy(asc(client.raison_sociale)),
+      db
+        .select({
+          id: emailBrut.id,
+          subject: emailBrut.subject,
+          from_address: emailBrut.from_address,
+          received_at: emailBrut.received_at,
+          has_attachments: emailBrut.has_attachments,
+          statut: emailBrut.statut,
+        })
+        .from(emailBrut)
+        .where(eq(emailBrut.cabinet_id, cabinet_id))
+        .orderBy(desc(emailBrut.received_at))
+        .limit(200),
+      db
+        .select({ email_brut_id: uploadBrut.email_brut_id, n: count() })
+        .from(uploadBrut)
+        .where(and(eq(uploadBrut.cabinet_id, cabinet_id), isNotNull(uploadBrut.email_brut_id)))
+        .groupBy(uploadBrut.email_brut_id),
+      // C2.1 — résumés facture (clé = doc.document.id), scopés cabinet_id : entité finale.
+      db
+        .select({
+          document_id: facture.document_id,
+          fournisseur_nom: fournisseur.raison_sociale,
+          total_ttc: facture.total_ttc,
+          devise: facture.devise,
+        })
+        .from(facture)
+        .innerJoin(fournisseur, eq(fournisseur.id, facture.fournisseur_id))
+        .where(eq(facture.cabinet_id, cabinet_id)),
+      // C2.1 — résumés facture (clé = doc.document.id), scopés cabinet_id : proposition (fallback).
+      db
+        .select({
+          document_id: propositionFacture.document_id,
+          fournisseur_nom: fournisseur.raison_sociale,
+          fournisseur_propose_data: propositionFacture.fournisseur_propose_data,
+          total_ttc: propositionFacture.total_ttc_propose,
+          devise: propositionFacture.devise_proposee,
+        })
+        .from(propositionFacture)
+        .leftJoin(fournisseur, eq(fournisseur.id, propositionFacture.fournisseur_existant_id))
+        .where(eq(propositionFacture.cabinet_id, cabinet_id)),
+    ]);
+
+  // C2.1/C2.2 — assemble le résumé facture par doc.document (entité finale prioritaire).
+  const factureParDoc = new Map(facturesRows.map((f) => [f.document_id, f]));
+  const propositionParDoc = new Map(propositionsRows.map((p) => [p.document_id, p]));
+
+  const uploads: UploadRow[] = uploadsRaw.map((u) => {
+    let resume: string | null = null;
+    if (u.document_id) {
+      const fact = factureParDoc.get(u.document_id);
+      if (fact) {
+        resume =
+          [fact.fournisseur_nom, formatMontant(fact.total_ttc, fact.devise)]
+            .filter(Boolean)
+            .join(" · ") || null;
+      } else {
+        const prop = propositionParDoc.get(u.document_id);
+        if (prop) {
+          resume =
+            [resumeFournisseurPropose(prop), formatMontant(prop.total_ttc, prop.devise)]
+              .filter(Boolean)
+              .join(" · ") || null;
+        }
+      }
+    }
+    return {
+      id: u.id,
+      nom: u.nom,
+      taille: u.taille,
+      source: u.source,
+      statut: u.statut,
+      date_upload: u.date_upload,
+      email_brut_id: u.email_brut_id,
+      email_from: u.email_from,
+      fichier_physique_id: u.fichier_physique_id,
+      document_id: u.document_id,
+      resume,
+    };
+  });
 
   const propositions: InboxItem[] = inboxRows.map((r) => ({
     proposition_id: r.proposition_id,

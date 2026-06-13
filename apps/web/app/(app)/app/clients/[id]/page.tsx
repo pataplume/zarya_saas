@@ -483,13 +483,16 @@ function DocumentsSection({ documents }: { documents: DossierDocument[] }) {
                       return (
                         <tr key={d.id} className="hover:bg-slate-50">
                           <td className="max-w-xs px-4 py-3">
-                            <p
-                              className="truncate text-sm font-medium text-slate-800"
+                            {/* C2.2 — libellé cliquable → fiche document */}
+                            <Link
+                              href={`/app/documents/${d.id}`}
+                              className="block truncate text-sm font-medium text-slate-800 hover:text-blue-700"
                               title={d.libelle}
                             >
                               {d.libelle}
-                            </p>
-                            <p className="truncate text-xs text-slate-400">{d.type}</p>
+                            </Link>
+                            {/* C2.1 — résumé extrait (fournisseur + montant pour une facture) */}
+                            <p className="truncate text-xs text-slate-400">{d.resume ?? d.type}</p>
                           </td>
                           <td className="hidden px-4 py-3 text-sm text-slate-500 sm:table-cell">
                             {DOC_CATEGORIE_LABEL[d.categorie] ?? d.categorie}
@@ -505,14 +508,22 @@ function DocumentsSection({ documents }: { documents: DossierDocument[] }) {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <a
-                              href={`/api/documents/${d.fichier_physique_id}/apercu`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                            >
-                              Ouvrir
-                            </a>
+                            <span className="inline-flex items-center justify-end gap-2">
+                              <Link
+                                href={`/app/documents/${d.id}`}
+                                className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                              >
+                                Fiche
+                              </Link>
+                              <a
+                                href={`/api/documents/${d.fichier_physique_id}/apercu`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                              >
+                                Ouvrir
+                              </a>
+                            </span>
                           </td>
                         </tr>
                       );
