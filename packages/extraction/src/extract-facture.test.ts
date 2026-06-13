@@ -86,8 +86,11 @@ describe("applyQrBill (QR-first déterministe)", () => {
     expect(r.montant_a_payer).toBe(1949.75);
     expect(r.devise).toBe("CHF");
     expect(r.reference).toBe("210000000003139471430009017");
-    expect(r.confiance_par_champ.iban).toBe(1);
-    expect(r.confiance_par_champ.devise).toBe(1);
+    // Provenance par champ (ADR 0024) : les champs issus du QR → source "qr", confiance 1.
+    expect(r.confiance_par_champ.iban).toEqual({ source: "qr", confiance: 1 });
+    expect(r.confiance_par_champ.devise).toEqual({ source: "qr", confiance: 1 });
+    expect(r.confiance_par_champ.reference).toEqual({ source: "qr", confiance: 1 });
+    expect(r.confiance_par_champ.montant_a_payer).toEqual({ source: "qr", confiance: 1 });
   });
 
   it("laisse la proposition inchangée si pas de QR / QR invalide", () => {
@@ -158,6 +161,9 @@ describe("toFactureProposal (normalisation sortie live)", () => {
     expect(p?.confiance_globale).toBe(1); // clampé à 1
     expect(p?.total_ttc).toBe(108.1);
     expect(p?.anomalies).not.toContain("tva_incoherente");
+    // Provenance IA (ADR 0024) : sans QR, les confiances agrégées portent source "ia".
+    expect(p?.confiance_par_champ.fournisseur).toEqual({ source: "ia", confiance: 0.9 });
+    expect(p?.confiance_par_champ.montants).toEqual({ source: "ia", confiance: 0.95 });
   });
 
   it("détecte une incohérence de montants (ttc ≠ ht + tva)", () => {
