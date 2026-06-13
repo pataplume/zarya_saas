@@ -91,6 +91,12 @@ export interface DossierDocument {
   statut_classement: string;
   date_reception: string;
   fichier_physique_id: string;
+  /**
+   * C2.1 — Résumé extrait, lisible en une ligne. Pour une facture : fournisseur +
+   * montant si disponibles (depuis facture.facture validée, sinon proposition).
+   * Pour un autre type : période/type. Jamais d'IBAN (Vault). `null` si rien d'utile.
+   */
+  resume: string | null;
 }
 
 // ─── C1.4 — Factures ───────────────────────────────────────────────────────────
@@ -313,46 +319,124 @@ export async function getDossierClient(
 
 // ─── C1.3 — Documents du client (scopé cabinet_id + client_id) ──────────────────
 
+/** Formate un montant + devise en CHF-style FR, ou null si non interprétable. */
+function resumeMontant(montant: string | null, devise: string | null): string | null {
+  if (montant == null) return null;
+  const n = Number(montant);
+  if (Number.isNaN(n)) return null;
+  return `${n.toLocaleString("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${devise ?? "CHF"}`;
+}
+
 /**
  * Documents validés (doc.document) du client, non archivés, scopés
  * STRICTEMENT (cabinet_id, client_id). Triés par période puis date de réception
  * décroissantes — le regroupement par période/type est fait côté UI.
+ *
+ * C2.1 — Pour les factures, on joint la facture finale (facture.facture via
+ * document.facture_id) et, à défaut, la proposition (facture.proposition_facture
+ * via document_id) pour construire un résumé « fournisseur + montant ». AUCUN IBAN
+ * projeté (jointures limitées au nom du fournisseur + totaux). Le résumé est calculé
+ * en mémoire (pas de duplication de lignes) à partir de maps scopées (cabinet, client).
  */
 export async function getDossierDocuments(
   cabinet_id: string,
   client_id: string,
 ): Promise<DossierDocument[]> {
-  const rows = await db
-    .select({
-      id: document.id,
-      type: document.type,
-      categorie: document.categorie,
-      periode: document.periode,
-      libelle: document.libelle,
-      statut_classement: document.statut_classement,
-      date_reception: document.date_reception,
-      fichier_physique_id: document.fichier_physique_id,
-    })
-    .from(document)
-    .where(
-      and(
-        eq(document.cabinet_id, cabinet_id),
-        eq(document.client_id, client_id),
-        isNull(document.archived_at),
+  const [rows, facturesRows, propositionsRows] = await Promise.all([
+    db
+      .select({
+        id: document.id,
+        type: document.type,
+        categorie: document.categorie,
+        periode: document.periode,
+        libelle: document.libelle,
+        statut_classement: document.statut_classement,
+        date_reception: document.date_reception,
+        fichier_physique_id: document.fichier_physique_id,
+        facture_id: document.facture_id,
+      })
+      .from(document)
+      .where(
+        and(
+          eq(document.cabinet_id, cabinet_id),
+          eq(document.client_id, client_id),
+          isNull(document.archived_at),
+        ),
+      )
+      .orderBy(desc(document.periode), desc(document.date_reception)),
+    // Factures finales du client (clé = facture.id), fournisseur + montant.
+    db
+      .select({
+        id: facture.id,
+        fournisseur_nom: fournisseur.raison_sociale,
+        total_ttc: facture.total_ttc,
+        devise: facture.devise,
+      })
+      .from(facture)
+      .innerJoin(fournisseur, eq(fournisseur.id, facture.fournisseur_id))
+      .where(and(eq(facture.cabinet_id, cabinet_id), eq(facture.client_id, client_id))),
+    // Propositions du client (clé = document_id) : fallback quand non encore validée.
+    db
+      .select({
+        document_id: propositionFacture.document_id,
+        fournisseur_nom: fournisseur.raison_sociale,
+        fournisseur_propose_data: propositionFacture.fournisseur_propose_data,
+        total_ttc: propositionFacture.total_ttc_propose,
+        devise: propositionFacture.devise_proposee,
+      })
+      .from(propositionFacture)
+      .leftJoin(fournisseur, eq(fournisseur.id, propositionFacture.fournisseur_existant_id))
+      .where(
+        and(
+          eq(propositionFacture.cabinet_id, cabinet_id),
+          eq(propositionFacture.client_id, client_id),
+        ),
       ),
-    )
-    .orderBy(desc(document.periode), desc(document.date_reception));
+  ]);
 
-  return rows.map((d) => ({
-    id: d.id,
-    type: d.type,
-    categorie: d.categorie,
-    periode: d.periode ?? null,
-    libelle: d.libelle,
-    statut_classement: d.statut_classement,
-    date_reception: String(d.date_reception),
-    fichier_physique_id: d.fichier_physique_id,
-  }));
+  const facturesParId = new Map(facturesRows.map((f) => [f.id, f]));
+  const propositionsParDoc = new Map(propositionsRows.map((p) => [p.document_id, p]));
+
+  return rows.map((d) => {
+    let resume: string | null = null;
+
+    // Facture validée → fournisseur + montant depuis l'entité finale.
+    const fact = d.facture_id ? facturesParId.get(d.facture_id) : undefined;
+    if (fact) {
+      const montant = resumeMontant(fact.total_ttc, fact.devise);
+      resume = [fact.fournisseur_nom, montant].filter(Boolean).join(" · ") || null;
+    } else {
+      // Sinon, proposition liée au document (facture pas encore validée).
+      const prop = propositionsParDoc.get(d.id);
+      if (prop) {
+        const proposeNom =
+          prop.fournisseur_nom ??
+          (prop.fournisseur_propose_data &&
+          typeof prop.fournisseur_propose_data === "object" &&
+          "raison_sociale" in prop.fournisseur_propose_data
+            ? (() => {
+                const rs = (prop.fournisseur_propose_data as { raison_sociale?: unknown })
+                  .raison_sociale;
+                return typeof rs === "string" ? rs : null;
+              })()
+            : null);
+        const montant = resumeMontant(prop.total_ttc, prop.devise);
+        resume = [proposeNom, montant].filter(Boolean).join(" · ") || null;
+      }
+    }
+
+    return {
+      id: d.id,
+      type: d.type,
+      categorie: d.categorie,
+      periode: d.periode ?? null,
+      libelle: d.libelle,
+      statut_classement: d.statut_classement,
+      date_reception: String(d.date_reception),
+      fichier_physique_id: d.fichier_physique_id,
+      resume,
+    };
+  });
 }
 
 // ─── C1.4 — Factures du client (scopé cabinet_id + client_id) ───────────────────
