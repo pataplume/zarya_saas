@@ -3,6 +3,25 @@
 import { useActionState, useState, useTransition } from "react";
 import { type FactureActionState, rejeterFactureAction, validerFactureAction } from "./actions";
 
+/** Libellés lisibles des anomalies (pas de slug brut côté UI). Fallback = le slug. */
+const ANOMALIE_LABEL: Record<string, string> = {
+  incoherence_qr_ia_iban: "⚠️ IBAN du QR ≠ IBAN lu sur la facture — fraude possible (RIB substitué)",
+  iban_invalide: "IBAN invalide",
+  ide_invalide: "IDE fournisseur invalide",
+  tva_incoherente: "TVA incohérente (HT + TVA ≠ TTC)",
+  taux_tva_invalide: "Taux de TVA non standard (CH)",
+  devise_inconnue: "Devise inconnue",
+  montant_invalide: "Montant invalide",
+  montant_eleve: "Montant élevé (à vérifier)",
+  date_emission_implausible: "Date d'émission peu plausible",
+  echeance_avant_emission: "Échéance avant l'émission",
+  extraction_stub: "Extraction de démonstration (non IA)",
+};
+
+function libelleAnomalie(slug: string): string {
+  return ANOMALIE_LABEL[slug] ?? slug;
+}
+
 /** Provenance + confiance d'un champ proposé (ADR 0024). Côté UI (miroir de l'extraction). */
 export interface ConfianceChampUi {
   source: "qr" | "ia" | "humain";
@@ -172,7 +191,20 @@ function FactureCard({ f, peutValider }: { f: FactureItem; peutValider: boolean 
               : ""}
           </p>
           {f.anomalies.length > 0 ? (
-            <p className="mt-1 text-xs text-amber-700">⚠️ {f.anomalies.join(", ")}</p>
+            <ul className="mt-1 space-y-0.5">
+              {f.anomalies.map((a) => {
+                const fraude = a === "incoherence_qr_ia_iban";
+                return (
+                  <li
+                    key={a}
+                    className={`text-xs ${fraude ? "font-semibold text-rose-700" : "text-amber-700"}`}
+                  >
+                    {fraude ? "" : "⚠️ "}
+                    {libelleAnomalie(a)}
+                  </li>
+                );
+              })}
+            </ul>
           ) : null}
         </div>
         {peutValider ? (
