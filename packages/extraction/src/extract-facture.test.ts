@@ -113,6 +113,30 @@ describe("applyQrBill (QR-first déterministe)", () => {
     expect(r.qr_facture_detecte).toBe(true);
     expect(r.montant_a_payer).toBe(42);
   });
+
+  it("recoupement QR↔IA : IBAN IA différent du QR → anomalie fraude", () => {
+    // emptyProposal a un IBAN IA (CH0000…) ≠ IBAN du QR (CH4431…) → divergence.
+    const r = applyQrBill(emptyProposal(), validQr);
+    expect(r.anomalies).toContain("incoherence_qr_ia_iban");
+  });
+
+  it("recoupement QR↔IA : IBAN IA identique au QR (espaces/casse) → pas d'anomalie", () => {
+    const r = applyQrBill(
+      emptyProposal({
+        fournisseur: { ...emptyProposal().fournisseur, iban: "ch44 3199 9123 0008 8901 2" },
+      }),
+      validQr,
+    );
+    expect(r.anomalies).not.toContain("incoherence_qr_ia_iban");
+  });
+
+  it("recoupement QR↔IA : pas d'IBAN IA → pas d'anomalie de divergence", () => {
+    const r = applyQrBill(
+      emptyProposal({ fournisseur: { ...emptyProposal().fournisseur, iban: null } }),
+      validQr,
+    );
+    expect(r.anomalies).not.toContain("incoherence_qr_ia_iban");
+  });
 });
 
 describe("StubFactureExtractor", () => {

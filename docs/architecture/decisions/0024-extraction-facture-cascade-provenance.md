@@ -42,7 +42,14 @@ Quand le QR couvre un champ et que l'IA en propose une valeur **différente** (s
 montant), on lève une anomalie `incoherence_qr_ia_<champ>`. L'IBAN divergent QR≠texte est un
 **vecteur de fraude** connu (RIB substitué) → anomalie bloquante à la validation.
 
-### 5. IBAN-du-QR → Vault dès la proposition  ⚠️ (touche le sceau anti-clair)
+> **MAJ 13/06 (exécution)** : §4 (recoupement QR↔IA, anomalie `incoherence_qr_ia_iban`) **livré en PR B**.
+> §5 (IBAN-du-QR → Vault dès la proposition) **DIFFÉRÉ** : le Vaulting au stade proposition exige de
+> plomber l'accès Vault dans `packages/extraction` (qui n'a pas accès Supabase) = changement
+> architectural ; entre-temps l'IBAN du QR reste comparé en mémoire (anti-fraude §4) puis stripé, et
+> le validateur saisit/confirme l'IBAN (Vault à la finalisation E5a, inchangé). À reprendre quand on
+> ouvre l'accès Vault au pipeline d'extraction.
+
+### 5. IBAN-du-QR → Vault dès la proposition  ⚠️ (touche le sceau anti-clair) — DIFFÉRÉ (voir MAJ ci-dessus)
 Aujourd'hui l'IBAN est **stripé** de la proposition (le validateur le re-saisit). Le QR donne
 un IBAN **déterministe** : on le capture **chiffré** dès la proposition pour que le validateur
 le **voie (masqué) et confirme** au lieu de le retaper. **Mécanisme conforme ADR 0013** :

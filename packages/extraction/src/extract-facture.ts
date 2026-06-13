@@ -105,6 +105,11 @@ function clamp01(n: unknown): number {
   return Math.min(1, Math.max(0, v));
 }
 
+/** Normalise un IBAN pour comparaison (sans espaces, majuscules) — recoupement QR↔IA. */
+function normaliserIban(iban: string): string {
+  return iban.replace(/\s/g, "").toUpperCase();
+}
+
 /**
  * Applique les données de paiement du QR-bill (déterministes) PAR-DESSUS une proposition.
  * PUR. Si `qr` est absent / non-QR / invalide, la proposition est renvoyée inchangée
@@ -126,8 +131,18 @@ export function applyQrBill(
   }
   const d = qr.data;
   const devise: Devise = d.currency; // CHF | EUR (sous-ensemble de Devise)
+
+  // Recoupement QR ↔ IA (ADR 0024 §4) : si l'IA avait proposé un IBAN DIFFÉRENT de celui du
+  // QR-bill (déterministe), c'est un signal de fraude (RIB substitué) → anomalie. Le QR fait foi.
+  const anomalies = [...proposal.anomalies];
+  const ibanIa = proposal.fournisseur.iban;
+  if (ibanIa && normaliserIban(ibanIa) !== normaliserIban(d.iban)) {
+    if (!anomalies.includes("incoherence_qr_ia_iban")) anomalies.push("incoherence_qr_ia_iban");
+  }
+
   return {
     ...proposal,
+    anomalies,
     fournisseur: { ...proposal.fournisseur, iban: d.iban },
     // Le QR porte le montant À PAYER ; on ne l'écrase que s'il est présent.
     montant_a_payer: d.amount ?? proposal.montant_a_payer,
