@@ -11,11 +11,14 @@ referenced_by: [llm-strategy, security-and-audit]
 
 ## 1. Principe directeur
 
-**Toutes les données ZARYA — au repos, en transit, en traitement — restent en Union Européenne.**
+**Toutes les données ZARYA — au repos, en transit, en traitement — restent en Suisse ou en Union Européenne (pays adéquats au sens du RGPD art. 45 et de la nLPD).**
 
-Cible commerciale (cabinets fiduciaires suisses) acceptée par défaut : **Allemagne (Frankfurt) ou France (Paris)**, qui bénéficient d'une **décision d'adéquation** par le Conseil fédéral suisse pour les transferts de données depuis la Suisse.
+Régions réelles en production :
+- **Données au repos** (base de données, fichiers, sauvegardes, Vault) : **Suisse** — Supabase eu-central-2 (Zurich).
+- **Couche IA** (LLM, embeddings, OCR/vision) : **Suisse** — Infomaniak AI Services.
+- **Compute / hébergement applicatif / tâches planifiées** : **Union Européenne** — Vercel fra1 (Frankfurt, Allemagne).
 
-Pour les cabinets exigeant une résidence **physiquement en Suisse**, une option Phase 2 est prévue (Azure Switzerland North).
+La **Suisse** bénéficie d'une **décision d'adéquation** de la Commission européenne (RGPD art. 45) ; les transferts UE↔Suisse ne constituent donc pas un transfert vers un pays tiers non adéquat. Aucune donnée hors Suisse / UE.
 
 ## 2. Cartographie des données
 
@@ -27,7 +30,7 @@ Pour les cabinets exigeant une résidence **physiquement en Suisse**, une option
 | Salaire (employés, périodes, éléments paie) | Postgres | Zurich | Supabase eu-central-2 |
 | Factures (extraites, anomalies) | Postgres | Zurich | Supabase eu-central-2 |
 | Échéances et relances | Postgres | Zurich | Supabase eu-central-2 |
-| Audit logs | Postgres + CloudWatch | Zurich / Frankfurt | Supabase + AWS |
+| Audit logs | Postgres | Zurich | Supabase eu-central-2 |
 | Comptes auth (clients, fiduciaires) | Supabase Auth | Zurich | Supabase eu-central-2 |
 
 ### 2.2 Données non structurées (fichiers binaires)
@@ -52,9 +55,9 @@ Pour les cabinets exigeant une résidence **physiquement en Suisse**, une option
 
 | Composant | Région | Provider |
 |---|---|---|
-| Frontend Next.js | Frankfurt | Vercel eu-central-1 (Frankfurt) |
-| Backend API | Frankfurt | Vercel ou ECS eu-central-1 |
-| Jobs cron / workers | Frankfurt | Supabase Edge Functions ou AWS Lambda eu-central-1 |
+| Frontend Next.js | Frankfurt | Vercel fra1 (Frankfurt) |
+| Backend API | Frankfurt | Vercel fra1 (Frankfurt) |
+| Jobs cron / workers | Frankfurt | Vercel Cron fra1 (Frankfurt) |
 | Monitoring (Sentry, etc.) | EU | Provider EU obligatoire |
 
 ### 2.5 Données qui peuvent légalement transiter ailleurs
@@ -191,7 +194,7 @@ Si un jour ZARYA veut entraîner un modèle propriétaire, il faudra :
 ## 7. Notification de violations
 
 ### 7.1 Détection
-- CloudTrail + Supabase audit logs surveillés
+- Supabase audit logs + logs Vercel surveillés
 - Alertes sur anomalies (accès en masse, suppression suspecte, etc.)
 - Tests d'intrusion annuels (Phase 2)
 

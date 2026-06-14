@@ -1,5 +1,11 @@
 # KICKOFF — Exécution des Blocs B→H (+ Phase I chiffrement)
 
+> ⛔ **ARCHIVE — état figé au 2026-06-04, ne plus utiliser comme source de vérité.**
+> La séquence Blocs B→H est **clôturée** (tous livrés). État courant :
+> [`PLAN-MVP-BETA.md`](./PLAN-MVP-BETA.md) + mémoire `v1-etat-courant.md`. (Conservé à la
+> racine car référencé par `CLAUDE.md`/ADR ; déplaçable vers `docs/_archive/` une fois ces
+> références mises à jour par le founder.)
+
 > **À quoi sert ce fichier.** C'est le **prompt de relance** à coller (ou référencer)
 > en tête d'une nouvelle session Claude Code après un `clear`. Il est **autonome** :
 > il contient la séquence figée, les invariants non-négociables, le découpage en

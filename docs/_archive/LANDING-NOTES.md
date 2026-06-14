@@ -1,5 +1,8 @@
 # LANDING-NOTES — page d'entrée (Run D1)
 
+> ⛔ **ARCHIVE — état figé, déplacé ici le 2026-06-14, ne plus utiliser comme source de vérité.**
+> Page d'entrée livrée (Run D1, #136). État courant : [`PLAN-MVP-BETA.md`](../../PLAN-MVP-BETA.md) + mémoire `v1-etat-courant.md`.
+
 > Notes pour la page d'entrée publique de ZARYA. À compléter par le founder.
 > Décision (05/06) : **pas de landing marketing** pour le MVP. Une page d'entrée sobre :
 > **Login** + **Signup**, où **Signup = formulaire de demande de RDV** (accès sur invitation /

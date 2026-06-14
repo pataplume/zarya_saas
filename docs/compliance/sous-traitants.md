@@ -29,12 +29,12 @@ ZARYA recourt à un nombre limité de sous-traitants principaux, situés en UE o
 | Élément | Valeur |
 |---|---|
 | **Service rendu** | Infrastructure cloud sous-jacente à Supabase (DB, Auth, Storage) — pas d'usage IA |
-| **Région** | eu-central-1 (Frankfurt, Allemagne) |
+| **Région** | eu-central-2 (Zurich, Suisse) |
 | **Données traitées** | Toutes les Données du Client (via Supabase) |
-| **Sous-sous-traitants** | AWS infrastructure providers (data centers Allemagne) |
+| **Sous-sous-traitants** | AWS infrastructure providers (data centers Suisse, Zurich) |
 | **DPA signé** | À signer avant production — DPA standard AWS disponible |
 | **Certifications** | ISO 27001, ISO 27017, ISO 27018, SOC 2, GDPR compliant |
-| **Cadre de transfert** | Pas de transfert hors UE |
+| **Cadre de transfert** | Suisse — pays adéquat (RGPD art. 45 / nLPD), pas de transfert problématique |
 | **Date d'intégration** | À partir de [DATE] |
 | **Site web** | https://aws.amazon.com/compliance/ |
 
@@ -45,12 +45,12 @@ ZARYA recourt à un nombre limité de sous-traitants principaux, situés en UE o
 | Élément | Valeur |
 |---|---|
 | **Service rendu** | Base de données Postgres, Auth, Storage, Realtime, Vault, pgvector |
-| **Région** | eu-central-1 (Frankfurt, sur AWS) |
+| **Région** | eu-central-2 (Zurich, Suisse, sur AWS) |
 | **Données traitées** | Toutes les Données structurées et fichiers du Client |
 | **Sous-sous-traitants** | AWS (infrastructure sous-jacente) |
 | **DPA signé** | À signer — DPA standard Supabase disponible |
 | **Certifications** | SOC 2 Type II, HIPAA |
-| **Cadre de transfert** | Pas de transfert hors UE |
+| **Cadre de transfert** | Suisse — pays adéquat (RGPD art. 45 / nLPD), pas de transfert problématique |
 | **Date d'intégration** | À partir de [DATE] |
 | **Site web** | https://supabase.com/legal |
 
@@ -105,7 +105,7 @@ ZARYA recourt à un nombre limité de sous-traitants principaux, situés en UE o
 | Élément | Valeur |
 |---|---|
 | **Service rendu** | Hébergement frontend Next.js et compute Edge |
-| **Région** | Edge global (caching) + compute principal redirigé vers eu-central-1 |
+| **Région** | Edge global (caching) + compute principal sur fra1 (Frankfurt, UE) |
 | **Données traitées** | Données de session, IP, métadonnées HTTP |
 | **Sous-sous-traitants** | AWS, autres CDN |
 | **DPA signé** | DPA Vercel disponible |
@@ -202,15 +202,15 @@ ZARYA recourt à un nombre limité de sous-traitants principaux, situés en UE o
 
 ```
 🇨🇭 Suisse
-  └─ Infomaniak AI Services (chat, vision/OCR, embeddings)
+  ├─ Infomaniak AI Services (chat, vision/OCR, embeddings)
+  ├─ AWS eu-central-2 (infrastructure sous-jacente de Supabase, Zurich)
+  └─ Supabase eu-central-2 (DB, Auth, Storage, Vault, pgvector — Zurich)
 
-🇩🇪 Frankfurt (eu-central-1)
-  ├─ AWS (infrastructure sous-jacente de Supabase)
-  └─ Supabase (DB, Auth, Storage, Vault, pgvector)
+🇩🇪 Frankfurt (UE)
+  └─ Vercel fra1 (hébergement app, compute, cron)
 
 🇪🇺 UE (multi-région)
   ├─ Stripe Payments Europe
-  ├─ Vercel (edge global, compute UE)
   ├─ Sentry (SaaS EU)
   └─ PostHog (cloud EU ou self-hosted)
 

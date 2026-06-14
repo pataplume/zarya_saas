@@ -193,14 +193,14 @@ zarya/
 
 ### 4.3 Staging
 - Déploiement Vercel sur push vers `develop`
-- DB : Supabase project "staging" eu-central-1
+- DB : Supabase project "staging" eu-central-2 (Zurich)
 - Données : copie anonymisée de prod (Phase 2)
 - Tests E2E exécutés ici avant merge prod
 - Accessible équipe + clients pilotes invités
 
 ### 4.4 Production
 - Déploiement Vercel sur push vers `main`
-- DB : Supabase project "prod" eu-central-1
+- DB : Supabase project "prod" eu-central-2 (Zurich)
 - Données réelles
 - Backups quotidiens automatiques
 - Migrations DB déployées via pipeline séparé avec validation manuelle

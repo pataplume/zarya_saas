@@ -66,8 +66,8 @@ Exemples :
 
 ### Étape 0 — Détection
 Sources possibles de détection :
-- Alertes monitoring (Sentry, CloudWatch, audit log anomalies)
-- Notification d'un sous-traitant (AWS, Supabase incident)
+- Alertes monitoring (Sentry, logs Vercel, anomalies dans l'audit log)
+- Notification d'un sous-traitant (Supabase, AWS, Vercel incident)
 - Signalement par un cabinet client
 - Signalement par un chercheur externe (bug bounty Phase 3)
 - Audit interne ou pen test
@@ -273,7 +273,7 @@ DPO ZARYA SA
 
 ### 5.1 Détection
 - **Sentry** : erreurs applicatives
-- **CloudWatch** : métriques infra et alertes
+- **Logs Vercel** : métriques et alertes de l'hébergement applicatif (Frankfurt)
 - **Logs Postgres** : requêtes RLS échouées
 - **Audit log** : modifications massives ou anormales
 - **PostHog** : signaux comportementaux anormaux

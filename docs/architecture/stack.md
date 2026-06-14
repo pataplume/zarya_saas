@@ -49,7 +49,7 @@ referenced_by: [README]
 │  - Frontend (React, Tailwind, shadcn/ui)                 │
 │  - API routes (server actions, route handlers)           │
 │  - Auth middleware                                       │
-│  Hébergé sur Vercel (eu-central-1) ou ECS                │
+│  Hébergé sur Vercel (fra1, Frankfurt)                    │
 └──────────────────────────────────────────────────────────┘
        ↓                    ↓                    ↓
        ↓               ┌──────────────┐         ↓
@@ -62,7 +62,7 @@ referenced_by: [README]
        ↓     ↓                            ↓     ↓
        ↓ ┌─────────────┐  ┌──────────────────────┐ ↓
        ↓ │  SUPABASE   │  │  INTÉGRATIONS TIERCES │ ↓
-       ↓ │  (Frankfurt)│  │                       │ ↓
+       ↓ │  (Zurich)   │  │                       │ ↓
        ↓ │             │  │  - Infomaniak (CH)    │ ↓
        ↓ │ - Postgres  │  │    AI Services        │ ↓
        ↓ │ - Auth      │  │  - Microsoft Graph    │ ↓
@@ -74,7 +74,7 @@ referenced_by: [README]
        ↓                                            ↓
        └────────────────────────────────────────────┘
                   Observabilité & Monitoring
-                  (Sentry, CloudWatch, Posthog)
+                  (Sentry, logs Vercel, Posthog)
 ```
 
 ## 3. Frontend
@@ -136,7 +136,7 @@ Chaque surface est un sous-domaine ou un préfixe :
 
 ### 5.1 Stack
 - **Postgres 16+** via **Supabase Cloud**
-- **Région** : eu-central-1 (Frankfurt)
+- **Région** : eu-central-2 (Zurich, Suisse)
 - **Plan** : Pro au minimum (sauvegarde quotidienne, PITR, Vault)
 
 ### 5.2 Schémas Postgres
@@ -170,7 +170,7 @@ Voir [`multi-tenant.md` § 5](./multi-tenant.md).
 ## 6. Storage
 
 ### 6.1 Supabase Storage
-- **Backend** : S3-backed (eu-central-1)
+- **Backend** : S3-backed (eu-central-2, Zurich)
 - **Buckets** :
   - `documents-cabinet` : documents validés (long terme)
   - `documents-brut` : ingestion temporaire (purgé après 30 jours)
@@ -256,12 +256,12 @@ Détails dans chaque doc d'intégration.
 ## 11. Observabilité
 
 ### 11.1 Logs
-- **Application logs** : structured JSON, envoyés à CloudWatch
+- **Application logs** : structured JSON, collectés via les logs Vercel (et drain vers un provider EU si besoin)
 - **Niveau** : INFO en prod, DEBUG en dev
 - **Filtrage des PII** : automatique (libs comme `pino` avec redaction)
 
 ### 11.2 Métriques
-- **CloudWatch** : métriques infra
+- **Vercel Analytics / logs** : métriques de l'hébergement applicatif
 - **Application metrics** : custom via OpenTelemetry (Phase 2)
 - **Business metrics** : Posthog ou Mixpanel
 
@@ -302,7 +302,7 @@ Détails dans chaque doc d'intégration.
 - **local** : dev, tests, isolation totale
 - **preview** : par PR, données mock
 - **staging** : pré-prod avec données synthétiques, accessible équipe
-- **production** : Frankfurt, données réelles
+- **production** : compute Vercel Frankfurt (fra1) + données Supabase Zurich (eu-central-2), données réelles
 
 Voir [`dev-environment.md`](./dev-environment.md) pour détail.
 
@@ -313,7 +313,7 @@ Pour 10 cabinets pilotes :
 | Poste | Coût mensuel | Notes |
 |---|---|---|
 | Vercel Pro | ~20 USD | Suffisant pour MVP |
-| Supabase Pro | ~25 USD | Per project, Frankfurt |
+| Supabase Pro | ~25 USD | Per project, Zurich (eu-central-2) |
 | Infomaniak AI Services (LLM) | ~500 USD | Variable selon usage |
 | Infomaniak vision (OCR) | ~100 USD | Variable — différé Phase 4.1+ |
 | Storage S3 | ~10 USD | Inclus dans Supabase Pro initialement |

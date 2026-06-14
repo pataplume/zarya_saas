@@ -1,14 +1,17 @@
 # PLAN MVP → Bêta — vue d'ensemble « quoi / quand »
 
-> **Document vivant et volontairement imprécis.** Il situe TOUT ce qui reste pour atteindre
-> une bêta réelle (3-5 cabinets pilotes), y compris les chantiers **hors-Bloc** (setup Azure,
-> UI manquantes, validations E2E, ops go-live) qui n'apparaissaient nulle part. Il ne remplace
-> pas :
-> - **`docs/roadmap.md`** = phases produit/marché et jalons temporels (M0→M24).
-> - **`KICKOFF-BLOCS-B-H.md`** = exécution détaillée Bloc par Bloc (séquence ADR 0012/0016, DoD).
-> - **`HANDOFF_V2.md`** = état opérationnel courant.
+> **Document vivant — plan de référence UNIQUE vers la bêta.** Il situe TOUT ce qui reste pour
+> atteindre une bêta réelle (3-5 cabinets pilotes), y compris les chantiers **hors-Bloc** (setup
+> Azure, UI manquantes, validations E2E, ops go-live). Source d'état complémentaire : mémoire
+> `v1-etat-courant.md`. Il ne remplace pas **`docs/roadmap.md`** (phases produit/marché M0→M24).
 >
-> Mise à jour à chaque clôture de Bloc ou découverte transverse. Dernière maj : 2026-06-01.
+> Les plans d'exécution historiques sont **archivés/figés** : `KICKOFF-BLOCS-B-H.md` et
+> `HANDOFF_V2.md` (à la racine, bannière ⛔ en tête car encore référencés par CLAUDE.md/ADR) ;
+> `PLAN-COHERENCE-MVP.md`, `PHASE-IBIS.md`, `LANDING-NOTES.md`, `ZARYA_PLAN_DEV.txt`,
+> `retro-sessions-claude.md` (dans `docs/_archive/`). La séquence Blocs A→H et le plan de
+> cohérence MVP (chantiers 1→6.1) sont **livrés**.
+>
+> Mise à jour à chaque clôture de Bloc ou découverte transverse. Dernière maj : 2026-06-14.
 
 ## Comment lire
 
@@ -17,26 +20,22 @@ M2→M6 = fenêtre des cabinets pilotes). Le séquencement technique fin reste c
 
 ---
 
-## Horizon 0 — En cours
-
-| Item | Statut | Réf |
-|---|---|---|
-| Bloc D — Microsoft Graph (D1 OAuth, D2 wrapper, D3 région, D4 webhooks) | ✅ livré | KICKOFF §D |
-| **D5 — envoi sendMail (identité cabinet + signature)** | ⬜ prochain | KICKOFF §D5 |
-
----
-
-## Horizon 1 — Suite de la séquence technique (Blocs, ADR 0012/0016)
-
-Ordre canonique restant. Détail + DoD dans le KICKOFF.
+## Séquence technique (Blocs A→H, ADR 0012/0016) — LIVRÉE
 
 | Bloc | Objet | Statut |
 |---|---|---|
-| C2 → C4 | Calendar : envoi relances (Graph), UI, facteur risque relance | ⬜ après D |
-| E | Facture (QR-bill + extraction IA + export) — ⚠️ ADR QR-bill à ouvrir avant E2 | ⬜ |
-| F | onboarding-client + dashboard-client | ⬜ |
-| G | Salaire (workflow, PAS de calcul de paie) | ⬜ |
-| H | embeddings / pgvector + Search — ⚠️ bloqué tant que modèle `embeddings` IK non câblé | ⬜ |
+| A | Fondation CRM (scellée) | ✅ |
+| B | Doc (classif live validée, file de validation) | ✅ |
+| C | Calendar (génération échéances, relances, UI) | ✅ |
+| D | Microsoft Graph (OAuth, wrapper, région, webhooks, envoi) | ✅ — ⚠️ validé contre **mocks** ; E2E réel = Horizon 2 |
+| E | Facture (QR-bill + extraction IA + export ; ADR 0020/0024) | ✅ |
+| F | onboarding-client + dashboard-client | ✅ |
+| G | Salaire (workflow, PAS de calcul de paie) | ✅ |
+| H | embeddings / pgvector + Search | ◑ indexation RAG + recherche sémantique livrées (#153) ; agrégations avancées (`aggregation-templates`) **non câblées** |
+
+Plus **PLAN-COHERENCE-MVP** (chantiers 1→6.1 : CRM visuel + dossier client, fiche document,
+dashboard actionnable, libellés anti-jargon, finition portail client, IBAN-QR au Vault) :
+✅ livrés & mergés (#165→#172).
 
 ---
 
@@ -51,8 +50,9 @@ Le mécanisme C4 (« document reçu couvre l'échéance → `traitee` → relanc
 | **Dépôt côté client (upload dashboard)** | ⬜ Bloc F | Aujourd'hui l'upload est `upload_fiduciaire` uniquement ; pas de dashboard client. |
 | **Le doc atteint `finaliserDocument` rattaché au bon `document_attendu`** | ⚠️ partiel | upload → classification → (politique `strict` → file de validation) → un membre valide → couverture. Donc « cabinet valide le doc reçu → relance s'arrête », pas « client upload → temps réel ». Dépend aussi du matching B3. |
 
-→ Quand F sera fait + le seed templates enrichi + (option) backfill, la boucle tournera
-end-to-end. C1+ (maillon le moins cher) est fait en premier.
+→ F est **livré** ; restent le **seed templates enrichi** (`documents_requis_types`) + (option)
+le **backfill** des échéances déjà générées pour que la boucle tourne end-to-end en prod.
+C1+ (maillon le moins cher) est déjà fait.
 
 ---
 
@@ -71,6 +71,23 @@ repérés à la volée — désormais tracés ici.
 | **DPA à signer** (Infomaniak, Supabase, Vercel ; modèle ZARYA→cabinet) avant 1re vente | Avant bêta | — | ⬜ data-residency §4.1 |
 | **Bascule `EXTRACTION_MODE` stub → live** (classif IA en prod) | Décision founder, après Bloc B clôturé + OCR prêt | OCR texte ✅ / vision ⬜ | ⬜ arbitrage |
 | OCR texte natif | ✅ livré | — | ✅ |
+
+---
+
+## Suivi ménage / audit du 2026-06-14 (actions founder)
+
+Trouvailles de l'audit de cohérence code/doc. Le code est traité par PR ; ces points
+nécessitent une **décision ou édition founder** :
+
+| Item | Détail | Statut |
+|---|---|---|
+| **Corriger `CLAUDE.md`** (racine) | (1) « Référence des ADR (10 décisions) » → **24 ADR** existent (0011→0024) ; (2) « Phase actuelle : Bloc B » → séquence A→H **clôturée** ; (3) résidence « Frankfurt exclusivement » → **Zurich eu-central-2** (données) + Vercel fra1 (compute UE). | ⬜ founder |
+| **Déplacer `HANDOFF_V2.md` + `KICKOFF-BLOCS-B-H.md`** → `docs/_archive/` | Une fois les références dans `CLAUDE.md`/ADR mises à jour (sinon liens cassés). Bannière ⛔ déjà posée en attendant. | ⬜ founder |
+| **`requireRole` (RBAC) inutilisé** | Aucune server action n'impose un rôle précis : possible trou RBAC (ex. « collaborateur ne peut pas supprimer un client »). À câbler ou acter. | ⬜ à décider |
+| **Packages vides `packages/ui` + `packages/multi-tenant`** | Placeholders sans code. Supprimables, MAIS référencés dans `CLAUDE.md` § Organisation (l. 108/111) → supprimer **avec** l'édition CLAUDE.md (sinon réf cassée). NB : `getDbForCabinet` vit en réalité dans `packages/db`, pas dans `multi-tenant`. | ⬜ founder (couplé CLAUDE.md) |
+| **Code staffé non câblé, mais TESTÉ** | `aggregation-templates` (pré-Bloc H, test sécurité anti-injection) et `detect-nature-fichier` byte-based (`detectNatureFichier`/`natureSupporteQr`, cascade ADR 0024, testés) ne sont consommés QUE par leurs tests. **Conservés** (travail testé) ; à câbler ou retirer-avec-tests lors de H / d'un câblage cascade. | ⬜ à décider |
+| **CLAUDE.md de packages périmés** | `packages/extraction/CLAUDE.md` + `packages/schemas/CLAUDE.md` décrivent une arbo inexistante (`pipelines/`, `client.ts`, Bedrock…) ; `tests/CLAUDE.md` décrit du E2E/Playwright inexistant. | ⬜ founder (CLAUDE.md) |
+| **6.2 — DPA + CGU** | Signer DPA (Infomaniak/Supabase/Vercel) + finaliser CGU/politique (faits région/sous-traitants déjà corrigés). | ⬜ founder (cf. Horizon 2) |
 
 ---
 

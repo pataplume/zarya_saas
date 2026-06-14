@@ -195,7 +195,7 @@ ZARYA recourt à des sous-traitants ultérieurs (AWS pour l'infra, Infomaniak po
 ZARYA notifiera le Client de l'ajout d'un nouveau sous-traitant **30 jours avant** son intégration effective. Le Client peut s'y opposer dans ce délai en résiliant le contrat.
 
 ### 9.4 Localisation
-Toutes les Données restent en **UE** (Frankfurt principalement). L'option Suisse stricte (Phase 2) est disponible pour le plan Enterprise.
+Les Données au repos (base de données, fichiers, sauvegardes) sont stockées en **Suisse** (Zurich, via Supabase sur AWS eu-central-2). L'hébergement applicatif (compute, tâches planifiées) est en **UE** (Frankfurt, via Vercel). La couche IA est opérée en **Suisse** (Infomaniak). La Suisse est reconnue **pays tiers adéquat** par la Commission européenne (RGPD art. 45).
 
 ### 9.5 Durée de conservation
 À la résiliation, ZARYA conserve les Données pendant **90 jours** pour permettre une éventuelle reprise, puis procède à leur suppression (sauf obligations légales de conservation comptable).

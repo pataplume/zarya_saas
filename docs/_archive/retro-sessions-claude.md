@@ -1,9 +1,12 @@
 ---
-status: vivant
+status: archived
 owner: claude
 last_updated: 2026-05-29
 type: retrospective
 ---
+
+> ⛔ **ARCHIVE — état figé (clôturé 05/2026), déplacé ici le 2026-06-14, ne plus utiliser comme source de vérité.**
+> Rétro Phase 0→3. État courant : [`PLAN-MVP-BETA.md`](../../PLAN-MVP-BETA.md) + mémoire `v1-etat-courant.md`.
 
 # Retrospective technique — Sessions Claude Code (Phase 0 → Phase 3)
 

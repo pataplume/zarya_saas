@@ -61,7 +61,7 @@ phase: 3.5
    depuis le Sprint 3.5.3 — c'est le verrou que cette phase a levé pour rendre le
    flux démontrable de bout en bout.
 3. Bucket Supabase Storage `documents` provisionné (privé).
-4. `EXTRACTION_MODE=stub` (défaut) — aucun crédit AWS requis.
+4. `EXTRACTION_MODE=stub` (défaut) — aucun crédit Infomaniak requis.
 
 ## Étapes détaillées (as-built)
 

@@ -1,5 +1,5 @@
 ---
-status: actionable
+status: archived
 owner: founder
 last_updated: 2026-05-30
 type: handoff
@@ -9,6 +9,12 @@ supersedes: HANDOFF.md (27 mai 2026)
 sequencing_superseded_by: ADR 0012 (séquence canonique v1.0, 30 mai 2026)
 llm_layer_superseded_by: ADR 0010 (Infomaniak — remplace Bedrock)
 ---
+
+> ⛔ **ARCHIVE — état figé au 2026-05-30, ne plus utiliser comme source de vérité.**
+> La séquence Blocs A→H et le plan de cohérence MVP sont **livrés**. État courant :
+> [`PLAN-MVP-BETA.md`](./PLAN-MVP-BETA.md) + mémoire `v1-etat-courant.md`. (Conservé à la
+> racine car référencé par `CLAUDE.md`/ADR ; déplaçable vers `docs/_archive/` une fois ces
+> références mises à jour par le founder.)
 
 # Handoff Founder → Claude Code v2
 

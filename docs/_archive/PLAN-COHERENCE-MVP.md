@@ -1,5 +1,9 @@
 # PLAN — Cohérence MVP (relier l'UI à la base)
 
+> ⛔ **ARCHIVE — état figé, déplacé ici le 2026-06-14, ne plus utiliser comme source de vérité.**
+> Chantiers 1→6.1 **livrés & mergés** (#165→#172) ; reste 6.2 (DPA/CGU, ops founder, hors code).
+> État courant : [`PLAN-MVP-BETA.md`](../../PLAN-MVP-BETA.md) + mémoire `v1-etat-courant.md`.
+
 > **But de ce document** : base de travail pour rendre le MVP **cohérent**. À lire en début de
 > chaque session sur ce sujet. Source de vérité du découpage en chantiers → sous-blocs (1 PR chacun).
 > Créé le 13/06/2026. Complète (ne remplace pas) `PLAN-MVP-BETA.md`, `KICKOFF-BLOCS-B-H.md`, les ADR.

@@ -174,7 +174,7 @@ Le Cabinet gère en première ligne les demandes d'exercice des droits de ses cl
 
 ## Article 7 — Transferts internationaux
 
-ZARYA s'engage à traiter les données en **Union Européenne** (principalement à Frankfurt, eu-central-1) et en **Suisse** pour la couche IA opérée par **Infomaniak (Suisse)**. La Suisse bénéficie d'une **décision d'adéquation** de la Commission européenne (art. 45 RGPD) : le traitement par Infomaniak ne constitue donc pas un transfert vers un pays tiers non adéquat et n'exige pas de garanties supplémentaires (CCT). La fonctionnalité de reconnaissance de documents (catégorie `vision`) sera fournie par **Infomaniak (Suisse)** et n'est pas active au MVP (différée Phase 4.1+).
+ZARYA traite les données au repos (base de données, fichiers, sauvegardes) en **Suisse** (Zurich, via Supabase sur AWS eu-central-2), l'hébergement applicatif (compute, tâches planifiées) en **Union Européenne** (Frankfurt, via Vercel), et la couche IA en **Suisse** (opérée par **Infomaniak**). La Suisse bénéficie d'une **décision d'adéquation** de la Commission européenne (art. 45 RGPD) : le traitement et le stockage en Suisse ne constituent donc pas un transfert vers un pays tiers non adéquat et n'exigent pas de garanties supplémentaires (CCT). La fonctionnalité de reconnaissance de documents (catégorie `vision`) sera fournie par **Infomaniak (Suisse)** et n'est pas active au MVP (différée Phase 4.1+).
 
 Aucun transfert vers un pays tiers **non couvert par une décision d'adéquation** n'est effectué sans information préalable du Cabinet et mise en œuvre de garanties appropriées (clauses contractuelles types, etc.).
 

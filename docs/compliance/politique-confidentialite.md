@@ -19,7 +19,7 @@ referenced_by: [cgu, _index]
 ## En résumé
 
 - ZARYA traite des données personnelles dans le cadre de la prestation d'un service SaaS aux cabinets fiduciaires suisses
-- Toutes vos données restent en **Union Européenne** (Frankfurt, Allemagne) ou en **Suisse**
+- Vos données au repos sont stockées en **Suisse** (Zurich) ; l'hébergement applicatif est en **Union Européenne** (Frankfurt, Allemagne)
 - Nous ne vendons **jamais** vos données et ne les utilisons pas pour de la publicité
 - Vous pouvez exercer vos droits à tout moment via dpo@zarya.ch
 - Nous respectons strictement la **nLPD suisse** et le **RGPD européen**
@@ -90,13 +90,14 @@ Selon la donnée et la finalité :
 
 ## 5. Avec qui partageons-nous vos données ?
 
-ZARYA partage vos données avec **un nombre limité de sous-traitants techniques**, tous situés en UE :
+ZARYA partage vos données avec **un nombre limité de sous-traitants techniques**, tous situés en Suisse (pays reconnu adéquat par l'UE) ou en UE :
 
 | Sous-traitant | Rôle | Localisation |
 |---|---|---|
-| Amazon Web Services | Hébergement infrastructure (sous-jacent à Supabase) | Frankfurt, Allemagne (UE) |
-| Supabase | Base de données et stockage | Frankfurt, Allemagne (UE) |
+| Amazon Web Services | Hébergement infrastructure (sous-jacent à Supabase) | Zurich, Suisse |
+| Supabase | Base de données et stockage | Zurich, Suisse |
 | Infomaniak AI Services | Intelligence artificielle (analyse de documents) | Suisse |
+| Vercel | Hébergement de l'application web (compute) | Frankfurt, Allemagne (UE) |
 | Microsoft | Intégration Outlook (si vous utilisez Microsoft 365) | Selon votre tenant |
 | Stripe | Paiement des abonnements cabinets | UE |
 | Sentry | Détection des erreurs techniques | UE |
@@ -108,9 +109,9 @@ ZARYA partage vos données avec **un nombre limité de sous-traitants techniques
 
 ## 6. Où vos données sont-elles stockées ?
 
-Toutes vos données sont stockées **en Union Européenne** (à Frankfurt, Allemagne). L'analyse par intelligence artificielle est réalisée **en Suisse** (Infomaniak), le temps du traitement uniquement, sans stockage durable.
+Vos données au repos (base de données, fichiers, sauvegardes) sont stockées **en Suisse** (Zurich), via Supabase sur l'infrastructure AWS eu-central-2. L'hébergement applicatif (le traitement par l'application web et les tâches planifiées) est réalisé **en Union Européenne** (Frankfurt, Allemagne, via Vercel). L'analyse par intelligence artificielle est réalisée **en Suisse** (Infomaniak), le temps du traitement uniquement, sans stockage durable.
 
-Pour les cabinets exigeant une résidence **physiquement en Suisse**, une option Enterprise est disponible (Phase 2).
+La Suisse est reconnue par la Commission européenne comme un **pays tiers offrant un niveau de protection adéquat** (RGPD art. 45).
 
 **Aucune donnée n'est transférée aux États-Unis ou vers d'autres pays sans niveau de protection équivalent.**
 

@@ -126,7 +126,7 @@ Au moment du callback OAuth :
 2. Appel à `GET /organization` pour récupérer le détail du tenant
 3. Extraction du champ `countryLetterCode` ou `preferredDataLocation`
 4. Si hors UE → **avertissement** affiché au cabinet :
-   > *"Votre tenant Microsoft 365 semble être hébergé hors UE. Les emails passant par ZARYA resteront en EU (Frankfurt), mais le contenu accessible côté Microsoft 365 reste régi par la politique de votre tenant. Confirmez-vous vouloir continuer ?"*
+   > *"Votre tenant Microsoft 365 semble être hébergé hors UE. Les emails ingérés par ZARYA sont stockés en Suisse (Zurich, pays adéquat) et traités depuis l'UE (Frankfurt), mais le contenu accessible côté Microsoft 365 reste régi par la politique de votre tenant. Confirmez-vous vouloir continuer ?"*
 
 L'utilisateur peut choisir de continuer (sous sa responsabilité) ou changer de tenant.
 

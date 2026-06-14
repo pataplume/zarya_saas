@@ -1,3 +1,7 @@
+*** ARCHIVE — état figé (Mai 2026), déplacé ici le 2026-06-14. Ne plus utiliser ***
+*** comme source de vérité. Le périmètre MVP « pas Search/Facture/Salaire/Calendar » ***
+*** est CADUC : tous livrés. État courant : ../PLAN-MVP-BETA.md + mémoire v1-etat-courant.md ***
+
 ================================================================================
             STRATÉGIE DE DÉVELOPPEMENT ZARYA AVEC CLAUDE CODE
                           Document de référence personnel

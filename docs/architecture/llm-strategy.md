@@ -28,7 +28,7 @@ Voir [`ADR 0010`](./decisions/0010-llm-via-infomaniak.md) pour le contexte de ce
 - Les documents ne quittent jamais la Suisse pour être analysés par les modèles
 - Conformité nLPD / RGPD : la Suisse est un **pays adéquat** ; pas de transfert problématique pour la couche IA
 
-> ⚠️ **Périmètre de la souveraineté** : cet engagement couvre la **couche d'inférence IA**. La base de données (Supabase, hébergée sur AWS eu-central-1) et l'hébergement applicatif (Vercel) restent opérés par des sociétés US. On ne revendique donc **pas** une chaîne « 100 % souveraine end-to-end ». Formulation approuvée côté produit/marketing : « IA 100 % suisse et souveraine (Infomaniak) : vos documents ne quittent jamais la Suisse pour être analysés. »
+> ⚠️ **Périmètre de la souveraineté** : cet engagement couvre la **couche d'inférence IA**. La base de données (Supabase, hébergée sur AWS eu-central-2 à Zurich, Suisse) et l'hébergement applicatif (Vercel, fra1 à Frankfurt, UE) sont opérés par des sociétés US (exposition CLOUD Act au niveau de l'opérateur, indépendamment de la région). On ne revendique donc **pas** une chaîne « 100 % souveraine end-to-end ». Formulation approuvée côté produit/marketing : « IA 100 % suisse et souveraine (Infomaniak) : vos documents ne quittent jamais la Suisse pour être analysés. »
 
 ### 2.2 Auditabilité
 - Chaque inférence est tracée côté ZARYA dans `extraction.invocation` (modèle, tokens, latence, statut, coût, `client_id`, `feature`)
