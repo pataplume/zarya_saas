@@ -168,4 +168,58 @@ describe("validerPeriodeClientAction (G3a)", () => {
     const res2 = await validerPeriodeClientAction({}, fd({ periode_id: pId }));
     expect(res2.error).toMatch(/validée|clôturée/i);
   });
+
+  // C5.1 — la validation écrit une notification confirmation_validation (trace côté cabinet).
+  test("écrit une notification salaire.notification confirmation_validation", async () => {
+    const pId = randomUUID();
+    await sql`
+      INSERT INTO salaire.periode (id, cabinet_id, client_id, annee, mois, date_limite_validation)
+      VALUES (${pId}, ${cabinetA.id}, ${clientA.id}, 2026, 8, '2026-08-25')`;
+    actorClient(cabinetA.id, clientA.id);
+
+    const res = await validerPeriodeClientAction(
+      {},
+      fd({ periode_id: pId, sans_changement: "true" }),
+    );
+    expect(res.success).toBe(true);
+
+    const notifs = await sql`
+      SELECT type, cabinet_id, client_id FROM salaire.notification WHERE periode_id = ${pId}`;
+    expect(notifs).toHaveLength(1);
+    expect(notifs[0]?.type).toBe("confirmation_validation");
+    expect(notifs[0]?.cabinet_id).toBe(cabinetA.id);
+    expect(notifs[0]?.client_id).toBe(clientA.id);
+  });
+
+  // C5.3 — atomicité : 2 soumissions concurrentes ⇒ une SEULE validation + statut validee
+  // (l'UPDATE gardé par statut IN (éditables) ne transitionne qu'une fois).
+  test("double soumission concurrente → une seule validation, pas de doublon", async () => {
+    const pId = randomUUID();
+    await sql`
+      INSERT INTO salaire.periode (id, cabinet_id, client_id, annee, mois, date_limite_validation)
+      VALUES (${pId}, ${cabinetA.id}, ${clientA.id}, 2026, 9, '2026-09-25')`;
+    actorClient(cabinetA.id, clientA.id);
+
+    const [r1, r2] = await Promise.all([
+      validerPeriodeClientAction({}, fd({ periode_id: pId, sans_changement: "true" })),
+      validerPeriodeClientAction({}, fd({ periode_id: pId, sans_changement: "true" })),
+    ]);
+    // Au plus une réussite ; l'autre est refusée (course détectée par l'UPDATE gardé).
+    const successes = [r1, r2].filter((r) => r.success === true);
+    expect(successes).toHaveLength(1);
+
+    const [per] = await sql`SELECT statut FROM salaire.periode WHERE id = ${pId}`;
+    expect(per?.statut).toBe("validee");
+
+    // Exactement UNE ligne de validation (contrainte unique periode_id + transition atomique).
+    const vals = await sql`SELECT 1 FROM salaire.validation WHERE periode_id = ${pId}`;
+    expect(vals).toHaveLength(1);
+    // Un seul événement validation_recue_client.
+    const evs =
+      await sql`SELECT 1 FROM salaire.evenement WHERE periode_id = ${pId} AND type = 'validation_recue_client'`;
+    expect(evs).toHaveLength(1);
+    // Une seule notification.
+    const notifs = await sql`SELECT 1 FROM salaire.notification WHERE periode_id = ${pId}`;
+    expect(notifs).toHaveLength(1);
+  });
 });

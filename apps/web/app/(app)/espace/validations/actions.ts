@@ -10,10 +10,13 @@ import {
   employe as employeTable,
   eq,
   evenementSalaire,
+  inArray,
+  notificationSalaire,
   periode as periodeTable,
   sql,
   validationPeriode,
 } from "@zarya/db";
+import { logger } from "@zarya/logger";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { STATUTS_EDITABLES } from "@/lib/periode-client-data";
@@ -23,6 +26,11 @@ import { STATUTS_EDITABLES } from "@/lib/periode-client-data";
 // écriture trace periode.derniere_modification_*. Scopé (cabinet_id, client_id) via app_metadata.
 
 export type PeriodeActionState = { error?: string; success?: boolean };
+
+// Statuts éditables typés sur l'enum `salaire.statut_periode` (drizzle exige un tuple typé pour
+// `inArray` sur une colonne enum, contrairement au Set<string> partagé STATUTS_EDITABLES utilisé
+// côté lecture/UI). Périmètre identique : tout ajout/retrait ici doit suivre periode-client-data.
+const STATUTS_EDITABLES_PERIODE = ["non_demandee", "en_attente", "relancee", "en_retard"] as const;
 
 /** Vérifie que la période appartient au client connecté et qu'elle est encore éditable. */
 async function chargerPeriodeEditable(
@@ -255,35 +263,77 @@ export async function validerPeriodeClientAction(
     };
   }
 
+  // C5.3 — Transition atomique anti double-soumission. L'UPDATE est gardé par
+  // `statut IN (<éditables>)` ET scopé (cabinet_id, client_id) : une 2e soumission concurrente
+  // n'affecte 0 ligne (la 1re a déjà fait passer en `validee`), donc pas de 2e validation ni
+  // 2e événement. Le `chargerPeriodeEditable` plus haut reste un court-circuit UX rapide ;
+  // l'autorité réelle est ce UPDATE conditionnel exécuté dans la transaction.
   const now = new Date();
-  await db.insert(validationPeriode).values({
-    cabinet_id,
-    client_id,
-    periode_id: v.periode_id,
-    valide_par_type: "client",
-    methode: "dashboard",
-    sans_changement_confirme: v.sans_changement ?? false,
+  const transitionne = await db.transaction(async (tx) => {
+    const maj = await tx
+      .update(periodeTable)
+      .set({
+        statut: "validee",
+        date_validation_recue: now,
+        sans_changement_declare: v.sans_changement ?? false,
+        derniere_modification_par: "client",
+        derniere_modification_acteur_id: user.id,
+        derniere_modification_at: now,
+        updated_at: now,
+      })
+      .where(
+        and(
+          eq(periodeTable.id, v.periode_id),
+          eq(periodeTable.cabinet_id, cabinet_id),
+          eq(periodeTable.client_id, client_id),
+          inArray(periodeTable.statut, STATUTS_EDITABLES_PERIODE),
+        ),
+      )
+      .returning({ id: periodeTable.id });
+
+    // Aucune ligne mise à jour = la période a déjà été validée entre-temps (course / double
+    // clic). On n'écrit ni validation ni événement : la transition n'a pas eu lieu pour nous.
+    if (maj.length === 0) return false;
+
+    await tx.insert(validationPeriode).values({
+      cabinet_id,
+      client_id,
+      periode_id: v.periode_id,
+      valide_par_type: "client",
+      methode: "dashboard",
+      sans_changement_confirme: v.sans_changement ?? false,
+    });
+    await tx.insert(evenementSalaire).values({
+      cabinet_id,
+      client_id,
+      periode_id: v.periode_id,
+      type: "validation_recue_client",
+      acteur_type: "humain_client",
+      acteur_id: user.id,
+    });
+    return true;
   });
-  await db
-    .update(periodeTable)
-    .set({
-      statut: "validee",
-      date_validation_recue: now,
-      sans_changement_declare: v.sans_changement ?? false,
-      derniere_modification_par: "client",
-      derniere_modification_acteur_id: user.id,
-      derniere_modification_at: now,
-      updated_at: now,
-    })
-    .where(eq(periodeTable.id, v.periode_id));
-  await db.insert(evenementSalaire).values({
-    cabinet_id,
-    client_id,
-    periode_id: v.periode_id,
-    type: "validation_recue_client",
-    acteur_type: "humain_client",
-    acteur_id: user.id,
-  });
+
+  if (!transitionne) return { error: "Période déjà validée ou clôturée." };
+
+  // C5.1 — Trace côté cabinet : notification `confirmation_validation`. Best-effort (un échec
+  // n'invalide pas la validation déjà committée). La revue fiduciaire lit le statut « validée
+  // client » ; cette ligne est la trace explicite dans la file de notifications du cabinet.
+  // Pas d'envoi email ici : `statut_envoi` reste null (= non émise) ; on ne renseigne ni sujet,
+  // ni corps, ni destinataire — c'est une trace interne, pas un message sortant.
+  try {
+    await db.insert(notificationSalaire).values({
+      cabinet_id,
+      client_id,
+      periode_id: v.periode_id,
+      type: "confirmation_validation",
+    });
+  } catch (err) {
+    logger.error(
+      { cabinet_id, periode_id: v.periode_id, error: err instanceof Error ? err.message : err },
+      "[espace.valider] échec écriture notification confirmation_validation (validation conservée)",
+    );
+  }
 
   revalidatePath("/espace/validations");
   return { success: true };
