@@ -1,5 +1,8 @@
 # PHASE Ibis — Correction & polish avant Phase 2
 
+> ⛔ **ARCHIVE — état figé, déplacé ici le 2026-06-14, ne plus utiliser comme source de vérité.**
+> Phase intermédiaire bouclée. État courant : [`PLAN-MVP-BETA.md`](../../PLAN-MVP-BETA.md) + mémoire `v1-etat-courant.md`.
+
 > Phase intermédiaire ouverte le 2026-06-05 (founder). Objectif : combler les trous
 > **visibles** et raccorder les derniers maillons pour atteindre un MVP démontrable à des
 > cabinets pilotes. Le socle B→H + Phase I + chantiers pré-bêta (intégrations Microsoft,
