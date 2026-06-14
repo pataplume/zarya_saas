@@ -14,6 +14,10 @@
 // masque au lieu de le retaper, et l'IBAN clair est réutilisé à la finalisation. L'IBAN de l'IA,
 // lui, reste stripé (non persisté). Les autres données QR (montant, devise, référence, créancier)
 // ne sont pas sensibles et sont conservées.
+// SÉCURITÉ IBAN — TRACE D'AUDIT : la sortie brute de l'extracteur (réponse IA live ou proposal
+// stub) peut contenir un IBAN/AVS en clair. Avant de l'écrire dans invocation.raw_output (jsonb,
+// échappe au sceau anti-clair qui ne scanne que les noms de colonnes), on la caviarde via
+// redactSensitiveForAudit (ADR 0013).
 
 import { db, invocation, propositionFacture, vaultCreateSecret } from "@zarya/db";
 import { type ExtractionMode, resolveExtractionModeForCabinet } from "./classifier";
@@ -36,6 +40,7 @@ import {
   type QrBillDecodeResult,
   type QrPayloadExtractor,
 } from "./qr-bill";
+import { redactSensitiveForAudit, redactSensitiveText } from "./redact-audit";
 
 export interface ExtraireFactureInput {
   cabinet_id: string;
@@ -123,8 +128,11 @@ export async function extraireFactureDepuisDocument(
       nb_items_extracted: 1,
       nb_items_with_anomalies: proposal.anomalies.length > 0 ? 1 : 0,
       // Trace la nature du fichier (ADR 0024 §3) à côté de la sortie brute de l'extracteur,
-      // pour audit/debug du routage — sans nouvelle colonne DB.
-      raw_output: { nature_fichier: nature, extraction: result.raw_output },
+      // pour audit/debug du routage — sans nouvelle colonne DB. Caviardé (IBAN/AVS) avant insert.
+      raw_output: redactSensitiveForAudit({
+        nature_fichier: nature,
+        extraction: result.raw_output,
+      }),
       total_duration_ms: result.duration_ms,
       cost_usd: result.usage?.cost_usd ?? "0",
       tokens_input: result.usage?.tokens_input ?? 0,
@@ -159,7 +167,11 @@ export async function extraireFactureDepuisDocument(
           status: "success",
           nb_items_extracted: 1,
           nb_items_with_anomalies: proposal.anomalies.length > 0 ? 1 : 0,
-          raw_output: { passe: 2, champs: aCompleter, extraction: pass2.raw_output },
+          raw_output: redactSensitiveForAudit({
+            passe: 2,
+            champs: aCompleter,
+            extraction: pass2.raw_output,
+          }),
           total_duration_ms: pass2.duration_ms,
           cost_usd: pass2.usage?.cost_usd ?? "0",
           tokens_input: pass2.usage?.tokens_input ?? 0,
@@ -264,7 +276,7 @@ async function traceFailedInvocation(
       prompt_version: mode === "live" ? FACTURE_PROMPT_VERSION : STUB_FACTURE_PROMPT_VERSION,
       status,
       nb_items_extracted: 0,
-      error_message: message,
+      error_message: redactSensitiveText(message),
     });
   } catch {
     // Ne masque pas l'erreur d'extraction (re-levée par l'appelant).
