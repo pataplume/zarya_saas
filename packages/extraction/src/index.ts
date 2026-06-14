@@ -282,6 +282,7 @@ export {
 // NB : `./rasterize-pdf` (pdfjs + @napi-rs/canvas) n'est volontairement PAS ré-exporté par ce
 // barrel : il tire un binaire natif (`.node`) que webpack ne sait pas bundler. Les consommateurs
 // SERVEUR (OCR-b : route upload) l'importeront directement depuis le module, jamais via le barrel.
+export { redactSensitiveForAudit, redactSensitiveText } from "./redact-audit";
 export {
   type ClientCandidat,
   type ClientPalier,

@@ -6,7 +6,8 @@
  *  - la proposition_facture créée a qr_facture_detecte=true ;
  *  - les champs déterministes NON sensibles viennent du QR (montant, devise, référence) ;
  *  - ANTI-CLAIR (ADR 0013) : aucun IBAN en clair dans la ligne (ni fournisseur_propose_data,
- *    ni qr_facture_data, ni le JSON sérialisé complet) ;
+ *    ni qr_facture_data, ni le JSON sérialisé complet), NI dans extraction.invocation.raw_output
+ *    (jsonb caviardé — le sceau anti-clair ne couvre que les noms de colonnes) ;
  *  - C6.1 (ADR 0024 §5) : l'IBAN-DU-QR est chiffré au Vault DÈS la proposition
  *    (iban_paiement_vault_id NON NULL + iban_paiement_masque renseigné, ne révélant que les
  *    4 derniers caractères) ; sans QR, aucun vault_id (l'IBAN IA n'est jamais persisté).
@@ -145,6 +146,18 @@ describe("Lot 1 — QR lu depuis l'image alimente proposition_facture", () => {
     expect("iban" in (prop?.fournisseur_propose_data ?? {})).toBe(false);
     expect("iban" in (prop?.qr_facture_data ?? {})).toBe(false);
     expect(JSON.stringify(prop)).not.toContain(QR_IBAN);
+
+    // ANTI-CLAIR — TRACE D'AUDIT : l'IBAN ne fuit pas non plus dans invocation.raw_output
+    // (jsonb caviardé par redactSensitiveForAudit ; le sceau anti-clair ne scanne que les
+    // noms de colonnes, pas le contenu jsonb).
+    const invs = await sql`
+      SELECT raw_output FROM extraction.invocation
+       WHERE input_document_id = ${doc.id} AND context = 'facture'
+    `;
+    expect(invs.length).toBeGreaterThan(0);
+    for (const inv of invs) {
+      expect(JSON.stringify(inv.raw_output)).not.toContain(QR_IBAN);
+    }
   });
 
   test("sans QR (IBAN proposé par l'IA) : aucun vault_id ; IBAN IA non persisté", async () => {

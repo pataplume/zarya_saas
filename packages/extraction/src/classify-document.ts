@@ -21,6 +21,7 @@ import {
 import { decideAutoClassement, type PolitiqueClassement } from "./decide-auto-classement";
 import { finaliserDocument } from "./finalize-document";
 import { CLASSIFY_DOC_PROMPT_VERSION } from "./prompts/classification-doc";
+import { redactSensitiveForAudit, redactSensitiveText } from "./redact-audit";
 import { resolveClientCandidates } from "./resolve-client";
 
 // Statuts d'invocation (extraction.invocation_status, packages/db/src/schema/extraction.ts).
@@ -128,7 +129,8 @@ export async function classifyDocument(
       status: "success",
       nb_items_extracted: 1,
       nb_items_with_anomalies: proposal.anomalies.length > 0 ? 1 : 0,
-      raw_output: result.raw_output,
+      // Caviardage anti-clair (IBAN/AVS) de la sortie brute avant trace jsonb (ADR 0013).
+      raw_output: redactSensitiveForAudit(result.raw_output),
       total_duration_ms: result.duration_ms,
       // Mode stub : pas d'usage → 0. Mode live (Infomaniak) : tokens réels via
       // result.usage. Coût laissé à 0 tant que la tarification IK n'est pas câblée.
@@ -268,7 +270,7 @@ async function traceFailedInvocation(
       prompt_version: mode === "live" ? CLASSIFY_DOC_PROMPT_VERSION : STUB_PROMPT_VERSION,
       status,
       nb_items_extracted: 0,
-      error_message: message,
+      error_message: redactSensitiveText(message),
     });
   } catch {
     // Échec d'écriture de la trace : on ne masque PAS l'erreur de classification

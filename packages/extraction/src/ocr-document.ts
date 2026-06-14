@@ -21,6 +21,7 @@ import {
   type OcrSource,
   type VisionModelClient,
 } from "./ocr";
+import { redactSensitiveForAudit, redactSensitiveText } from "./redact-audit";
 
 export interface OcrDocumentInput {
   cabinet_id: string;
@@ -79,7 +80,10 @@ export async function ocrDocument(
         ocr_duration_ms: result.vision_duration_ms ?? null,
         status: "success",
         nb_items_extracted: result.text ? 1 : 0,
-        raw_output: result.raw_output ?? null,
+        // La réponse vision contient le TEXTE océrisé (un IBAN/AVS peut y figurer en clair).
+        // Caviardé avant trace jsonb (ADR 0013). NB : le texte fonctionnel réutilisable est
+        // stocké séparément dans doc.fichier_physique.ocr_text (store de contenu assumé).
+        raw_output: redactSensitiveForAudit(result.raw_output ?? null),
         total_duration_ms: result.vision_duration_ms ?? null,
         tokens_input: result.usage?.tokens_input ?? 0,
         tokens_output: result.usage?.tokens_output ?? 0,
@@ -118,7 +122,7 @@ async function traceFailedOcr(input: OcrDocumentInput, err: unknown): Promise<vo
       ocr_engine: "vision",
       status: isExtraction ? status : "ocr_failed",
       nb_items_extracted: 0,
-      error_message: message,
+      error_message: redactSensitiveText(message),
     });
   } catch {
     // souci DB secondaire ignoré : la cause réelle est relevée par l'appelant.
