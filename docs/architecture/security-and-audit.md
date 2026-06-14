@@ -61,7 +61,7 @@ Le secret professionnel s'étend aux **sous-traitants** du fiduciaire. ZARYA est
     ↓ Server-side
 [Supabase API + Auth]
     ↓ RLS Postgres + Service Role
-[Postgres + Storage (eu-central-1)]
+[Postgres + Storage (eu-central-2, Zurich)]
 ```
 
 ### 3.2 Couches de protection
@@ -247,7 +247,7 @@ Les tables d'audit sont **append-only** :
 ## 9. Détection et réponse aux incidents
 
 ### 9.1 Monitoring temps réel
-Alertes via CloudWatch / Sentry :
+Alertes via logs Vercel / Sentry :
 - Tentatives de bruteforce
 - Erreurs RLS anormales (signal de bug ou attaque)
 - Volume d'export anormal (signal d'exfiltration)
@@ -280,9 +280,9 @@ Process automatisé pour respecter le délai légal :
 - Pas dans l'URL (jamais)
 
 ### 10.2 Stockage
-- **Variables d'environnement** : Vercel Env, AWS Secrets Manager
+- **Variables d'environnement** : Vercel Env (chiffrées), `.env.local` gitignoré en dev
 - **DB credentials** : Supabase service role keys, rotation trimestrielle
-- **API keys tiers** : AWS Secrets Manager, rotation selon politique du fournisseur
+- **API keys tiers et champs ultra-sensibles** : Supabase Vault (prod), rotation selon politique du fournisseur
 
 ### 10.3 Accès
 - Pas plus de 3 personnes ZARYA avec accès aux secrets prod

@@ -200,9 +200,10 @@ Activités à 3 ans :
 - Secrets (clés API, mots de passe)
 
 ### 5.2 Actifs technologiques
-- Infrastructure AWS (compte ZARYA + Supabase)
+- Infrastructure Supabase (DB/Storage/Vault sur AWS eu-central-2, Zurich) + hébergement Vercel (fra1, Frankfurt)
+- Couche IA Infomaniak (Suisse)
 - Domaines (zarya.ch et autres)
-- Comptes GitHub, Vercel, Stripe, etc.
+- Comptes GitHub, Vercel, Supabase, Infomaniak, Stripe, etc.
 - Devices équipe (laptops, téléphones)
 
 ### 5.3 Actifs humains

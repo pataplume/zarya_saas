@@ -308,7 +308,7 @@ Persona représentant le responsable cabinet. Voir `personas.md`.
 Prestataire de paiement utilisé par ZARYA pour les abonnements cabinets.
 
 ### Supabase 💻
-Stack BaaS (Backend as a Service) basée sur Postgres. Fournit DB + Auth + Storage + Vault + pgvector + Realtime. Hébergement eu-central-1.
+Stack BaaS (Backend as a Service) basée sur Postgres. Fournit DB + Auth + Storage + Vault + pgvector + Realtime. Hébergement eu-central-2 (Zurich, Suisse).
 
 ### Swissdec 🇨🇭⚖️
 Norme suisse de déclaration de salaires (formulaire ELM = Einheitliches Lohnmeldeverfahren). Permet la transmission automatique aux assurances sociales.
@@ -355,7 +355,7 @@ UX pattern de l'onboarding client : chaque champ d'un employé doit être explic
 **Supabase Vault.** Chiffrement applicatif des champs sensibles (IBAN, tokens OAuth). Indépendant du chiffrement at-rest standard.
 
 ### Vercel 💻
-Plateforme d'hébergement Next.js utilisée par ZARYA. Région principale eu-central-1.
+Plateforme d'hébergement Next.js utilisée par ZARYA. Région principale fra1 (Frankfurt, UE).
 
 ---
 

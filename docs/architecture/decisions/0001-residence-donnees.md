@@ -7,6 +7,8 @@ referenced_by: [data-residency, multi-tenant, llm-strategy, security-and-audit, 
 
 # ADR 0001 — Résidence des données en UE (Allemagne)
 
+> **Amendement 2026-06-14** — Régions réelles en production : données au repos sur **Supabase eu-central-2 (Zurich, Suisse)** ; compute/cron sur **Vercel fra1 (Frankfurt, UE)** ; couche IA sur **Infomaniak AI Services (Suisse)** (ADR 0010, remplace ADR 0003/Bedrock). Les justifications « Bedrock disponible uniquement en eu-central-1 » du corps ci-dessous sont **caduques**. La Suisse est un pays tiers adéquat (RGPD art. 45).
+
 ## Statut
 Acceptée — 26 mai 2026
 

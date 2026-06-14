@@ -186,11 +186,12 @@ ZARYA limite strictement les transferts hors UE/Suisse :
 
 | Sous-traitant | Région | Cadre |
 |---|---|---|
-| AWS (infrastructure Supabase) | eu-central-1 Frankfurt | UE — pas de transfert |
+| AWS (infrastructure Supabase) | eu-central-2 Zurich (Suisse) | Suisse — pays adéquat (RGPD art. 45 / nLPD), pas de transfert problématique |
+| Supabase (DB, Storage, Vault) | eu-central-2 Zurich (Suisse) | Suisse — pays adéquat (RGPD art. 45 / nLPD), pas de transfert problématique |
 | Infomaniak AI Services | Suisse | Suisse — pays adéquat (nLPD / RGPD), pas de transfert problématique |
 | Microsoft Graph | Région tenant du cabinet | Variable — vérification à l'onboarding, alerte si non-UE |
 | Stripe | UE | UE — pas de transfert |
-| Vercel | Edge global + compute UE | Compute principal redirigé UE |
+| Vercel | fra1 Frankfurt (UE) | UE — pas de transfert |
 | Sentry | UE (région SaaS EU) | UE — pas de transfert |
 | Posthog | UE (cloud EU) ou self-hosted | UE |
 
