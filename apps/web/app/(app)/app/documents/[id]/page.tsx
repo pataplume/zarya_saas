@@ -3,6 +3,16 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import {
+  badgeStatutClassement,
+  libelleCategorieDocument,
+  libelleStatutEcheance,
+  libelleStatutFacture,
+  libelleStatutProposition,
+  libelleTypeDocument,
+  libelleTypeEcheance,
+  styleFamille,
+} from "@/lib/libelles";
+import {
   type DocumentDetail,
   type DocumentDetailExtractionFacture,
   getDocumentDetail,
@@ -20,82 +30,10 @@ import {
 //
 // Server Component. Scope STRICT (cabinet_id, document_id) via getDocumentDetail :
 // null ⇒ notFound() (404 indistinct, anti-fuite cross-tenant). Aucun IBAN projeté.
-
-// ─── Libellés FR (locaux — le module partagé arrive en C4.1) ────────────────────
-
-const DOC_CATEGORIE_LABEL: Record<string, string> = {
-  bancaire: "Bancaire",
-  fiscal: "Fiscal",
-  salaire: "Salaire",
-  commercial: "Commercial",
-  administratif: "Administratif",
-  autre: "Autre",
-};
-
-// Slugs de type de document les plus courants (fallback = le slug brut, jamais vide).
-const DOC_TYPE_LABEL: Record<string, string> = {
-  facture: "Facture",
-  facture_standard: "Facture",
-  qr_facture: "QR-facture",
-  avoir: "Avoir",
-  acompte: "Acompte",
-  releve_bancaire: "Relevé bancaire",
-  declaration_tva: "Déclaration TVA",
-  fiche_salaire: "Fiche de salaire",
-  contrat: "Contrat",
-  attestation: "Attestation",
-  autre: "Autre",
-};
-
-const DOC_STATUT_CLASSEMENT: Record<string, { label: string; style: string }> = {
-  auto: {
-    label: "Classé automatiquement",
-    style: "bg-violet-50 text-violet-700 ring-violet-600/20",
-  },
-  valide_humain: { label: "Validé", style: "bg-emerald-50 text-emerald-700 ring-emerald-600/20" },
-  corrige_humain: { label: "Corrigé", style: "bg-emerald-50 text-emerald-700 ring-emerald-600/20" },
-  manuel: { label: "Saisi manuellement", style: "bg-slate-100 text-slate-600 ring-slate-500/20" },
-};
-
-const DOC_STATUT_DEFAUT = {
-  label: "Classé",
-  style: "bg-slate-100 text-slate-600 ring-slate-500/20",
-};
-
-const PROPOSITION_STATUT_LABEL: Record<string, string> = {
-  a_valider: "À valider",
-  validee: "Validée",
-  rejetee: "Rejetée",
-};
-
-const FACTURE_STATUT_LABEL: Record<string, string> = {
-  en_attente_validation: "À valider",
-  validee: "Validée",
-  exportee: "Exportée",
-  payee: "Payée",
-  annulee: "Annulée",
-};
-
-const ECHEANCE_STATUT_LABEL: Record<string, string> = {
-  a_venir: "À venir",
-  imminente: "Imminente",
-  en_retard: "En retard",
-  reportee: "Reportée",
-  traitee: "Traitée",
-  annulee: "Annulée",
-};
-
-const ECHEANCE_TYPE_LABEL: Record<string, string> = {
-  fiscale: "Fiscale",
-  tva: "TVA",
-  bouclement: "Bouclement",
-  salaire: "Salaire",
-  relance_documents: "Relance documents",
-  personnalisee: "Personnalisée",
-};
+// C4.1 — tous les libellés FR sont centralisés dans `@/lib/libelles`.
 
 function typeLabel(type: string): string {
-  return DOC_TYPE_LABEL[type] ?? type;
+  return libelleTypeDocument(type);
 }
 
 function formatDate(value: string | null): string {
@@ -124,7 +62,7 @@ export default async function FicheDocumentPage({ params }: { params: Promise<{ 
   if (!detail) notFound();
 
   const { document: doc, extraction_facture, facture_finale, echeance_couverte } = detail;
-  const statutClassement = DOC_STATUT_CLASSEMENT[doc.statut_classement] ?? DOC_STATUT_DEFAUT;
+  const statutClassement = badgeStatutClassement(doc.statut_classement);
 
   return (
     <div className="px-4 py-8 sm:px-6 lg:px-8">
@@ -143,7 +81,7 @@ export default async function FicheDocumentPage({ params }: { params: Promise<{ 
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-slate-900">{doc.libelle}</h1>
             <p className="mt-1 text-sm text-slate-500">
-              {typeLabel(doc.type)} · {DOC_CATEGORIE_LABEL[doc.categorie] ?? doc.categorie}
+              {typeLabel(doc.type)} · {libelleCategorieDocument(doc.categorie)}
               {doc.periode ? ` · ${doc.periode}` : ""}
               {" · "}
               <Link
@@ -156,7 +94,7 @@ export default async function FicheDocumentPage({ params }: { params: Promise<{ 
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${statutClassement.style}`}
+              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${styleFamille(statutClassement.famille)}`}
             >
               {statutClassement.label}
             </span>
@@ -205,9 +143,8 @@ export default async function FicheDocumentPage({ params }: { params: Promise<{ 
             className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
             title={`${echeance_couverte.libelle} · ${formatDate(echeance_couverte.date_echeance)}`}
           >
-            → Échéance couverte :{" "}
-            {ECHEANCE_TYPE_LABEL[echeance_couverte.type] ?? echeance_couverte.type} (
-            {ECHEANCE_STATUT_LABEL[echeance_couverte.statut] ?? echeance_couverte.statut})
+            → Échéance couverte : {libelleTypeEcheance(echeance_couverte.type)} (
+            {libelleStatutEcheance(echeance_couverte.statut)})
           </Link>
         )}
         <Link
@@ -294,8 +231,8 @@ function ExtractionFactureSection({
           )}
           <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-500/20">
             {factureValideeStatut
-              ? (FACTURE_STATUT_LABEL[factureValideeStatut] ?? factureValideeStatut)
-              : (PROPOSITION_STATUT_LABEL[extraction.statut] ?? extraction.statut)}
+              ? libelleStatutFacture(factureValideeStatut)
+              : libelleStatutProposition(extraction.statut)}
           </span>
           {extraction.confiance_globale != null && (
             <span className="text-xs text-slate-500">
@@ -359,10 +296,7 @@ function ClassementSection({ doc }: { doc: DocumentDetail["document"] }) {
       </p>
       <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
         <ClassementItem label="Type" valeur={typeLabel(doc.type)} />
-        <ClassementItem
-          label="Catégorie"
-          valeur={DOC_CATEGORIE_LABEL[doc.categorie] ?? doc.categorie}
-        />
+        <ClassementItem label="Catégorie" valeur={libelleCategorieDocument(doc.categorie)} />
         <ClassementItem label="Période" valeur={doc.periode ?? "—"} />
         <ClassementItem label="Date du document" valeur={formatDate(doc.date_document)} />
         {doc.reference_externe && (

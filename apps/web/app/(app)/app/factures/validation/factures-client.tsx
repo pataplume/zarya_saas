@@ -2,27 +2,12 @@
 
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
+import { libelleAnomalie } from "@/lib/libelles";
 import { type FactureActionState, rejeterFactureAction, validerFactureAction } from "./actions";
 
-/** Libellés lisibles des anomalies (pas de slug brut côté UI). Fallback = le slug. */
-const ANOMALIE_LABEL: Record<string, string> = {
-  incoherence_qr_ia_iban: "⚠️ IBAN du QR ≠ IBAN lu sur la facture — fraude possible (RIB substitué)",
-  iban_invalide: "IBAN invalide",
-  ide_invalide: "IDE fournisseur invalide",
-  tva_incoherente: "TVA incohérente (HT + TVA ≠ TTC)",
-  taux_tva_invalide: "Taux de TVA non standard (CH)",
-  devise_inconnue: "Devise inconnue",
-  montant_invalide: "Montant invalide",
-  montant_eleve: "Montant élevé (à vérifier)",
-  date_emission_implausible: "Date d'émission peu plausible",
-  echeance_avant_emission: "Échéance avant l'émission",
-  extraction_stub: "Extraction de démonstration (non IA)",
-};
-
-/** Libellé lisible d'une anomalie d'extraction (fallback = le slug). Réutilisable (C2.3). */
-export function libelleAnomalie(slug: string): string {
-  return ANOMALIE_LABEL[slug] ?? slug;
-}
+// C4.1 — les libellés d'anomalies vivent désormais dans `@/lib/libelles`. On réexporte
+// `libelleAnomalie` pour ne pas casser les imports existants (fiche document C2.3).
+export { libelleAnomalie };
 
 /** Provenance + confiance d'un champ proposé (ADR 0024). Côté UI (miroir de l'extraction). */
 export interface ConfianceChampUi {

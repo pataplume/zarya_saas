@@ -5,6 +5,7 @@ import {
   ModificationForm,
   SortieForm,
 } from "@/components/salaire/employe-lifecycle-actions";
+import { badgeStatutEmploye, styleFamille } from "@/lib/libelles";
 import {
   getClientReferentielContexte,
   getReferentielEmployes,
@@ -12,18 +13,7 @@ import {
 
 // G7b — Référentiel employé d'un client (vue fiduciaire) : cycle de vie en cours d'année.
 // Sortie / modification (salaire-taux) / archivage inline (server actions G7a). Anti-clair AVS/IBAN.
-const LIBELLE_STATUT: Record<string, string> = {
-  propose: "Proposé",
-  actif: "Actif",
-  sorti: "Sorti",
-  archive: "Archivé",
-};
-const COULEUR_STATUT: Record<string, string> = {
-  propose: "bg-gray-100 text-gray-700",
-  actif: "bg-green-100 text-green-700",
-  sorti: "bg-amber-100 text-amber-700",
-  archive: "bg-gray-200 text-gray-500",
-};
+// C4.1 — libellés/statuts d'employé centralisés dans `@/lib/libelles`.
 
 export default async function ReferentielEmployePage({
   params,
@@ -71,9 +61,11 @@ export default async function ReferentielEmployePage({
                   <span className="ml-2 text-sm text-gray-500">{e.fonction ?? "—"}</span>
                 </div>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${COULEUR_STATUT[e.statut] ?? "bg-gray-100 text-gray-700"}`}
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(
+                    badgeStatutEmploye(e.statut).famille,
+                  )}`}
                 >
-                  {LIBELLE_STATUT[e.statut] ?? e.statut}
+                  {badgeStatutEmploye(e.statut).label}
                 </span>
               </div>
 

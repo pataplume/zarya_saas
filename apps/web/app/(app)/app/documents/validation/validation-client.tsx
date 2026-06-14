@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { libelleAnomalie, libelleTypeDocument } from "@/lib/libelles";
 import { rejeterPropositionAction, validerLotAction, validerPropositionAction } from "./actions";
 
 export type ClientOption = { id: string; raison_sociale: string };
@@ -247,7 +248,7 @@ export function ValidationInbox({
                     {item.nom_fichier ?? "Document sans nom"}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-slate-500">
-                    {item.type_propose ?? "type ?"} ·{" "}
+                    {item.type_propose ? libelleTypeDocument(item.type_propose) : "Type ?"} ·{" "}
                     {item.client_nom ?? (
                       <span className="text-amber-600">client non identifié</span>
                     )}
@@ -270,7 +271,7 @@ export function ValidationInbox({
                         key={a}
                         className="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-600/20"
                       >
-                        {a}
+                        {libelleAnomalie(a)}
                       </span>
                     ))}
                   </div>

@@ -14,6 +14,12 @@ import {
 import { and, asc, count, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  badgeStatutEmail,
+  badgeStatutUpload,
+  libelleSourceIngestion,
+  styleFamille,
+} from "@/lib/libelles";
 import { DocumentsUploader } from "./documents-client";
 import { type HubTab, HubTabs, LienOngletDocuments, ReclasserButton } from "./hub-client";
 import { type InboxItem, ValidationInbox } from "./validation/validation-client";
@@ -23,52 +29,7 @@ import { type InboxItem, ValidationInbox } from "./validation/validation-client"
 // « Emails reçus » (?tab=). Toutes les queries sont scopées cabinet_id
 // (frontière de sécurité réelle sur le chemin service-role — ADR 0005 addendum).
 
-// ─── Libellés & styles de statut ───────────────────────────────────────────────
-
-const STATUT_DOC: Record<string, { label: string; style: string }> = {
-  recu: {
-    label: "Classification en attente",
-    style: "bg-amber-50 text-amber-700 ring-amber-600/20",
-  },
-  en_classification: {
-    label: "En classification",
-    style: "bg-violet-50 text-violet-700 ring-violet-600/20",
-  },
-  a_valider: { label: "À valider", style: "bg-amber-50 text-amber-700 ring-amber-600/20" },
-  valide: { label: "Validé", style: "bg-emerald-50 text-emerald-700 ring-emerald-600/20" },
-  rejete: { label: "Rejeté", style: "bg-rose-50 text-rose-700 ring-rose-600/20" },
-  doublon: { label: "Doublon", style: "bg-slate-100 text-slate-600 ring-slate-500/20" },
-  erreur: { label: "Échec", style: "bg-rose-50 text-rose-700 ring-rose-600/20" },
-};
-
-const STATUT_DOC_DEFAUT = {
-  label: "Inconnu",
-  style: "bg-slate-100 text-slate-600 ring-slate-500/20",
-};
-
-const SOURCE_LABEL: Record<string, string> = {
-  email_microsoft: "Email",
-  email_autre: "Email",
-  nas: "NAS",
-  upload_fiduciaire: "Upload",
-  upload_client: "Client",
-  api: "API",
-  import_manuel: "Import",
-};
-
-const STATUT_EMAIL_LABEL: Record<string, string> = {
-  recu: "En attente",
-  traite: "Traité",
-  ignore: "Sans pièce utile",
-  erreur: "Erreur",
-};
-
-const STATUT_EMAIL_STYLE: Record<string, string> = {
-  recu: "bg-blue-50 text-blue-700 ring-blue-600/20",
-  traite: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  ignore: "bg-slate-100 text-slate-600 ring-slate-500/20",
-  erreur: "bg-rose-50 text-rose-700 ring-rose-600/20",
-};
+// ─── Libellés & styles de statut (centralisés dans `@/lib/libelles`, C4.1) ───────
 
 function formatTaille(octets: number): string {
   if (octets < 1024) return `${octets} o`;
@@ -131,7 +92,7 @@ type UploadRow = {
 
 function sourceUpload(u: UploadRow): string {
   if (u.email_brut_id) return `Email · de ${u.email_from ?? "expéditeur inconnu"}`;
-  return SOURCE_LABEL[u.source] ?? u.source;
+  return libelleSourceIngestion(u.source);
 }
 
 function DocumentsTable({ uploads, peutAgir }: { uploads: UploadRow[]; peutAgir: boolean }) {
@@ -176,8 +137,8 @@ function DocumentsTable({ uploads, peutAgir }: { uploads: UploadRow[]; peutAgir:
         </thead>
         <tbody className="divide-y divide-slate-100">
           {uploads.map((u) => {
-            const statut = STATUT_DOC[u.statut] ?? STATUT_DOC_DEFAUT;
-            const badge = `inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statut.style}`;
+            const statut = badgeStatutUpload(u.statut);
+            const badge = `inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(statut.famille)}`;
             const reclassable = peutAgir && (u.statut === "recu" || u.statut === "erreur");
             return (
               <tr key={u.id} className="hover:bg-slate-50">
@@ -355,14 +316,18 @@ function EmailsTable({
                   {formatDate(e.received_at)}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
-                      STATUT_EMAIL_STYLE[e.statut] ??
-                      "bg-slate-100 text-slate-600 ring-slate-500/20"
-                    }`}
-                  >
-                    {STATUT_EMAIL_LABEL[e.statut] ?? e.statut}
-                  </span>
+                  {(() => {
+                    const badge = badgeStatutEmail(e.statut);
+                    return (
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(
+                          badge.famille,
+                        )}`}
+                      >
+                        {badge.label}
+                      </span>
+                    );
+                  })()}
                 </td>
               </tr>
             );

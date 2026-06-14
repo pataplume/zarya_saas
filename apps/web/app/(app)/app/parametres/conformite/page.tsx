@@ -2,22 +2,11 @@ import { getCurrentUser } from "@zarya/auth";
 import { client, db, demandeSuppression } from "@zarya/db";
 import { and, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { badgeStatutDemandeRgpd, styleFamille } from "@/lib/libelles";
 
 // Demandes RGPD : visibilité côté cabinet des demandes de suppression émises par les
 // clients (droit à l'effacement, droits-personnes.md). Scopé cabinet_id du JWT, cible='client'.
-const LIBELLE_STATUT: Record<string, string> = {
-  nouvelle: "Nouvelle",
-  en_cours: "En cours",
-  traitee: "Traitée",
-  rejetee: "Rejetée",
-};
-
-const CLASSE_STATUT: Record<string, string> = {
-  nouvelle: "bg-amber-100 text-amber-800",
-  en_cours: "bg-blue-100 text-blue-800",
-  traitee: "bg-green-100 text-green-800",
-  rejetee: "bg-gray-100 text-gray-700",
-};
+// C4.1 — libellés/statuts centralisés dans `@/lib/libelles`.
 
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat("fr-CH", {
@@ -116,11 +105,11 @@ export default async function ConformitePage() {
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        CLASSE_STATUT[demande.statut] ?? "bg-gray-100 text-gray-700"
-                      }`}
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(
+                        badgeStatutDemandeRgpd(demande.statut).famille,
+                      )}`}
                     >
-                      {LIBELLE_STATUT[demande.statut] ?? demande.statut}
+                      {badgeStatutDemandeRgpd(demande.statut).label}
                     </span>
                   </td>
                 </tr>
