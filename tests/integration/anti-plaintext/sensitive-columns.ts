@@ -56,6 +56,21 @@ export const SENSITIVE_COLUMNS: SensitiveColumn[] = [
     note: "IBAN de paiement (E5a, migration 0030). Vault.",
   },
   {
+    schema: "facture",
+    table: "proposition_facture",
+    column: "iban_paiement_vault_id",
+    mechanism: "vault",
+    forbiddenPlaintextColumns: ["iban", "iban_paiement"],
+    note: "IBAN-du-QR au Vault dès la proposition (C6.1, ADR 0024 §5, migration 0051). Vault.",
+  },
+  {
+    schema: "facture",
+    table: "proposition_facture",
+    column: "iban_paiement_masque",
+    mechanism: "clair_accepte",
+    note: "IBAN masqué pour affichage (ex. CH.. .....012), jamais l'IBAN complet (C6.1, migration 0051).",
+  },
+  {
     schema: "salaire",
     table: "employe",
     column: "numero_avs_vault_id",
