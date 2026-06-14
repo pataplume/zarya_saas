@@ -132,7 +132,7 @@ export const fichierPhysique = docSchema.table(
     upload_brut_id: uuid("upload_brut_id").references(() => uploadBrut.id, {
       onDelete: "set null",
     }),
-    // doc.email_brut différé (Phase 4) — uuid simple sans FK pour l'instant
+    // Lien souple vers doc.email_brut (flux email entrant) — uuid sans FK (lien volontairement lâche).
     email_brut_id: uuid("email_brut_id"),
     source: sourceIngestionEnum("source").notNull(),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -167,7 +167,7 @@ export const propositionClassement = docSchema.table(
     client_id_propose: uuid("client_id_propose").references(() => client.id, {
       onDelete: "set null",
     }),
-    // crm.document_attendu différé (Phase 4) — uuid simple sans FK
+    // Lien souple vers crm.document_attendu — uuid sans FK (cross-schema doc.* → crm.*).
     document_attendu_id_propose: uuid("document_attendu_id_propose"),
     periode_proposee: text("periode_proposee"),
     libelle_propose: text("libelle_propose"),
@@ -221,7 +221,7 @@ export const document = docSchema.table(
     // ── Classification ──
     type: text("type").notNull(), // slug standardisé
     categorie: categorieDocumentEnum("categorie").notNull(),
-    // crm.document_attendu différé (Phase 4) — uuid simple sans FK
+    // Lien souple vers crm.document_attendu — uuid sans FK (cross-schema doc.* → crm.*).
     document_attendu_id: uuid("document_attendu_id"),
     periode: text("periode"),
     date_document: date("date_document"),
@@ -233,7 +233,7 @@ export const document = docSchema.table(
     // ── Statut ──
     statut_classement: statutClassementEnum("statut_classement").notNull(),
     confiance_classement: numeric("confiance_classement", { precision: 3, scale: 2 }),
-    // ── Liens vers modules différés (facture.facture, salaire.periode — Phase 4) ──
+    // ── Liens souples vers facture.facture / salaire.periode — uuid sans FK (cross-schema). ──
     facture_id: uuid("facture_id"),
     salaire_periode_id: uuid("salaire_periode_id"),
     // ── Audit ──

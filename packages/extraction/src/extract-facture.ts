@@ -124,9 +124,10 @@ function normaliserIban(iban: string): string {
  *
  * ⚠️ IBAN (ADR 0013) : l'IBAN issu du QR est porté ici sur la proposition EN MÉMOIRE (pour la
  * détection d'anomalies), mais le pipeline E3b le RETIRE avant d'écrire proposition_facture
- * (jamais d'IBAN en clair au repos). L'IBAN-from-QR au Vault à la finalisation est différé au
- * Lot 2 ; le Lot 1 n'alimente que les champs déterministes NON sensibles (montant, référence,
- * devise) + le flag qr_facture_detecte.
+ * (jamais d'IBAN en clair au repos). L'IBAN déterministe du QR est en outre chiffré au Vault dès
+ * la proposition par le pipeline (C6.1, ADR 0024 §5 : iban_paiement_vault_id + iban_paiement_masque).
+ * applyQrBill, lui, reste PUR : il n'alimente que la proposition en mémoire (montant, référence,
+ * devise, IBAN pour anomalies) + le flag qr_facture_detecte.
  */
 export function applyQrBill(
   proposal: FactureProposal,
