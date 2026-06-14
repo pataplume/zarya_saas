@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAuth } from "@zarya/auth";
-import { db, propositionFacture } from "@zarya/db";
+import { db, propositionFacture, vaultGetSecret } from "@zarya/db";
 import { finaliserFacture } from "@zarya/extraction";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -92,6 +92,8 @@ export async function validerFactureAction(
       id: propositionFacture.id,
       client_id: propositionFacture.client_id,
       statut: propositionFacture.statut,
+      // IBAN-du-QR au Vault dès la proposition (C6.1) : on charge l'UUID du secret (scopé cabinet).
+      iban_paiement_vault_id: propositionFacture.iban_paiement_vault_id,
     })
     .from(propositionFacture)
     .where(
@@ -103,6 +105,14 @@ export async function validerFactureAction(
     .limit(1);
   if (!prop) return { error: "Proposition introuvable." };
   if (prop.statut !== "a_valider") return { error: "Proposition déjà traitée." };
+
+  // IBAN de paiement : un IBAN saisi à la main PRIME (l'humain corrige). Sinon, si la proposition
+  // porte un IBAN-du-QR au Vault, on le déchiffre EN MÉMOIRE (clair transitoire, jamais persisté
+  // ni loggé) et on le passe à finaliserFacture (qui re-valide + re-chiffre pour la facture finale).
+  let ibanPaiement = v.iban_paiement ?? null;
+  if (!ibanPaiement && prop.iban_paiement_vault_id) {
+    ibanPaiement = await vaultGetSecret(prop.iban_paiement_vault_id);
+  }
 
   try {
     const res = await finaliserFacture({
@@ -125,7 +135,7 @@ export async function validerFactureAction(
       montant_a_payer: v.montant_a_payer,
       taux_tva_principal: v.taux_tva_principal ?? null,
       devise: v.devise,
-      iban_paiement: v.iban_paiement ?? null,
+      iban_paiement: ibanPaiement,
       categorie: v.categorie ?? null,
       compte_charge: v.compte_charge,
       acteur_id: id,

@@ -8,12 +8,14 @@
 //  4. crée facture.proposition_facture (pattern proposition → validation, ADR 0007).
 //
 // SÉCURITÉ IBAN (ADR 0013) : l'IBAN proposé n'est JAMAIS persisté en clair au stade
-// proposition. Il est retiré de fournisseur_propose_data ET de qr_facture_data avant insert ;
-// l'IBAN authoritatif rejoindra Supabase Vault (anti-clair) à la création de l'entité finale
-// facture.fournisseur/facture.facture (E5). Les autres données QR (montant, devise, référence,
-// créancier) ne sont pas sensibles et sont conservées.
+// proposition. Il est retiré de fournisseur_propose_data ET de qr_facture_data avant insert.
+// NOUVEAU (C6.1, ADR 0024 §5) : l'IBAN DÉTERMINISTE du QR-bill est chiffré au Vault dès la
+// proposition (colonnes iban_paiement_vault_id + iban_paiement_masque) — le validateur voit le
+// masque au lieu de le retaper, et l'IBAN clair est réutilisé à la finalisation. L'IBAN de l'IA,
+// lui, reste stripé (non persisté). Les autres données QR (montant, devise, référence, créancier)
+// ne sont pas sensibles et sont conservées.
 
-import { db, invocation, propositionFacture } from "@zarya/db";
+import { db, invocation, propositionFacture, vaultCreateSecret } from "@zarya/db";
 import { type ExtractionMode, resolveExtractionModeForCabinet } from "./classifier";
 import { mapErrorToInvocationStatus } from "./classify-document";
 import { mimePeutPorterQr, natureFichierDepuisMime } from "./detect-nature-fichier";
@@ -26,7 +28,14 @@ import {
   STUB_FACTURE_PROMPT_VERSION,
   withDetectedAnomalies,
 } from "./extract-facture";
-import { decodeQrFromDocument, type QrBillDecodeResult, type QrPayloadExtractor } from "./qr-bill";
+import { masqueIban } from "./finalize-facture";
+import {
+  decodeQrFromDocument,
+  isValidIban,
+  normalizeIban,
+  type QrBillDecodeResult,
+  type QrPayloadExtractor,
+} from "./qr-bill";
 
 export interface ExtraireFactureInput {
   cabinet_id: string;
@@ -170,6 +179,32 @@ export async function extraireFactureDepuisDocument(
       ? null
       : (({ iban: _ibanQr, ...rest }) => rest)(proposal.qr_facture_data);
 
+  // 4bis. IBAN-DU-QR au Vault dès la proposition (C6.1, ADR 0024 §5). SEUL l'IBAN déterministe
+  // du QR-bill est concerné (l'IBAN IA reste stripé, jamais persisté). On chiffre le clair au
+  // Vault et on ne garde que l'UUID du secret + un masque d'affichage — jamais d'IBAN en clair
+  // au repos (ADR 0013). Best-effort : si le chiffrement échoue, la proposition est créée SANS
+  // (comme avant) et l'extraction n'est pas cassée.
+  let ibanPaiementVaultId: string | null = null;
+  let ibanPaiementMasque: string | null = null;
+  const ibanQr =
+    proposal.qr_facture_detecte && proposal.qr_facture_data
+      ? normalizeIban(proposal.qr_facture_data.iban)
+      : null;
+  if (ibanQr && isValidIban(ibanQr)) {
+    try {
+      ibanPaiementVaultId = await vaultCreateSecret(
+        ibanQr,
+        `iban:proposition:${input.document_id}`,
+        "IBAN de paiement issu du QR-bill (proposition)",
+      );
+      ibanPaiementMasque = masqueIban(ibanQr);
+    } catch {
+      // Best-effort : pas de Vault → proposition sans IBAN (le validateur saisira à la main).
+      ibanPaiementVaultId = null;
+      ibanPaiementMasque = null;
+    }
+  }
+
   const [proposition] = await db
     .insert(propositionFacture)
     .values({
@@ -192,6 +227,8 @@ export async function extraireFactureDepuisDocument(
       categorie_proposee: proposal.categorie_comptable,
       qr_facture_detecte: proposal.qr_facture_detecte,
       qr_facture_data: qrDataSansIban,
+      iban_paiement_vault_id: ibanPaiementVaultId,
+      iban_paiement_masque: ibanPaiementMasque,
       confiance_globale: num(proposal.confiance_globale),
       confiance_par_champ: proposal.confiance_par_champ,
       anomalies_detectees: proposal.anomalies,

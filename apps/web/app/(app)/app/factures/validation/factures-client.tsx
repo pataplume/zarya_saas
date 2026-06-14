@@ -64,6 +64,10 @@ export interface FactureItem {
   devise: string;
   categorie: string;
   qr_facture_detecte: boolean;
+  /** L'IBAN-du-QR est chiffré au Vault dès la proposition (C6.1) → pré-rempli, pas retapé. */
+  a_iban_qr: boolean;
+  /** Masque d'affichage de l'IBAN-du-QR (ex. ****9012), jamais l'IBAN complet ni le vault_id. */
+  iban_paiement_masque: string;
   anomalies: string[];
   confiance_globale: number | null;
   /** Provenance + confiance par champ (normalisée, ADR 0024). */
@@ -234,13 +238,17 @@ function FactureCard({ f, peutValider }: { f: FactureItem; peutValider: boolean 
             def={f.fournisseur_ide}
             prov={prov("fournisseur_ide")}
           />
-          <Field
-            label="IBAN (à saisir)"
-            name="fournisseur_iban"
-            def=""
-            placeholder="CHxx…"
-            prov={prov("iban")}
-          />
+          {f.a_iban_qr ? (
+            <IbanQrField masque={f.iban_paiement_masque} />
+          ) : (
+            <Field
+              label="IBAN (à saisir)"
+              name="fournisseur_iban"
+              def=""
+              placeholder="CHxx…"
+              prov={prov("iban")}
+            />
+          )}
           <Field
             label="N° TVA"
             name="fournisseur_numero_tva"
@@ -347,6 +355,53 @@ function FactureCard({ f, peutValider }: { f: FactureItem; peutValider: boolean 
         </form>
       ) : null}
     </li>
+  );
+}
+
+/**
+ * Affichage de l'IBAN issu du QR-bill (C6.1, ADR 0024 §5). L'IBAN est au Vault dès la
+ * proposition : le validateur voit le MASQUE (jamais le clair ni le vault_id) avec un badge
+ * « QR ✓ » et confirme sans retaper. À la validation, l'action récupère le clair depuis le Vault
+ * si aucun IBAN n'est saisi (cf. validerFactureAction). Le validateur peut TOUT DE MÊME corriger :
+ * révéler un champ `fournisseur_iban` qui, s'il est rempli, prime sur l'IBAN du QR.
+ */
+function IbanQrField({ masque }: { masque: string }) {
+  const [corriger, setCorriger] = useState(false);
+  if (corriger) {
+    return (
+      <label className="flex flex-col gap-1">
+        <span className="flex items-center gap-1.5 text-gray-600">
+          <span>IBAN</span>
+          <ChampBadge prov={{ source: "qr", confiance: 1 }} />
+        </span>
+        <input
+          name="fournisseur_iban"
+          defaultValue=""
+          placeholder="CHxx…"
+          className="rounded border px-2 py-1"
+        />
+      </label>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="flex items-center gap-1.5 text-gray-600">
+        <span>IBAN</span>
+        <ChampBadge prov={{ source: "qr", confiance: 1 }} />
+      </span>
+      <div className="flex items-center justify-between gap-2 rounded border border-emerald-200 bg-emerald-50 px-2 py-1">
+        <span className="font-mono text-emerald-900" title="IBAN issu du QR-bill">
+          {masque || "IBAN au coffre"}
+        </span>
+        <button
+          type="button"
+          onClick={() => setCorriger(true)}
+          className="shrink-0 text-xs text-blue-600 hover:underline"
+        >
+          Corriger
+        </button>
+      </div>
+    </div>
   );
 }
 

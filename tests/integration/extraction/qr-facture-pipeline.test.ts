@@ -6,14 +6,21 @@
  *  - la proposition_facture créée a qr_facture_detecte=true ;
  *  - les champs déterministes NON sensibles viennent du QR (montant, devise, référence) ;
  *  - ANTI-CLAIR (ADR 0013) : aucun IBAN en clair dans la ligne (ni fournisseur_propose_data,
- *    ni qr_facture_data, ni le JSON sérialisé complet).
+ *    ni qr_facture_data, ni le JSON sérialisé complet) ;
+ *  - C6.1 (ADR 0024 §5) : l'IBAN-DU-QR est chiffré au Vault DÈS la proposition
+ *    (iban_paiement_vault_id NON NULL + iban_paiement_masque renseigné, ne révélant que les
+ *    4 derniers caractères) ; sans QR, aucun vault_id (l'IBAN IA n'est jamais persisté).
  *
  * Le décodeur image lui-même (octets → payload) est couvert par le test UNIT decode-qr.test.ts.
  * Ici on valide le CÂBLAGE du payload jusqu'à la persistance, sans I/O réseau (stub + QR injecté).
  *
  * Références : KICKOFF § BLOC E (QR-bill scan) · ADR 0013 · ADR 0020 · facture.md §4.4.
  */
-import { extraireFactureDepuisDocument, StubFactureExtractor } from "@zarya/extraction";
+import {
+  extraireFactureDepuisDocument,
+  type FactureExtractor,
+  StubFactureExtractor,
+} from "@zarya/extraction";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { createServiceClient } from "../helpers/rls";
 import {
@@ -113,7 +120,7 @@ describe("Lot 1 — QR lu depuis l'image alimente proposition_facture", () => {
     const [prop] = await sql`
       SELECT cabinet_id, client_id, statut, type_propose, devise_proposee,
              montant_a_payer_propose, qr_facture_detecte, fournisseur_propose_data,
-             qr_facture_data
+             qr_facture_data, iban_paiement_vault_id, iban_paiement_masque
         FROM facture.proposition_facture WHERE id = ${r.proposition_id}
     `;
 
@@ -129,9 +136,64 @@ describe("Lot 1 — QR lu depuis l'image alimente proposition_facture", () => {
     expect(Number(prop?.montant_a_payer_propose)).toBe(1949.75);
     expect(prop?.qr_facture_data?.reference?.value).toBe("210000000003139471430009017");
 
+    // C6.1 (ADR 0024 §5) : l'IBAN-du-QR est chiffré au Vault dès la proposition.
+    expect(prop?.iban_paiement_vault_id).not.toBeNull();
+    // Le masque ne révèle QUE les 4 derniers caractères (jamais l'IBAN complet).
+    expect(prop?.iban_paiement_masque).toBe(`****${QR_IBAN.slice(-4)}`);
+
     // ANTI-CLAIR (ADR 0013) : l'IBAN du QR n'est JAMAIS persisté en clair.
     expect("iban" in (prop?.fournisseur_propose_data ?? {})).toBe(false);
     expect("iban" in (prop?.qr_facture_data ?? {})).toBe(false);
     expect(JSON.stringify(prop)).not.toContain(QR_IBAN);
+  });
+
+  test("sans QR (IBAN proposé par l'IA) : aucun vault_id ; IBAN IA non persisté", async () => {
+    const fichier = await seedFichierPhysique(sql, cabinetA.id);
+    const doc = await seedDocument(sql, cabinetA.id, clientA.id, fichier.id);
+
+    // Extracteur stub qui PROPOSE un IBAN (simule l'IA) mais sans QR-bill (qrExtract → null).
+    const IBAN_IA = "CH4431999123000889012";
+    const stubAvecIban: FactureExtractor = {
+      mode: "stub",
+      async extract(inputExtract) {
+        const base = await new StubFactureExtractor().extract(inputExtract);
+        return {
+          ...base,
+          proposal: {
+            ...base.proposal,
+            fournisseur: { ...base.proposal.fournisseur, iban: IBAN_IA },
+          },
+        };
+      },
+    };
+
+    const r = await extraireFactureDepuisDocument(
+      {
+        cabinet_id: cabinetA.id,
+        client_id: clientA.id,
+        document_id: doc.id,
+        fichier_physique_id: fichier.id,
+        nom_fichier: "facture_sans_qr.pdf",
+        type_mime: "application/pdf",
+      },
+      stubAvecIban,
+      // Aucun payload QR (couche image différée) → fallback IA, pas de QR détecté.
+      async () => null,
+    );
+
+    expect(r.qr_detecte).toBe(false);
+
+    const [prop] = await sql`
+      SELECT qr_facture_detecte, iban_paiement_vault_id, iban_paiement_masque,
+             fournisseur_propose_data
+        FROM facture.proposition_facture WHERE id = ${r.proposition_id}
+    `;
+
+    // Pas de QR → pas de Vault ; l'IBAN proposé par l'IA n'est jamais persisté.
+    expect(prop?.qr_facture_detecte).toBe(false);
+    expect(prop?.iban_paiement_vault_id).toBeNull();
+    expect(prop?.iban_paiement_masque).toBeNull();
+    expect("iban" in (prop?.fournisseur_propose_data ?? {})).toBe(false);
+    expect(JSON.stringify(prop)).not.toContain(IBAN_IA);
   });
 });

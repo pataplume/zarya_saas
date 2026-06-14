@@ -11,7 +11,9 @@ import {
 // File des factures à valider — module Facture (facture.md §6, Bloc E5b).
 // Lit facture.proposition_facture (statut a_valider) scopée cabinet_id (frontière de
 // sécurité réelle sur le chemin service-role — ADR 0005 addendum), jointe au client.
-// L'IBAN n'est PAS proposé (stripé en E3b, ADR 0013) : le validateur le saisit.
+// IBAN (ADR 0013) : l'IBAN de l'IA reste stripé (le validateur le saisit). L'IBAN-DU-QR, lui,
+// est au Vault dès la proposition (C6.1) : on n'envoie au client QUE le masque d'affichage +
+// un booléen `a_iban_qr` (jamais le vault_id ni le clair).
 
 function n(v: string | null): number | null {
   return v === null ? null : Number(v);
@@ -49,6 +51,9 @@ export default async function FacturesValidationPage() {
       devise_proposee: propositionFacture.devise_proposee,
       categorie_proposee: propositionFacture.categorie_proposee,
       qr_facture_detecte: propositionFacture.qr_facture_detecte,
+      // IBAN-du-QR (C6.1) : on lit le masque + l'existence du secret Vault (PAS le vault_id lui-même).
+      iban_paiement_masque: propositionFacture.iban_paiement_masque,
+      iban_paiement_vault_id: propositionFacture.iban_paiement_vault_id,
       anomalies_detectees: propositionFacture.anomalies_detectees,
       confiance_globale: propositionFacture.confiance_globale,
       confiance_par_champ: propositionFacture.confiance_par_champ,
@@ -85,6 +90,10 @@ export default async function FacturesValidationPage() {
       devise: r.devise_proposee ?? "CHF",
       categorie: r.categorie_proposee ?? "",
       qr_facture_detecte: r.qr_facture_detecte,
+      // IBAN-du-QR au Vault (C6.1) : on n'expose JAMAIS le vault_id ni le clair au client, seulement
+      // le masque + un booléen dérivé côté serveur.
+      a_iban_qr: r.iban_paiement_vault_id !== null,
+      iban_paiement_masque: r.iban_paiement_masque ?? "",
       anomalies: r.anomalies_detectees ?? [],
       confiance_globale: n(r.confiance_globale),
       confiance_par_champ: normaliserConfianceParChamp(r.confiance_par_champ),

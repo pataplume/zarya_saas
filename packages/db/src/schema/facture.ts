@@ -113,6 +113,11 @@ export const propositionFacture = factureSchema.table(
     categorie_proposee: text("categorie_proposee"),
     qr_facture_detecte: boolean("qr_facture_detecte").notNull().default(false),
     qr_facture_data: jsonb("qr_facture_data"),
+    // IBAN-du-QR au Vault dès la proposition (ADR 0024 §5, C6.1) : l'IBAN déterministe du QR-bill
+    // est chiffré (Vault, UUID du secret) ; le masque sert à l'affichage (non sensible). L'IBAN
+    // de l'IA reste stripé. Jamais d'IBAN en clair au repos (ADR 0013).
+    iban_paiement_vault_id: uuid("iban_paiement_vault_id"),
+    iban_paiement_masque: text("iban_paiement_masque"),
     confiance_globale: numeric("confiance_globale", { precision: 3, scale: 2 }),
     confiance_par_champ: jsonb("confiance_par_champ"),
     anomalies_detectees: text("anomalies_detectees").array(),

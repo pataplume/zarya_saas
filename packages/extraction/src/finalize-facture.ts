@@ -83,8 +83,13 @@ function num(v: number | null | undefined, scale = 2): string | null {
   return v === null || v === undefined ? null : v.toFixed(scale);
 }
 
-/** 4 derniers caractères d'un IBAN normalisé (pour trace audit sans clair). */
-function masqueIban(iban: string): string {
+/**
+ * Masque d'affichage d'un IBAN normalisé : ne révèle QUE les 4 derniers caractères
+ * (jamais l'IBAN complet). Sert aux traces d'audit (fraude RIB) ET à l'affichage du
+ * validateur quand l'IBAN-du-QR est au Vault (C6.1, ADR 0024 §5). Exporté pour réutilisation
+ * par le pipeline d'extraction (proposition).
+ */
+export function masqueIban(iban: string): string {
   const n = normalizeIban(iban);
   return n.length >= 4 ? `****${n.slice(-4)}` : "****";
 }
