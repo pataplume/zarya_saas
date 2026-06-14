@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { libelleStatutClient, libelleTypeClient } from "@/lib/libelles";
 import {
   archiverClientAction,
   type ClientActionState,
@@ -17,25 +18,14 @@ type Props = {
   isResponsable: boolean;
 };
 
-const STATUT_LABEL: Record<string, string> = {
-  prospect: "Prospect",
-  actif: "Actif",
-  inactif: "Inactif",
-  archive: "Archivé",
-};
-
+// C4.1 — les libellés de statut/type client sont centralisés dans `@/lib/libelles`.
+// Le style du badge statut et le badge de risque restent locaux (palette propre à la
+// table : `orange` pour « élevé », libellés courts).
 const STATUT_STYLE: Record<string, string> = {
   prospect: "bg-blue-50 text-blue-700 ring-blue-600/20",
   actif: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
   inactif: "bg-slate-100 text-slate-600 ring-slate-500/20",
   archive: "bg-slate-100 text-slate-500 ring-slate-400/20",
-};
-
-const TYPE_LABEL: Record<string, string> = {
-  pme: "PME",
-  independant: "Indépendant",
-  prive: "Privé",
-  association: "Association",
 };
 
 // Risque : libellé + style + symbole (jamais couleur seule, cf. UX § « pas de couleur seule »).
@@ -297,7 +287,7 @@ function DisplayRow({
 
       {/* Type */}
       <span className="text-sm text-gray-600">
-        {client.type ? (TYPE_LABEL[client.type] ?? client.type) : "—"}
+        {client.type ? libelleTypeClient(client.type) : "—"}
       </span>
 
       {/* Statut */}
@@ -305,7 +295,7 @@ function DisplayRow({
         <span
           className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${statutStyle}`}
         >
-          {STATUT_LABEL[client.statut] ?? client.statut}
+          {libelleStatutClient(client.statut)}
         </span>
       </span>
 

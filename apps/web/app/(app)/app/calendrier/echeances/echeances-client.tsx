@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import {
+  badgeStatutEcheance,
+  libelleStatutEcheance,
+  libelleTypeEcheance,
+  styleFamille,
+} from "@/lib/libelles";
 import { annulerEcheanceAction, marquerTraiteeAction, reporterEcheanceAction } from "./actions";
 
 export interface EcheanceRow {
@@ -17,15 +23,6 @@ export interface EcheanceRow {
   reporte_a: string | null;
   motif_report: string | null;
 }
-
-const STATUT_COULEUR: Record<string, string> = {
-  a_venir: "bg-gray-100 text-gray-700",
-  imminente: "bg-amber-100 text-amber-800",
-  en_retard: "bg-red-100 text-red-800",
-  traitee: "bg-green-100 text-green-800",
-  reportee: "bg-blue-100 text-blue-800",
-  annulee: "bg-gray-100 text-gray-400 line-through",
-};
 
 const STATUTS_ACTIONNABLES = new Set(["a_venir", "imminente", "en_retard"]);
 
@@ -73,7 +70,7 @@ export function EcheancesListe({
             <option value="">Tous</option>
             {statuts.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {libelleStatutEcheance(s)}
               </option>
             ))}
           </select>
@@ -84,7 +81,7 @@ export function EcheancesListe({
             <option value="">Tous</option>
             {types.map((t) => (
               <option key={t} value={t}>
-                {t}
+                {libelleTypeEcheance(t)}
               </option>
             ))}
           </select>
@@ -135,7 +132,7 @@ export function EcheancesListe({
                     {e.client_nom ?? "—"}
                   </Link>
                 </td>
-                <td>{e.type}</td>
+                <td>{libelleTypeEcheance(e.type)}</td>
                 <td>
                   {e.libelle}
                   {e.statut === "reportee" && e.reporte_a && (
@@ -144,9 +141,11 @@ export function EcheancesListe({
                 </td>
                 <td>
                   <span
-                    className={`rounded px-2 py-0.5 text-xs ${STATUT_COULEUR[e.statut] ?? "bg-gray-100"}`}
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(
+                      badgeStatutEcheance(e.statut).famille,
+                    )} ${e.statut === "annulee" ? "line-through" : ""}`}
                   >
-                    {e.statut}
+                    {libelleStatutEcheance(e.statut)}
                   </span>
                 </td>
                 {peutAgir && (

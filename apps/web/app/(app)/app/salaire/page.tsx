@@ -2,6 +2,7 @@ import { getCurrentUser } from "@zarya/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LancerCampagneForm } from "@/components/salaire/campagne-form";
+import { libelleStatutPeriode } from "@/lib/libelles";
 import { getKpisFiduciaire, getPeriodesFiduciaire } from "@/lib/salaire-fiduciaire-data";
 
 // G4a — Dashboard Salaire fiduciaire (lecture) : KPIs du mois + tableau par client.
@@ -19,16 +20,6 @@ const MOIS_FR = [
   "novembre",
   "décembre",
 ];
-const LIBELLE_STATUT: Record<string, string> = {
-  non_demandee: "Non demandée",
-  en_attente: "En attente",
-  relancee: "Relancée",
-  validee: "Validée client",
-  en_retard: "En retard",
-  exportee: "Exportée",
-  cloturee: "Clôturée",
-  non_applicable: "Sans objet",
-};
 
 export default async function SalaireFiduciairePage({
   searchParams,
@@ -119,9 +110,7 @@ export default async function SalaireFiduciairePage({
                         {p.raison_sociale}
                       </Link>
                     </td>
-                    <td className="px-4 py-2 text-gray-600">
-                      {LIBELLE_STATUT[p.statut] ?? p.statut}
-                    </td>
+                    <td className="px-4 py-2 text-gray-600">{libelleStatutPeriode(p.statut)}</td>
                     <td className="px-4 py-2 text-gray-600">{p.nb_employes_concernes}</td>
                     <td className="px-4 py-2 text-gray-600">{p.nb_changements_declares}</td>
                     <td className="px-4 py-2 text-gray-600">{p.nb_pieces}</td>
