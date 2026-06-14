@@ -8,7 +8,7 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 
 **Stack** : Next.js 15+, TypeScript end-to-end strict, Supabase (Postgres + Auth + Storage + Vault + pgvector), Drizzle ORM, **Infomaniak AI Services** (Qwen3.5-122B, Ministral-3-14B, Bge embeddings — souveraineté suisse, API OpenAI-compatible), Microsoft Graph, Tailwind + shadcn/ui.
 
-**Hébergement** : eu-central-1 (Frankfurt) exclusivement pour le MVP. Aucune donnée hors UE.
+**Hébergement** : données au repos sur Supabase **eu-central-2 (Zurich, Suisse)** ; compute / cron sur **Vercel fra1 (Frankfurt, UE)** ; couche IA sur **Infomaniak AI Services (Suisse)**. Aucune donnée hors Suisse / UE — la Suisse est un pays tiers **adéquat** (RGPD art. 45). Voir l'amendement de l'`ADR 0001`.
 
 **Documentation produit** : `/docs/` contient 64 fichiers spécifiant tous les modules, schémas DB, intégrations, ADR, et conformité. À consulter avant tout code.
 
@@ -156,58 +156,70 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 | `/docs/data-model/[schema].md` | Avant de créer/modifier des tables |
 | `/docs/flows/[flow].md` | Pour comprendre un parcours utilisateur |
 
-## Référence des ADR (10 décisions actées)
+## Référence des ADR (24 décisions actées)
 
-- **ADR 0001** : Résidence des données en UE (Frankfurt)
-- **ADR 0002** : Stack Next.js + TypeScript end-to-end
-- ~~**ADR 0003** : LLM via Bedrock eu-central-1~~ → **remplacée par ADR 0010**
-- **ADR 0004** : Supabase Cloud Pro jusqu'à 100 cabinets
-- **ADR 0005** : Multi-tenant natif dès le MVP
+- **ADR 0001** : Résidence des données (amendée — au repos en Suisse, Supabase eu-central-2/Zurich ; compute UE/Vercel fra1)
+- **ADR 0002** : Stack backend Next.js + TypeScript end-to-end
+- ~~**ADR 0003** : LLM via Amazon Bedrock (eu-central-1)~~ → **remplacée par ADR 0010**
+- **ADR 0004** : Supabase Cloud vs self-hosted Postgres
+- **ADR 0005** : Multi-tenant natif dès le MVP (`crm.cabinet` au sommet ; addendum : `db` app bypasse la RLS)
 - **ADR 0006** : Onboarding fiduciaire self-service
-- **ADR 0007** : Validation granulaire champ par champ pour employés
-- **ADR 0008** : Mini-dashboard client dédié
+- **ADR 0007** : Validation granulaire (champ par champ) à l'onboarding client
+- **ADR 0008** : Mini-dashboard client dédié vs validation par email Excel
 - **ADR 0009** : Intégration Zefix via route handler serveur avec HTTP Basic Auth
 - **ADR 0010** : Couche IA via Infomaniak AI Services (souveraineté suisse) — remplace ADR 0003
+- **ADR 0011** : Périmètre MVP du module Calendar (échéances & relances)
+- **ADR 0012** : Séquence canonique v1.0 (fondation CRM complète, puis modules en ordre de dépendance)
+- **ADR 0013** : Chiffrement des colonnes ultra-sensibles — différé au write-path, mécanisme Vault
+- **ADR 0014** : Sémantique des seuils de confiance Doc (rattachement client vs auto-classement)
+- **ADR 0015** : Modèle de scoring du risque client (`crm.risque`)
+- **ADR 0016** : Séquencement Calendar / Microsoft Graph (Bloc C scindé autour du Bloc D)
+- **ADR 0017** : Logging structuré via pino + redact
+- **ADR 0018** : App Azure AD multi-tenant ZARYA (A) par défaut, app par cabinet (B) à la demande
+- **ADR 0019** : Tracking des relances — exception au sceau du Bloc A (`crm.relance.*message_id`) + draft+send
+- **ADR 0020** : Décodage QR-facture suisse (parser/validators déterministes ; extraction image livrée Bloc E)
+- **ADR 0021** : Finalisation proposition → `salaire.employe` en app-code (addendum règle 4)
+- **ADR 0022** : Stratégie embeddings & RAG du Bloc H (Search)
+- **ADR 0023** : Activation de l'IA par cabinet + suivi des coûts (bascule `EXTRACTION_MODE`)
+- **ADR 0024** : Extraction facture en cascade + provenance par champ
 
 ## Phase actuelle du projet
 
-> **Séquencement : la source de vérité est la séquence canonique Blocs 0→H (ADR 0012).**
-> Les anciennes « Phases 4.x » sont périmées (réconciliées par l'ADR 0012, action founder
-> §135 appliquée). L'**exécution** détaillée (sous-blocs, DoD, rituel, arbitrages) vit dans
-> **`KICKOFF-BLOCS-B-H.md`** (racine) — à lire en début de chaque session. `HANDOFF_V2.md` §0
-> reste l'état opérationnel.
+> **Séquencement : la séquence canonique Blocs A→H (ADR 0012) est CLÔTURÉE.** Les anciennes
+> « Phases 4.x » sont périmées (réconciliées par l'ADR 0012). **L'état opérationnel courant et
+> le backlog restant vivent dans `PLAN-MVP-BETA.md`** (racine, plan vivant unique) + la mémoire
+> auto `v1-etat-courant.md`. Les plans d'exécution `KICKOFF-BLOCS-B-H.md` et `HANDOFF_V2.md` sont
+> **archivés/figés** (bannière ⛔ en tête) ; les plans terminés sont dans `docs/_archive/`.
 
-**Bloc courant** : **Bloc B — Doc fini** (classif live sur texte réel, MAJ `crm.document_attendu`,
-file de validation). La **fondation CRM (Bloc A) est SCELLÉE**.
+**État : MVP cohérent de bout en bout.** Séquence Blocs A→H livrée + `PLAN-COHERENCE-MVP`
+(chantiers 1→6.1) livré & mergé. La **fondation CRM (Bloc A) reste SCELLÉE** (jamais reshapée).
 
-**Séquence canonique (ADR 0012) :**
-- ✅ **Bloc 0** — Gouvernance (ADR 0012)
-- ✅ **Bloc A — Fondation CRM v1.0 SCELLÉE** — runs A1→A10 + correctif AVS, mergés (migrations 0009→0019). ~20 tables `crm.*` + RLS + triggers cohérence + vues `crm.v_*` + catalogues `crm.standard_*`.
-- 🚧 **Bloc B — Doc fini** ← **en cours (prochain)**
-- ⬜ **Bloc C** — Calendar fini (Runs 1-5 livrés ; restent génération auto échéances + envoi relances + UI)
-- ⬜ **Bloc D** — Microsoft Graph (OAuth + wrapper, à construire de zéro)
-- ⬜ **Bloc E** — Facture (QR-bill + extraction IA + export ; ADR QR-bill à ouvrir)
-- ⬜ **Bloc F** — onboarding-client + dashboard-client
-- ⬜ **Bloc G** — Salaire (workflow, PAS de calcul de paie)
-- ⬜ **Bloc H** — embeddings/pgvector + Search (bloqué tant que modèle `embeddings` IK non câblé)
-- ⬜ **Phase I** — Chiffrement au repos colonnes ultra-sensibles (ADR 0013) — placé après H (décision founder ; ⚠️ ré-arbitrer au 1er write-path E/F/G)
+**Séquence canonique (ADR 0012) — livrée :**
+- ✅ **Bloc 0** Gouvernance · ✅ **Bloc A** Fondation CRM v1.0 SCELLÉE (migrations 0009→0019)
+- ✅ **Bloc B** — Doc (classif live validée, file de validation)
+- ✅ **Bloc C** — Calendar (génération échéances, relances, UI)
+- ✅ **Bloc D** — Microsoft Graph (OAuth + wrapper + webhooks + envoi) — ⚠️ validé contre **mocks** ; E2E sur vrai tenant = pré-requis bêta (cf. `PLAN-MVP-BETA.md`)
+- ✅ **Bloc E** — Facture (QR-bill + extraction IA en cascade ADR 0024 + export)
+- ✅ **Bloc F** — onboarding-client + dashboard-client (portail `/espace`)
+- ✅ **Bloc G** — Salaire (workflow, PAS de calcul de paie)
+- ◑ **Bloc H** — embeddings/pgvector + Search : indexation RAG + recherche sémantique **livrées** ; agrégations avancées non câblées
+- ◑ **Phase I** — Chiffrement au repos : IBAN/AVS de **facture, salaire, et IBAN-du-QR** déjà au **Vault** ; ⚠️ restent SANS write-path `crm.relation.iban_facturation`, `crm.banque.iban`, `crm.param_comptable.acces_logiciel_externe` (à basculer Vault au 1er write-path — ADR 0013)
 
-**Historique bouclé** (pour mémoire) : Phase 0 Bootstrap · Phase 1 Multi-tenant + Auth ·
-Phase 2a Onboarding fiduciaire · Phase 2b Hardening · Phase 2c Paramètres & dashboard ·
-Phase 3 Module Doc (squelette) · Phase 3.5 Sécurité cross-tenant + Mini-CRM · Phase 3.6
-Tests server action authentifiée · Phase 4.0 Migration IA → Infomaniak (classif **live
-validée** sur golden set ; `EXTRACTION_MODE=stub` reste le défaut prod).
+**Reste avant bêta (hors code, cf. `PLAN-MVP-BETA.md` § Horizon 2 + Suivi audit)** : setup app
+Azure réelle + validation E2E Microsoft ; écran `/parametres/integrations` ; DPA + CGU ; nettoyage
+du bloc AWS mort dans `.env.local`.
 
 **État des modules** :
-- ✅ Fondation CRM (Bloc A) scellée — contrat de schéma stable, « jamais reshapé » (ADR 0012)
-- ⚠️ **Module Doc : squelette OK + classif live validée, mais `EXTRACTION_MODE=stub` reste le défaut prod** tant que le Bloc B (bascule complète + MAJ `document_attendu` + file de validation) n'est pas livré. Ne PAS présenter comme « IA fonctionnelle » end-to-end avant la clôture du Bloc B.
-- ✅ OCR texte natif livré ; ⚠️ OCR `vision` + `embeddings` Infomaniak **différés** (pré-requis explicite de E/F-scans et de tout H).
+- ✅ Fondation CRM (Bloc A) scellée — contrat de schéma stable, « jamais reshapé » (ADR 0012).
+- ✅ **IA en prod** : `EXTRACTION_MODE=live` (classification), activable par cabinet (ADR 0023) ; repli `StubClassifier` si l'appel live échoue (le document n'est jamais perdu).
+- ✅ OCR texte natif + OCR **vision** Infomaniak + **embeddings/RAG** : code câblé et live (`IK_MODEL_*` posés sur Vercel). [L'ancienne mention « vision/embeddings différés/bloqués » est PÉRIMÉE.]
 
-**Règles de périmètre (Blocs B→H)** :
-- Suivre `KICKOFF-BLOCS-B-H.md` : un sous-bloc = une PR, DoD universel respecté, arbitrages `⚠️` tranchés par le founder **avant** de coder (ne pas inventer une convention non documentée).
-- **Réordonner B→H** possible selon priorité produit ; **ne jamais toucher au Bloc A** (scellé).
-- IA via **Infomaniak** uniquement (catégories, pas de `model_id` en dur). Pas d'`StubClassifier` modifié tant qu'il est le défaut prod.
+**Règles de périmètre (toute nouvelle feature / table)** :
+- Un sujet cohérent = une PR ; DoD universel respecté ; arbitrages `⚠️` tranchés par le founder **avant** de coder (ne pas inventer une convention non documentée).
+- **Ne jamais toucher au Bloc A** (`crm.*` scellé).
+- IA via **Infomaniak** uniquement (catégories, pas de `model_id` en dur).
 - Toute nouvelle table métier : DoD complet (migration additive + RLS + triggers + `METIER_TABLES`/`RLS_TABLES` + tests isolation **et** anti-fuite, bloquants CI) + **zéro FK fantôme**.
+- Toute nouvelle colonne ultra-sensible (IBAN/AVS/token/secret) : inscrite au registre anti-clair `tests/integration/anti-plaintext/sensitive-columns.ts` (Vault par défaut). Idem toute trace d'audit pouvant contenir un IBAN/AVS : caviarder via `redactSensitiveForAudit` (ADR 0013).
 
 **⚠️ Risques connus** :
 - Le `db` applicatif (service role, postgres-js) **bypasse la RLS** — la sécurité multi-tenant du chemin app repose sur le filtre `cabinet_id` discipliné dans chaque WHERE + le trigger `fn_check_client_cabinet`, **pas** sur la RLS. Voir addendum ADR 0005.
