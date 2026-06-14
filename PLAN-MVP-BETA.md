@@ -84,6 +84,9 @@ nécessitent une **décision ou édition founder** :
 | **Corriger `CLAUDE.md`** (racine) | (1) « Référence des ADR (10 décisions) » → **24 ADR** existent (0011→0024) ; (2) « Phase actuelle : Bloc B » → séquence A→H **clôturée** ; (3) résidence « Frankfurt exclusivement » → **Zurich eu-central-2** (données) + Vercel fra1 (compute UE). | ⬜ founder |
 | **Déplacer `HANDOFF_V2.md` + `KICKOFF-BLOCS-B-H.md`** → `docs/_archive/` | Une fois les références dans `CLAUDE.md`/ADR mises à jour (sinon liens cassés). Bannière ⛔ déjà posée en attendant. | ⬜ founder |
 | **`requireRole` (RBAC) inutilisé** | Aucune server action n'impose un rôle précis : possible trou RBAC (ex. « collaborateur ne peut pas supprimer un client »). À câbler ou acter. | ⬜ à décider |
+| **Packages vides `packages/ui` + `packages/multi-tenant`** | Placeholders sans code. Supprimables, MAIS référencés dans `CLAUDE.md` § Organisation (l. 108/111) → supprimer **avec** l'édition CLAUDE.md (sinon réf cassée). NB : `getDbForCabinet` vit en réalité dans `packages/db`, pas dans `multi-tenant`. | ⬜ founder (couplé CLAUDE.md) |
+| **Code staffé non câblé, mais TESTÉ** | `aggregation-templates` (pré-Bloc H, test sécurité anti-injection) et `detect-nature-fichier` byte-based (`detectNatureFichier`/`natureSupporteQr`, cascade ADR 0024, testés) ne sont consommés QUE par leurs tests. **Conservés** (travail testé) ; à câbler ou retirer-avec-tests lors de H / d'un câblage cascade. | ⬜ à décider |
+| **CLAUDE.md de packages périmés** | `packages/extraction/CLAUDE.md` + `packages/schemas/CLAUDE.md` décrivent une arbo inexistante (`pipelines/`, `client.ts`, Bedrock…) ; `tests/CLAUDE.md` décrit du E2E/Playwright inexistant. | ⬜ founder (CLAUDE.md) |
 | **6.2 — DPA + CGU** | Signer DPA (Infomaniak/Supabase/Vercel) + finaliser CGU/politique (faits région/sous-traitants déjà corrigés). | ⬜ founder (cf. Horizon 2) |
 
 ---
