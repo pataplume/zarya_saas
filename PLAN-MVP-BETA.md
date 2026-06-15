@@ -5,11 +5,10 @@
 > Azure, UI manquantes, validations E2E, ops go-live). Source d'état complémentaire : mémoire
 > `v1-etat-courant.md`. Il ne remplace pas **`docs/roadmap.md`** (phases produit/marché M0→M24).
 >
-> Les plans d'exécution historiques sont **archivés/figés** : `KICKOFF-BLOCS-B-H.md` et
-> `HANDOFF_V2.md` (à la racine, bannière ⛔ en tête car encore référencés par CLAUDE.md/ADR) ;
-> `PLAN-COHERENCE-MVP.md`, `PHASE-IBIS.md`, `LANDING-NOTES.md`, `ZARYA_PLAN_DEV.txt`,
-> `retro-sessions-claude.md` (dans `docs/_archive/`). La séquence Blocs A→H et le plan de
-> cohérence MVP (chantiers 1→6.1) sont **livrés**.
+> Les plans d'exécution historiques sont **archivés/figés** dans `docs/_archive/` (bannière ⛔) :
+> `KICKOFF-BLOCS-B-H.md`, `HANDOFF_V2.md`, `PLAN-COHERENCE-MVP.md`, `PHASE-IBIS.md`,
+> `LANDING-NOTES.md`, `ZARYA_PLAN_DEV.txt`, `retro-sessions-claude.md`. La séquence Blocs A→H et
+> le plan de cohérence MVP (chantiers 1→6.1) sont **livrés**.
 >
 > Mise à jour à chaque clôture de Bloc ou découverte transverse. Dernière maj : 2026-06-14.
 
@@ -81,12 +80,12 @@ nécessitent une **décision ou édition founder** :
 
 | Item | Détail | Statut |
 |---|---|---|
-| **Corriger `CLAUDE.md`** (racine) | (1) « Référence des ADR (10 décisions) » → **24 ADR** existent (0011→0024) ; (2) « Phase actuelle : Bloc B » → séquence A→H **clôturée** ; (3) résidence « Frankfurt exclusivement » → **Zurich eu-central-2** (données) + Vercel fra1 (compute UE). | ⬜ founder |
-| **Déplacer `HANDOFF_V2.md` + `KICKOFF-BLOCS-B-H.md`** → `docs/_archive/` | Une fois les références dans `CLAUDE.md`/ADR mises à jour (sinon liens cassés). Bannière ⛔ déjà posée en attendant. | ⬜ founder |
-| **`requireRole` (RBAC) inutilisé** | Aucune server action n'impose un rôle précis : possible trou RBAC (ex. « collaborateur ne peut pas supprimer un client »). À câbler ou acter. | ⬜ à décider |
-| **Packages vides `packages/ui` + `packages/multi-tenant`** | Placeholders sans code. Supprimables, MAIS référencés dans `CLAUDE.md` § Organisation (l. 108/111) → supprimer **avec** l'édition CLAUDE.md (sinon réf cassée). NB : `getDbForCabinet` vit en réalité dans `packages/db`, pas dans `multi-tenant`. | ⬜ founder (couplé CLAUDE.md) |
-| **Code staffé non câblé, mais TESTÉ** | `aggregation-templates` (pré-Bloc H, test sécurité anti-injection) et `detect-nature-fichier` byte-based (`detectNatureFichier`/`natureSupporteQr`, cascade ADR 0024, testés) ne sont consommés QUE par leurs tests. **Conservés** (travail testé) ; à câbler ou retirer-avec-tests lors de H / d'un câblage cascade. | ⬜ à décider |
-| **CLAUDE.md de packages périmés** | `packages/extraction/CLAUDE.md` + `packages/schemas/CLAUDE.md` décrivent une arbo inexistante (`pipelines/`, `client.ts`, Bedrock…) ; `tests/CLAUDE.md` décrit du E2E/Playwright inexistant. | ⬜ founder (CLAUDE.md) |
+| **Corriger `CLAUDE.md`** (racine) | 24 ADR, séquence A→H clôturée, résidence Zurich. | ✅ fait (#175) |
+| **Déplacer `HANDOFF_V2.md` + `KICKOFF-BLOCS-B-H.md`** → `docs/_archive/` | + réfs CLAUDE.md/PLAN-MVP-BETA mises à jour ; réfs ADR (historiques) laissées. | ✅ fait |
+| **`requireRole` (RBAC) inutilisé** | Décision founder (14/06) : **différer** — confiance intra-cabinet pour la bêta (pilotes 1-3 pers.) ; `requireRole` conservé pour câblage ultérieur. | ✅ acté (différé) |
+| **Packages vides `packages/ui` + `packages/multi-tenant`** | Supprimés + retirés de `CLAUDE.md` § Organisation. | ✅ fait |
+| **Code staffé non câblé, mais TESTÉ** | `aggregation-templates` (pré-Bloc H, test sécurité anti-injection) et `detect-nature-fichier` byte-based (testés) consommés QUE par leurs tests. **Conservés** ; à câbler ou retirer-avec-tests à H / câblage cascade. | ⬜ à décider |
+| **CLAUDE.md de sous-dossiers périmés** | `tests/`, `packages/{extraction,schemas,db}`, `apps/web` resync sur la réalité (arbo, Bedrock→Infomaniak, région). | ✅ fait |
 | **6.2 — DPA + CGU** | Signer DPA (Infomaniak/Supabase/Vercel) + finaliser CGU/politique (faits région/sous-traitants déjà corrigés). | ⬜ founder (cf. Horizon 2) |
 
 ---
