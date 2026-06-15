@@ -4,26 +4,28 @@
 Schémas Postgres, migrations Drizzle, seeds. Source de vérité pour le modèle de données ZARYA.
 
 ## Stack
-- Postgres 16+ via Supabase Cloud (eu-central-1)
+- Postgres 16+ via Supabase Cloud — région **eu-central-2 (Zurich, Suisse)**, données au repos en CH (ADR 0001 amendée)
 - Drizzle ORM + Drizzle Kit
 - Extensions : pgvector, pg_cron, pgcrypto, pg_trgm, uuid-ossp
 
 ## Structure
 ```
 packages/db/
-├── schema/
-│   ├── crm.ts              # crm.cabinet, crm.client, crm.contact, etc.
-│   ├── doc.ts              # doc.email_brut, doc.document, etc.
-│   ├── facture.ts          # facture.fournisseur, facture.facture, etc.
-│   ├── salaire.ts          # salaire.employe, salaire.periode, etc.
-│   ├── calendar.ts         # calendar.template_echeance, etc.
-│   ├── extraction.ts       # extraction.invocation
-│   ├── audit.ts            # audit.*
-│   ├── search.ts           # search.document_chunk, search.requete
-│   └── index.ts
-├── migrations/             # SQL généré par Drizzle Kit
-├── seed/                   # Données de seed (dev + tests)
-└── index.ts                # Export du client DB
+├── src/
+│   ├── schema/
+│   │   ├── crm.ts          # crm.cabinet, crm.client, crm.contact, etc.
+│   │   ├── doc.ts          # doc.email_brut, doc.document, etc.
+│   │   ├── facture.ts      # facture.fournisseur, facture.facture, etc.
+│   │   ├── salaire.ts      # salaire.employe, salaire.periode, etc.
+│   │   ├── calendar.ts     # calendar.template_echeance, etc.
+│   │   ├── extraction.ts   # extraction.invocation
+│   │   ├── audit.ts        # audit.*
+│   │   ├── search.ts       # search.document_chunk, search.requete
+│   │   └── index.ts
+│   ├── client.ts           # Client DB (postgres-js + Drizzle)
+│   ├── audit.ts · vault.ts # Helpers audit append-only + Supabase Vault
+│   └── index.ts            # Export du client DB
+└── migrations/             # SQL généré par Drizzle Kit + triggers/fonctions
 ```
 
 ## Règles non-négociables
@@ -115,16 +117,13 @@ pnpm test
 
 ## Seeds
 
-### Structure
-```
-seed/
-├── seed.ts                 # Entry point
-├── cabinets.ts             # 3-5 cabinets fictifs variés
-├── clients.ts              # 10-50 clients par cabinet
-├── employes.ts             # Référentiel salaires
-├── documents.ts            # Documents de test
-└── templates-zarya.ts      # Templates ZARYA standards (cabinet_id NULL)
-```
+### Où vivent les données de seed
+- **Catalogues / référentiels standards** (échéances fédérales, formats d'export, templates
+  ZARYA `cabinet_id NULL`) : posés via **migrations** dédiées (ex.
+  `migrations/0008_calendar_seed_echeances_federales.sql`, `migrations/0040_seed_format_export.sql`).
+- **Données fictives pour les tests d'intégration** : générées en code via
+  `tests/integration/helpers/seed.ts` (+ `auth.ts` pour les users Supabase réels).
+- Pas de dossier `packages/db/seed/` ni de runner de seed applicatif séparé.
 
 ### Règles seeds
 - Données réalistes (pas "Test1", "Test2")

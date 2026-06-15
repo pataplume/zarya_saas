@@ -27,9 +27,10 @@ app/
 
 ### Route Handlers (`app/api/*`)
 - Uniquement pour :
-  - Webhooks entrants (Microsoft Graph, Stripe, Bedrock)
+  - Webhooks entrants (Microsoft Graph ; Stripe à venir)
   - Uploads de fichiers
-  - Endpoints consommés par des tiers
+  - Intégrations tierces sans CORS / à retour spécifique (Zefix — cf. ADR 0009)
+  - Endpoints cron Vercel protégés par `CRON_SECRET` (renew Graph, maj-échéances, relances)
 - Validation HMAC / signature pour les webhooks
 - Toujours retourner statuts HTTP corrects
 

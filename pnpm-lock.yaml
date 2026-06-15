@@ -217,23 +217,11 @@ importers:
         specifier: '*'
         version: 5.9.3
 
-  packages/multi-tenant:
-    devDependencies:
-      typescript:
-        specifier: '*'
-        version: 5.9.3
-
   packages/schemas:
     dependencies:
       zod:
         specifier: ^3.24.0
         version: 3.25.76
-    devDependencies:
-      typescript:
-        specifier: '*'
-        version: 5.9.3
-
-  packages/ui:
     devDependencies:
       typescript:
         specifier: '*'
