@@ -1,29 +1,34 @@
 # Instructions Claude Code — tests/
 
 ## Contexte
-Tests intégration et E2E qui complètent les tests unitaires des packages. Le filet de sécurité de ZARYA.
+Tests d'intégration et tests unitaires transverses qui complètent les tests colocalisés
+des packages (`packages/*/src/*.test.ts`). Le filet de sécurité de ZARYA.
 
 ## Structure
 ```
 tests/
+├── unit/                          # Tests unitaires transverses (logique pure)
 ├── integration/
-│   ├── multi-tenant-isolation/    # CRITIQUE - bloquant CI
-│   ├── extraction/                # Tests avec Bedrock sandbox
-│   ├── microsoft-graph/           # Tests avec tenant test
-│   └── ...
-├── e2e/                           # Playwright
-│   ├── onboarding-fiduciaire.spec.ts
-│   ├── onboarding-client.spec.ts
-│   ├── validation-salaire.spec.ts
-│   └── ...
-└── fixtures/                      # Données de test partagées
+│   ├── multi-tenant-isolation/    # CRITIQUE - bloquant CI (RLS au niveau DB)
+│   ├── cross-tenant-leak/         # CRITIQUE - bloquant CI (anti-fuite chemin app)
+│   ├── anti-plaintext/            # CRITIQUE - bloquant CI (sceau anti-clair)
+│   ├── extraction/                # Tests pipeline IA (Infomaniak)
+│   ├── microsoft-graph/           # Tests Graph (contre mocks)
+│   ├── doc-validation/            # File de validation Doc
+│   ├── server-actions/            # Server actions réelles contre base de test
+│   ├── crm-catalogs/ · crm-views/ · dashboard-digest/
+│   └── helpers/                   # auth.ts, seed.ts, rls.ts, next-cache-stub.ts
+└── setup.ts                       # Setup global Vitest
 ```
 
+> Il n'existe **pas** de tests E2E ni de Playwright dans le repo (pas de `tests/e2e/`,
+> pas de `tests/fixtures/`, pas de dépendance Playwright). Toute la suite tourne sous
+> **Vitest**. La validation E2E sur vrai tenant Microsoft est un pré-requis bêta documenté
+> hors code (cf. `PLAN-MVP-BETA.md`).
+
 ## Stack
-- **Unit** : Vitest (dans chaque package)
-- **Integration** : Vitest + Supabase test client
-- **E2E** : Playwright
-- **Visual regression** (optionnel) : Chromatic ou Playwright snapshots
+- **Unit** : Vitest — colocalisés dans chaque package (`packages/*/src/*.test.ts`) + `tests/unit/`
+- **Integration** : Vitest + base Supabase de test (vrai `db` service role, triggers réels)
 
 ## Coverage cible
 
@@ -33,7 +38,6 @@ tests/
 | Sécurité (auth, RLS, multi-tenant) | 90% |
 | Pipeline IA | 80% |
 | UI composants | 50% |
-| E2E parcours critiques | 100% des flows P0 |
 
 ## Tests critiques OBLIGATOIRES en CI
 
@@ -109,36 +113,30 @@ describe('Extraction pipeline', () => {
 });
 ```
 
-## E2E parcours critiques
+## Parcours critiques (intégration)
 
-Flows à couvrir en Playwright :
-- **Flow F** : onboarding fiduciaire complet
-- **Flow G** : onboarding client + référentiel employés
-- **Flow A** : email entrant → classification → validation
-- **Flow B** : facture détectée → extraction → export
-- **Flow C** : échéance → relance → réponse
-- **Flow E** : cycle mensuel salaire (client + cabinet)
+En l'absence de Playwright, les parcours critiques sont couverts par des **tests
+d'intégration** Vitest qui rejouent les server actions / pipelines bout-à-bout contre la
+base de test (db service role réel + triggers DB), pas par une suite navigateur. Parcours
+clés à couvrir :
+- onboarding fiduciaire / onboarding client + référentiel employés
+- email entrant → classification → validation
+- facture détectée → extraction → export
+- échéance → relance → réponse
+- cycle mensuel salaire (client + cabinet)
 
-Pour chaque flow :
-- Happy path
-- 1-2 cas d'erreur critiques
+Pour chaque parcours : chemin nominal + 1-2 cas d'erreur critiques.
 
 ## Données de test
 
-### Fixtures partagées
-```
-fixtures/
-├── cabinets/               # 3-5 cabinets fictifs variés
-├── clients/                # 10-50 clients par cabinet
-├── employes/               # Référentiel salaire
-├── documents/              # PDFs, Excel, emails de test
-└── factures/               # Factures Swissdec, QR-factures, etc.
-```
+Les données de test sont produites **en code** via les helpers d'intégration
+(`tests/integration/helpers/seed.ts` pour les entités métier, `auth.ts` pour les users
+Supabase réels). Il n'y a pas de dossier `fixtures/` partagé.
 
-### Anonymisation
-- Pas de vraies données client dans les fixtures
-- Données réalistes générées (Faker)
+### Règles
+- Pas de vraies données client (données réalistes générées en code)
 - Couvrir les cas limites (cabinet vide, client archivé, etc.)
+- Cleanup systématique après chaque test (cf. ci-dessous)
 
 ## Patterns
 
@@ -217,11 +215,9 @@ Exemples : `server-actions/valider-proposition.test.ts`,
 ### Tests rapides
 - Tests unitaires : < 100ms en moyenne
 - Tests intégration : < 5s en moyenne
-- Tests E2E : < 60s par parcours
 
 ### Parallélisation
 - Vitest en parallèle par défaut
-- Playwright workers configurés selon CPU
 
 ## Ce que tu NE fais PAS
 
@@ -236,4 +232,4 @@ Exemples : `server-actions/valider-proposition.test.ts`,
 
 - `/docs/architecture/dev-environment.md` § 7 — stratégie tests
 - `/docs/architecture/multi-tenant.md` § 7 — tests isolation
-- `/docs/flows/*.md` — parcours à couvrir en E2E
+- `/docs/flows/*.md` — parcours à couvrir en intégration

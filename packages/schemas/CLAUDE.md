@@ -4,17 +4,17 @@
 Schémas Zod partagés entre frontend, backend, et tests. Source unique de vérité pour la validation des données.
 
 ## Structure
+Périmètre actuel volontairement minimal (étendu module par module au besoin). Fichiers réels :
 ```
-packages/schemas/
-├── client.ts               # Schémas crm.client
-├── contact.ts              # Schémas crm.contact
-├── document.ts             # Schémas doc.*
-├── facture.ts              # Schémas facture.*
-├── salaire.ts              # Schémas salaire.*
-├── extraction.ts           # Schémas extractions IA
-├── common.ts               # Schémas communs (IBAN, AVS, IDE, etc.)
-└── index.ts
+packages/schemas/src/
+├── client.ts               # Schémas par opération crm.client (create/update + statut)
+├── common.ts               # Schémas communs réutilisables (ex. ideSchema)
+└── index.ts                # Barrel d'exports
 ```
+> Les schémas spécifiques aux factures, salaires, documents et extractions vivent pour
+> l'instant au plus près de leur module/pipeline (ex. `packages/extraction/src/prompts/`
+> pour les schémas d'extraction IA). Ce package centralise les schémas Zod **partagés**
+> entre plusieurs packages ; on n'y ajoute un fichier que quand un schéma devient transverse.
 
 ## Règles
 
@@ -24,18 +24,20 @@ packages/schemas/
 - Sinon : Zod manuel synchronisé manuellement
 
 ### 2. Schémas réutilisables
+`common.ts` héberge les validateurs métier suisses partagés. Aujourd'hui : `ideSchema`
+(réel). Pattern à suivre pour tout futur ajout (ex. IBAN/AVS si un jour transverses) :
 ```typescript
 // common.ts
-export const ibanSchema = z.string()
-  .regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/)
-  .refine(validateIbanChecksum, 'IBAN invalide');
-
-export const avsSchema = z.string()
-  .regex(/^756\.\d{4}\.\d{4}\.\d{2}$/)
-  .refine(validateAvsChecksum, 'Numéro AVS invalide');
-
 export const ideSchema = z.string()
-  .regex(/^CHE-\d{3}\.\d{3}\.\d{3}$/);
+  .regex(/^CHE-\d{3}\.\d{3}\.\d{3}$/, 'IDE invalide (format attendu : CHE-123.456.789)');
+
+// Exemples de validateurs à ce même endroit s'ils deviennent partagés :
+// export const ibanSchema = z.string()
+//   .regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/)
+//   .refine(validateIbanChecksum, 'IBAN invalide');
+// export const avsSchema = z.string()
+//   .regex(/^756\.\d{4}\.\d{4}\.\d{2}$/)
+//   .refine(validateAvsChecksum, 'Numéro AVS invalide');
 ```
 
 ### 3. Schémas par opération (pas par table)
@@ -83,7 +85,7 @@ export const ibanInput = z.string()
 
 ### Schémas pour API externes
 ```typescript
-// Validation des réponses Bedrock
+// Validation des réponses d'extraction IA (Infomaniak, response_format json_schema)
 export const factureExtractionSchema = z.object({
   fournisseur: z.string(),
   montant_ht: z.number(),

@@ -103,12 +103,12 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 ### Organisation
 - `/apps/web` : app Next.js
 - `/packages/db` : schémas Drizzle, migrations, seed
-- `/packages/extraction` : pipeline IA générique
-- `/packages/integrations/{bedrock,microsoft,zefix,bexio,nas}` : wrappers externes
-- `/packages/multi-tenant` : helpers cabinet resolution
+- `/packages/extraction` : pipeline IA générique (extraction, OCR, classif, RAG)
+- `/packages/integrations/{infomaniak,microsoft,zefix}` : wrappers externes
 - `/packages/auth` : helpers auth + RBAC
 - `/packages/schemas` : schémas Zod partagés
-- `/packages/ui` : composants shadcn/ui customisés
+- `/packages/calendar` : génération des échéances & relances
+- `/packages/logger` : logging structuré pino + redact (ADR 0017)
 
 ### Server actions vs Route handlers
 - Server Actions par défaut pour les mutations
@@ -188,8 +188,8 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 > **Séquencement : la séquence canonique Blocs A→H (ADR 0012) est CLÔTURÉE.** Les anciennes
 > « Phases 4.x » sont périmées (réconciliées par l'ADR 0012). **L'état opérationnel courant et
 > le backlog restant vivent dans `PLAN-MVP-BETA.md`** (racine, plan vivant unique) + la mémoire
-> auto `v1-etat-courant.md`. Les plans d'exécution `KICKOFF-BLOCS-B-H.md` et `HANDOFF_V2.md` sont
-> **archivés/figés** (bannière ⛔ en tête) ; les plans terminés sont dans `docs/_archive/`.
+> auto `v1-etat-courant.md`. Les plans d'exécution `KICKOFF-BLOCS-B-H.md` et `HANDOFF_V2.md` (et les
+> plans terminés) sont **archivés/figés** dans `docs/_archive/` (bannière ⛔ en tête).
 
 **État : MVP cohérent de bout en bout.** Séquence Blocs A→H livrée + `PLAN-COHERENCE-MVP`
 (chantiers 1→6.1) livré & mergé. La **fondation CRM (Bloc A) reste SCELLÉE** (jamais reshapée).
