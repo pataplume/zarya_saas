@@ -3,12 +3,8 @@
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { libelleStatutClient, libelleTypeClient } from "@/lib/libelles";
-import {
-  archiverClientAction,
-  type ClientActionState,
-  createClientAction,
-  updateClientAction,
-} from "./actions";
+import { archiverClientAction, type ClientActionState, updateClientAction } from "./actions";
+import { ClientCreateZefix } from "./client-create-zefix";
 import type { ClientRow } from "./page";
 
 type Props = {
@@ -199,8 +195,8 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
         )}
       </section>
 
-      {/* Formulaire de création */}
-      {peutEcrire && <CreateForm />}
+      {/* Formulaire de création avec préremplissage Zefix (Lot 3 ADR 0025) */}
+      {peutEcrire && <ClientCreateZefix />}
 
       {/* Clients archivés */}
       {archives.length > 0 && (
@@ -437,87 +433,5 @@ function EditRow({
         </button>
       </div>
     </form>
-  );
-}
-
-// ─── Formulaire de création ───────────────────────────────────────────────────
-
-function CreateForm() {
-  const [state, action, pending] = useActionState<ClientActionState, FormData>(
-    createClientAction,
-    {},
-  );
-
-  return (
-    <section className="mt-8">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-        Ajouter un client
-      </h2>
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <form action={action} className="space-y-4" key={state.success ? "reset" : "form"}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr_140px]">
-            <div>
-              <label
-                htmlFor="raison_sociale"
-                className="mb-1 block text-xs font-medium text-gray-600"
-              >
-                Raison sociale
-              </label>
-              <input
-                id="raison_sociale"
-                name="raison_sociale"
-                required
-                placeholder="Acme Sàrl"
-                className={INPUT_CLASS}
-              />
-            </div>
-            <div>
-              <label htmlFor="ide" className="mb-1 block text-xs font-medium text-gray-600">
-                IDE (optionnel)
-              </label>
-              <input id="ide" name="ide" placeholder="CHE-123.456.789" className={INPUT_CLASS} />
-            </div>
-            <div>
-              <label
-                htmlFor="email_contact"
-                className="mb-1 block text-xs font-medium text-gray-600"
-              >
-                Email (optionnel)
-              </label>
-              <input
-                id="email_contact"
-                name="email_contact"
-                type="email"
-                placeholder="contact@acme.ch"
-                className={INPUT_CLASS}
-              />
-            </div>
-            <div>
-              <label htmlFor="statut" className="mb-1 block text-xs font-medium text-gray-600">
-                Statut
-              </label>
-              <select id="statut" name="statut" defaultValue="actif" className={INPUT_CLASS}>
-                {STATUTS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-          {state.success && <p className="text-sm text-green-600">Client ajouté avec succès ✓</p>}
-
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {pending ? "Ajout…" : "Ajouter le client →"}
-          </button>
-        </form>
-      </div>
-    </section>
   );
 }
