@@ -2,11 +2,8 @@ import { getCurrentUser } from "@zarya/auth";
 import { client, db, facture, propositionFacture } from "@zarya/db";
 import { and, count, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import {
-  type FactureItem,
-  FacturesValidation,
-  normaliserConfianceParChamp,
-} from "./factures-client";
+import { normaliserConfianceParChamp } from "./confiance-provenance";
+import { type FactureItem, FacturesValidation } from "./factures-client";
 
 // File des factures à valider — module Facture (facture.md §6, Bloc E5b).
 // Lit facture.proposition_facture (statut a_valider) scopée cabinet_id (frontière de

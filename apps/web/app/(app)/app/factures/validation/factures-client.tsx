@@ -9,40 +9,14 @@ import { type FactureActionState, rejeterFactureAction, validerFactureAction } f
 // `libelleAnomalie` pour ne pas casser les imports existants (fiche document C2.3).
 export { libelleAnomalie };
 
-/** Provenance + confiance d'un champ proposé (ADR 0024). Côté UI (miroir de l'extraction). */
-export interface ConfianceChampUi {
-  source: "qr" | "ia" | "humain";
-  confiance: number;
-}
+// Provenance/confiance par champ : les TYPES + le normaliseur vivent désormais dans un module
+// SERVER-SAFE (./confiance-provenance) pour être appelables depuis des Server Components. On
+// ré-exporte ici les types (effacés à la compilation → aucun risque client/serveur). Le
+// NORMALISEUR s'importe directement depuis ./confiance-provenance côté serveur — ne JAMAIS
+// l'appeler via ce module "use client" (c'était la cause du crash C2.3).
+import type { ConfianceChampUi, ConfianceParChampUi } from "./confiance-provenance";
 
-/** Map champ → provenance, normalisée et sûre (jamais la forme brute jsonb). */
-export type ConfianceParChampUi = Record<string, ConfianceChampUi>;
-
-/**
- * Lecteur DÉFENSIF de `confiance_par_champ` (jsonb). Gère les deux formes :
- *  - nouvelle (ADR 0024) : `{ source, confiance }` par champ ;
- *  - ancienne (legacy) : un simple `number` par champ → interprété `{ source: "ia", confiance }`.
- * Toute entrée illisible est ignorée. Ne lève jamais.
- */
-export function normaliserConfianceParChamp(raw: unknown): ConfianceParChampUi {
-  const out: ConfianceParChampUi = {};
-  if (raw === null || typeof raw !== "object") return out;
-  for (const [champ, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof v === "number" && Number.isFinite(v)) {
-      out[champ] = { source: "ia", confiance: v };
-      continue;
-    }
-    if (v !== null && typeof v === "object") {
-      const o = v as Record<string, unknown>;
-      const source =
-        o.source === "qr" || o.source === "ia" || o.source === "humain" ? o.source : "ia";
-      const confiance =
-        typeof o.confiance === "number" && Number.isFinite(o.confiance) ? o.confiance : 0;
-      out[champ] = { source, confiance };
-    }
-  }
-  return out;
-}
+export type { ConfianceChampUi, ConfianceParChampUi };
 
 export interface FactureItem {
   id: string;
