@@ -86,35 +86,53 @@ export const SENSITIVE_COLUMNS: SensitiveColumn[] = [
     forbiddenPlaintextColumns: ["iban"],
     note: "IBAN versement salaire (F6, ADR 0021, migration 0031). Vault.",
   },
-
-  // ── Clair différé (aucun write-path ; ADR 0013, basculera en Vault à son 1er write-path) ─────
+  // ── Lot 5 (ADR 0025 §6, migration 0053) : bascule Vault des champs bancaires/facturation/accès
+  //    externe du client. 1er write-path → passage clair_differe → vault (ADR 0013). ──────────────
   {
     schema: "crm",
     table: "banque",
-    column: "iban",
-    mechanism: "clair_differe",
-    note: "IBAN client (A6, migration 0014). Aucun write-path ; COMMENT anti-oubli requis.",
+    column: "iban_vault_id",
+    mechanism: "vault",
+    forbiddenPlaintextColumns: ["iban", "credentials_open_banking"],
+    note: "IBAN client (A6) chiffré au Vault dès son 1er write-path (Lot 5, migration 0053). Clair `iban` retiré.",
   },
   {
     schema: "crm",
     table: "banque",
-    column: "credentials_open_banking",
-    mechanism: "clair_differe",
-    note: "Secrets Open Banking (A6, migration 0014). Aucun write-path ; COMMENT anti-oubli requis.",
+    column: "credentials_open_banking_vault_id",
+    mechanism: "vault",
+    forbiddenPlaintextColumns: ["credentials_open_banking"],
+    note: "Secrets Open Banking (A6) chiffrés au Vault (Lot 5, migration 0053). Clair retiré.",
+  },
+  {
+    schema: "crm",
+    table: "banque",
+    column: "iban_masque",
+    mechanism: "clair_accepte",
+    note: "IBAN client masqué pour affichage (ex. ****0012), jamais l'IBAN complet (Lot 5, migration 0053).",
   },
   {
     schema: "crm",
     table: "relation",
-    column: "iban_facturation",
-    mechanism: "clair_differe",
-    note: "IBAN de facturation (A5, migration 0013 ; COMMENT ajouté en 0042). Aucun write-path.",
+    column: "iban_facturation_vault_id",
+    mechanism: "vault",
+    forbiddenPlaintextColumns: ["iban_facturation"],
+    note: "IBAN de facturation (A5) chiffré au Vault dès son 1er write-path (Lot 5, migration 0053). Clair retiré.",
+  },
+  {
+    schema: "crm",
+    table: "relation",
+    column: "iban_facturation_masque",
+    mechanism: "clair_accepte",
+    note: "IBAN de facturation masqué pour affichage (ex. ****0012), jamais l'IBAN complet (Lot 5, migration 0053).",
   },
   {
     schema: "crm",
     table: "param_comptable",
-    column: "acces_logiciel_externe",
-    mechanism: "clair_differe",
-    note: "Credentials logiciel comptable (A3, migration 0011 ; COMMENT ajouté en 0042). Aucun write-path.",
+    column: "acces_logiciel_externe_vault_id",
+    mechanism: "vault",
+    forbiddenPlaintextColumns: ["acces_logiciel_externe"],
+    note: "Credentials logiciel comptable (A3) chiffrés au Vault dès son 1er write-path (Lot 5, migration 0053). Clair retiré.",
   },
 
   // ── Clair accepté (matche un motif sensible, mais pas une donnée ultra-sensible en clair) ────

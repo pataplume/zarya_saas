@@ -374,7 +374,8 @@ export async function seedMandat(
 
 /**
  * Crée un crm.banque de test pour un client donné (service role).
- * iban est NOT NULL — valeur factice de test (non un vrai IBAN).
+ * Depuis le Lot 5 (migration 0053), l'IBAN n'est plus en clair : on pose un masque
+ * d'affichage (iban_masque) factice ; le clair vivrait au Vault (iban_vault_id) via l'action.
  */
 export async function seedBanque(
   sql: postgres.Sql,
@@ -383,8 +384,8 @@ export async function seedBanque(
 ): Promise<TestBanque> {
   const id = randomUUID();
   await sql`
-    INSERT INTO crm.banque (id, cabinet_id, client_id, iban, usage)
-    VALUES (${id}, ${cabinet_id}, ${client_id}, ${`CH00-TEST-${id.slice(0, 8)}`}, 'principal')
+    INSERT INTO crm.banque (id, cabinet_id, client_id, iban_masque, usage)
+    VALUES (${id}, ${cabinet_id}, ${client_id}, ${`****${id.slice(0, 4)}`}, 'principal')
   `;
   return { id, cabinet_id, client_id };
 }

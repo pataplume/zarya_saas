@@ -183,6 +183,7 @@ export {
   type FinaliserFactureResult,
   type FournisseurValide,
   finaliserFacture,
+  masqueIban,
   type TypeFacture,
 } from "./finalize-facture";
 export {
