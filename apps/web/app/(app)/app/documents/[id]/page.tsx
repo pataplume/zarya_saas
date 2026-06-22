@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   badgeStatutClassement,
+  libelleAnomalie,
   libelleCategorieDocument,
   libelleStatutEcheance,
   libelleStatutFacture,
@@ -18,11 +19,10 @@ import {
   getDocumentDetail,
 } from "../../../../../lib/document-detail-data";
 import {
-  ChampBadge,
   type ConfianceParChampUi,
-  libelleAnomalie,
   normaliserConfianceParChamp,
-} from "../../factures/validation/factures-client";
+} from "../../factures/validation/confiance-provenance";
+import { ChampBadge } from "../../factures/validation/factures-client";
 
 // C2.3 — Fiche document : en-tête (libellé, type traduit, client cliquable, statut) +
 // bouton Ouvrir (aperçu) + bloc Extraction (provenance par champ QR✓/IA + anomalies pour
