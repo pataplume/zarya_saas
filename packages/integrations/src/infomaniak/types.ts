@@ -60,6 +60,13 @@ export interface IkChatCompletionParams {
   temperature?: number;
   max_tokens?: number;
   response_format?: IkResponseFormat;
+  /**
+   * Kwargs passés au template de chat du modèle (vLLM, IK Beta). Usage clé :
+   * `{ enable_thinking: false }` désactive la trace de raisonnement des modèles « reasoning »
+   * (ex. Qwen3.5) → extraction structurée bien plus rapide (~1s vs ~50s) et fiable (le « thinking »
+   * ne mange plus le budget de tokens, plus de timeout). Ignoré par les modèles sans thinking.
+   */
+  chat_template_kwargs?: Record<string, unknown>;
 }
 
 export interface IkChatChoice {
