@@ -33,12 +33,20 @@ describe("Toggle IA cabinet + coûts (IA-c, ADR 0023)", () => {
   });
 
   test("activation/désactivation scopée du flag extraction_ia_active", async () => {
-    // Défaut false (IA-a).
+    // Défaut true (opt-out bêta, migration 0052).
     const [before] = await db
       .select({ active: cabinet.extraction_ia_active })
       .from(cabinet)
       .where(eq(cabinet.id, cab.id));
-    expect(before?.active).toBe(false);
+    expect(before?.active).toBe(true);
+
+    // Désactive A d'abord pour tester les deux sens.
+    await db.update(cabinet).set({ extraction_ia_active: false }).where(eq(cabinet.id, cab.id));
+    const [off] = await db
+      .select({ active: cabinet.extraction_ia_active })
+      .from(cabinet)
+      .where(eq(cabinet.id, cab.id));
+    expect(off?.active).toBe(false);
 
     // Active A.
     await db.update(cabinet).set({ extraction_ia_active: true }).where(eq(cabinet.id, cab.id));
@@ -48,12 +56,12 @@ describe("Toggle IA cabinet + coûts (IA-c, ADR 0023)", () => {
       .where(eq(cabinet.id, cab.id));
     expect(after?.active).toBe(true);
 
-    // B n'a pas bougé (scope).
+    // B n'a pas bougé (scope) → conserve son défaut true.
     const [bFlag] = await db
       .select({ active: cabinet.extraction_ia_active })
       .from(cabinet)
       .where(eq(cabinet.id, cabB.id));
-    expect(bFlag?.active).toBe(false);
+    expect(bFlag?.active).toBe(true);
 
     // Désactive A.
     await db.update(cabinet).set({ extraction_ia_active: false }).where(eq(cabinet.id, cab.id));

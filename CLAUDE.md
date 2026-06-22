@@ -156,7 +156,7 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 | `/docs/data-model/[schema].md` | Avant de créer/modifier des tables |
 | `/docs/flows/[flow].md` | Pour comprendre un parcours utilisateur |
 
-## Référence des ADR (24 décisions actées)
+## Référence des ADR (25 décisions actées)
 
 - **ADR 0001** : Résidence des données (amendée — au repos en Suisse, Supabase eu-central-2/Zurich ; compute UE/Vercel fra1)
 - **ADR 0002** : Stack backend Next.js + TypeScript end-to-end
@@ -182,6 +182,7 @@ ZARYA est un SaaS B2B pour fiduciaires suisses. Co-pilote opérationnel pour ges
 - **ADR 0022** : Stratégie embeddings & RAG du Bloc H (Search)
 - **ADR 0023** : Activation de l'IA par cabinet + suivi des coûts (bascule `EXTRACTION_MODE`)
 - **ADR 0024** : Extraction facture en cascade + provenance par champ
+- **ADR 0025** : Onboarding client & module client CRM éditable (+ achèvement du moteur d'échéances, débloque ADR 0011 Run 6) — voir `PLAN-ONBOARDING-CLIENT.md`
 
 ## Phase actuelle du projet
 

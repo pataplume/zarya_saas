@@ -1,7 +1,9 @@
 "use server";
 
 import { requireAuth } from "@zarya/auth";
-import { client as clientTable, db, salaireConfig, service } from "@zarya/db";
+import { genererEcheancesPourClient } from "@zarya/calendar";
+import { client as clientTable, db, evenement, salaireConfig, service } from "@zarya/db";
+import { upsertSalaireConfigSchema } from "@zarya/schemas";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -125,5 +127,89 @@ export async function configurerSalaireConfigAction(
     });
 
   revalidatePath("/app/clients");
+  return { success: true };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Lot 2 (ADR 0025) — Édition GRANULAIRE de la config salaire (fréquence de paie + jour de
+// validation) depuis le dossier client éditable, avec déclenchement du moteur d'échéances.
+// Mêmes garanties : scope cabinet_id (anti-fuite), Zod (@zarya/schemas), audit, pré-requis
+// service `salaires` actif. Une modification du jour de validation décale l'échéance salaire
+// mensuelle → re-génération idempotente.
+// ════════════════════════════════════════════════════════════════════════════
+
+export type MajSalaireConfigState = { error?: string; success?: boolean };
+
+export async function majSalaireConfigAction(
+  _prev: MajSalaireConfigState,
+  formData: FormData,
+): Promise<MajSalaireConfigState> {
+  const user = await requireAuth();
+  const cabinet_id = user.app_metadata.cabinet_id as string | undefined;
+  if (!cabinet_id) return { error: "Cabinet non configuré" };
+  const role = user.app_metadata.role as string | undefined;
+  if (!role || !ROLES_ECRITURE.has(role)) return { error: "Action non autorisée pour votre rôle" };
+
+  const jourRaw = formData.get("date_validation_jour_du_mois");
+  const parsed = upsertSalaireConfigSchema.safeParse({
+    client_id: formData.get("client_id"),
+    frequence_paie:
+      formData.get("frequence_paie") === null || formData.get("frequence_paie") === ""
+        ? undefined
+        : formData.get("frequence_paie"),
+    date_validation_jour_du_mois: jourRaw === null || jourRaw === "" ? undefined : Number(jourRaw),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
+  const { client_id, frequence_paie, date_validation_jour_du_mois } = parsed.data;
+
+  const [cli] = await db
+    .select({ id: clientTable.id })
+    .from(clientTable)
+    .where(and(eq(clientTable.id, client_id), eq(clientTable.cabinet_id, cabinet_id)))
+    .limit(1);
+  if (!cli) return { error: "Client introuvable" };
+
+  const [svc] = await db
+    .select({ id: service.id })
+    .from(service)
+    .where(
+      and(
+        eq(service.cabinet_id, cabinet_id),
+        eq(service.client_id, client_id),
+        eq(service.type, "salaires"),
+        eq(service.actif, true),
+      ),
+    )
+    .limit(1);
+  if (!svc) return { error: "Le service salaires n'est pas actif pour ce client." };
+
+  const champs = {
+    ...(frequence_paie !== undefined ? { frequence_paie } : {}),
+    ...(date_validation_jour_du_mois !== undefined ? { date_validation_jour_du_mois } : {}),
+  };
+
+  await db
+    .insert(salaireConfig)
+    .values({ client_id, cabinet_id, ...champs })
+    .onConflictDoUpdate({
+      target: salaireConfig.client_id,
+      set: { ...champs, updated_at: new Date() },
+    });
+
+  await db.insert(evenement).values({
+    cabinet_id,
+    client_id,
+    type: "note_ajoutee",
+    acteur_type: "cabinet_membre",
+    acteur_id: user.id,
+    ressource_type: "crm.salaire_config",
+    ressource_id: client_id,
+    description: "Configuration salaire modifiée",
+    metadata: { champs: Object.keys(champs) },
+  });
+
+  await genererEcheancesPourClient(cabinet_id, client_id);
+
+  revalidatePath(`/app/clients/${client_id}`);
   return { success: true };
 }

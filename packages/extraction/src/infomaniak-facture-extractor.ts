@@ -34,7 +34,16 @@ export interface ChatModelClient {
   chatCompletion(params: IkChatCompletionParams): Promise<IkChatCompletionResponse>;
 }
 
-const MAX_TOKENS = 1024;
+// Le raisonnement du modèle est DÉSACTIVÉ (THINKING_OFF) : la sortie n'est plus que le JSON de la
+// facture extraite (~20 champs). 2048 tokens suffisent très largement.
+const MAX_TOKENS = 2048;
+
+// La catégorie chat_large peut être servie par un modèle « reasoning » (ex. Qwen3.5) qui, par
+// défaut, émet une LONGUE trace de raisonnement avant le JSON : elle mange tout le budget de
+// tokens (sortie tronquée → JSON inexploitable) ET dépasse le timeout réseau (~50s). On désactive
+// donc le « thinking » via le template du modèle → extraction directe (~1s, mesuré). Ignoré par
+// un modèle sans thinking (no-op), donc sans risque si chat_large change de modèle.
+const THINKING_OFF = { enable_thinking: false } as const;
 
 function parseJsonLenient(content: string | undefined | null): unknown {
   if (!content) return null;
@@ -96,6 +105,7 @@ export class InfomaniakFactureExtractor implements FactureExtractor {
       max_tokens: MAX_TOKENS,
       messages: baseMessages,
       response_format: { type: "json_schema", json_schema: FACTURE_JSON_SCHEMA },
+      chat_template_kwargs: THINKING_OFF,
     }).catch((err) => err);
 
     let usedFallback = false;
@@ -113,24 +123,29 @@ export class InfomaniakFactureExtractor implements FactureExtractor {
     }
 
     // Tentative 2 (fallback) : sans response_format, consigne de format renforcée.
+    // ⚠️ Le message système DOIT rester EN TÊTE : certains modèles IK (ex. Qwen3.5) rejettent
+    // un message système placé après le message utilisateur (« System message must be at the
+    // beginning » → HTTP 400). On FUSIONNE donc la consigne renforcée dans le prompt système.
     if (usedFallback) {
       const reinforced: IkChatCompletionParams["messages"] = [
-        ...baseMessages,
         {
           role: "system",
           content:
-            "Réponds STRICTEMENT par un unique objet JSON valide correspondant aux champs " +
+            `${SYSTEM_PROMPT}\n\n` +
+            "RAPPEL STRICT : réponds par un UNIQUE objet JSON valide correspondant aux champs " +
             "demandés (fournisseur_*, numero_facture, date_emission, date_echeance, reference, " +
             "devise, total_ht, total_tva, total_ttc, montant_a_payer, taux_tva_principal, " +
             "categorie_comptable, confiance_globale, confiance_fournisseur, confiance_montants, " +
             "anomalies). Aucun texte hors du JSON.",
         },
+        { role: "user", content: buildUserPrompt(input) },
       ];
       response = await this.callChat({
         model,
         temperature: 0,
         max_tokens: MAX_TOKENS,
         messages: reinforced,
+        chat_template_kwargs: THINKING_OFF,
       });
       proposal = toFactureProposal(parseJsonLenient(response.choices[0]?.message?.content), input);
     }

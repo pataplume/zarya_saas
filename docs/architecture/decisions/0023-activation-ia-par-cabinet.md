@@ -7,10 +7,14 @@ referenced_by: [llm-strategy, extraction-ia]
 
 # ADR 0023 — Activation de l'IA par cabinet + suivi des coûts (bascule EXTRACTION_MODE vers la bêta)
 
-## Statut
-Acceptée — 4 juin 2026. Prise au moment d'ouvrir les chantiers pré-bêta (toute la séquence
-Blocs B→H + Phase I étant livrée), pour préparer l'activation réelle de la couche IA en
-production sur quelques cabinets pilotes.
+> **Amendement 2026-06-22 — défaut inversé : opt-out (`DEFAULT true`).** Le défaut initial
+> `extraction_ia_active = false` (opt-in) provoquait un mode **stub silencieux** sur tout nouveau
+> cabinet : classification sans LLM + OCR sauté (même le texte natif gratuit) → « le module ne
+> reconnaît plus les factures » (incident Farah Clinic). Pour la bêta, **tous** les cabinets ont
+> besoin de l'IA → le défaut passe à `true` (migration 0052). Le **kill-switch global reste
+> `EXTRACTION_MODE=live`** (le flag par cabinet n'a d'effet que si l'env est live) et chaque cabinet
+> reste **désactivable** via `/parametres/ia`. La maîtrise des coûts repose désormais sur le
+> kill-switch global + la désactivation ciblée, pas sur l'opt-in par défaut.
 
 ## Contexte
 

@@ -192,16 +192,20 @@ export class InfomaniakClassifier implements Classifier {
     }
 
     // Tentative 2 (fallback) : sans response_format, consigne de format renforcée.
+    // ⚠️ Le message système DOIT rester EN TÊTE : certains modèles IK (ex. Qwen3.5) rejettent
+    // un message système placé après le message utilisateur (« System message must be at the
+    // beginning » → HTTP 400). On FUSIONNE donc la consigne renforcée dans le prompt système.
     if (usedFallback) {
       const reinforced: IkChatCompletionParams["messages"] = [
-        ...baseMessages,
         {
           role: "system",
           content:
-            "Réponds STRICTEMENT par un unique objet JSON valide correspondant aux champs " +
+            `${SYSTEM_PROMPT}\n\n` +
+            "RAPPEL STRICT : réponds par un UNIQUE objet JSON valide correspondant aux champs " +
             "demandés (type, categorie, libelle, periode, confiance_globale, confiance_type, " +
             "confiance_categorie, confiance_periode, anomalies). Aucun texte hors du JSON.",
         },
+        { role: "user", content: buildUserPrompt(input) },
       ];
       response = await this.callChat({
         model,

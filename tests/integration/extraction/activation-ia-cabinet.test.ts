@@ -1,9 +1,9 @@
 /**
- * IA-a — schéma activation IA par cabinet (ADR 0023, migration 0043). Vérifie :
- *  1. crm.cabinet.extraction_ia_active vaut false par défaut (comportement prod inchangé) ;
+ * IA-a — schéma activation IA par cabinet (ADR 0023, migrations 0043 + 0052). Vérifie :
+ *  1. crm.cabinet.extraction_ia_active vaut true par défaut (opt-out bêta, migration 0052 ;
+ *     l'IA reste gatée par EXTRACTION_MODE=live, kill-switch global) ;
  *  2. la vue extraction.v_cout_par_cabinet agrège bien les invocations d'un cabinet,
  *     scopée par cabinet_id.
- * Schéma seulement (pas de changement de comportement IA — câblage = IA-b).
  */
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
@@ -32,11 +32,11 @@ describe("Activation IA par cabinet — schéma (IA-a, ADR 0023)", () => {
     await sql.end();
   });
 
-  test("extraction_ia_active = false par défaut", async () => {
+  test("extraction_ia_active = true par défaut (opt-out bêta, migration 0052)", async () => {
     const [row] = (await sql`
       SELECT extraction_ia_active FROM crm.cabinet WHERE id = ${cabinetA.id}
     `) as unknown as { extraction_ia_active: boolean }[];
-    expect(row?.extraction_ia_active).toBe(false);
+    expect(row?.extraction_ia_active).toBe(true);
   });
 
   test("v_cout_par_cabinet agrège les invocations, scopée cabinet", async () => {

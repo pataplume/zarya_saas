@@ -317,9 +317,10 @@ export const cabinet = crmSchema.table(
     politique_classement: politiqueClassementEnum("politique_classement")
       .notNull()
       .default("strict"),
-    // Activation IA par cabinet (ADR 0023) — OFF par défaut. live ssi EXTRACTION_MODE=live
-    // (kill-switch global maître) ET ce flag = true. Câblage cabinet-aware en IA-b.
-    extraction_ia_active: boolean("extraction_ia_active").notNull().default(false),
+    // Activation IA par cabinet (ADR 0023) — ON par défaut depuis migration 0052 (bêta : tous
+    // les cabinets en ont besoin). live ssi EXTRACTION_MODE=live (kill-switch global maître) ET
+    // ce flag = true. Désactivable par cabinet via /parametres/ia.
+    extraction_ia_active: boolean("extraction_ia_active").notNull().default(true),
 
     // ── Branding dashboard client (F2, dashboard-client.md §4.1) — défauts ZARYA si null ──
     logo_url: text("logo_url"),
@@ -563,11 +564,10 @@ export const service = crmSchema.table(
 // 1-1 avec le client (client_id = PK). cabinet_id dénormalisé pour la RLS,
 // cohérence garantie par trg_check_client_cabinet_param_comptable (migration 0011).
 //
-// ⚠️ SÉCURITÉ : `acces_logiciel_externe` contient des credentials d'accès au
-// logiciel comptable du client → champ ULTRA-SENSIBLE. Tout écriture DOIT chiffrer
-// le contenu via Supabase Vault (cf. CLAUDE.md §2). Aucun chemin d'écriture n'existe
-// encore (table de contrat) ; l'enforcement du chiffrement est porté par la feature
-// qui peuplera cette colonne (Bloc ultérieur), pas par ce run de schéma.
+// ⚠️ SÉCURITÉ : les credentials d'accès au logiciel comptable du client sont
+// ULTRA-SENSIBLES → chiffrés au Vault (ADR 0013). Depuis le Lot 5 (migration 0053),
+// seule `acces_logiciel_externe_vault_id` (UUID du secret) est stockée ; la colonne
+// `acces_logiciel_externe` en clair a été retirée (jamais de clair au repos).
 
 export const paramComptable = crmSchema.table(
   "param_comptable",
@@ -584,8 +584,9 @@ export const paramComptable = crmSchema.table(
     date_debut_exercice: date("date_debut_exercice"),
     date_bouclement: date("date_bouclement"),
     mode_transmission: modeTransmissionEnum("mode_transmission"),
-    // Chiffré via Vault à l'écriture (voir avertissement ci-dessus).
-    acces_logiciel_externe: jsonb("acces_logiciel_externe"),
+    // Credentials du logiciel comptable → Vault (Lot 5, migration 0053, ADR 0013).
+    // On ne stocke QUE l'UUID du secret chiffré ; jamais le clair (colonne clair retirée).
+    acces_logiciel_externe_vault_id: uuid("acces_logiciel_externe_vault_id"),
     derniere_synchronisation: timestamp("derniere_synchronisation", { withTimezone: true }),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -639,10 +640,10 @@ export const documentAttendu = crmSchema.table(
 // crm-schema.md § 8. 1-1 avec le client (client_id = PK). cabinet_id dénormalisé
 // pour la RLS, cohérence garantie par trg_check_client_cabinet_relation (0013).
 //
-// ⚠️ SÉCURITÉ : `iban_facturation` est un IBAN → champ SENSIBLE (CLAUDE.md §2).
-// Tout chemin d'écriture DOIT chiffrer via Supabase Vault. Aucun n'existe encore
-// (table de contrat) ; l'enforcement est porté par la feature qui peuplera la
-// colonne, pas par ce run de schéma.
+// ⚠️ SÉCURITÉ : l'IBAN de facturation est ULTRA-SENSIBLE (CLAUDE.md §2). Depuis le
+// Lot 5 (migration 0053, ADR 0013), il vit chiffré au Vault : seule
+// `iban_facturation_vault_id` (UUID du secret) + `iban_facturation_masque` (affichage)
+// sont stockées ; la colonne `iban_facturation` en clair a été retirée.
 
 export const relation = crmSchema.table(
   "relation",
@@ -660,8 +661,10 @@ export const relation = crmSchema.table(
     date_renouvellement: date("date_renouvellement"),
     duree_engagement_mois: integer("duree_engagement_mois"),
     notes_facturation: text("notes_facturation"),
-    // Chiffré via Vault à l'écriture (voir avertissement ci-dessus).
-    iban_facturation: text("iban_facturation"),
+    // IBAN de facturation → Vault (Lot 5, migration 0053, ADR 0013). On ne stocke que
+    // l'UUID du secret + un masque d'affichage ; le clair `iban_facturation` est retiré.
+    iban_facturation_vault_id: uuid("iban_facturation_vault_id"),
+    iban_facturation_masque: text("iban_facturation_masque"),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -708,13 +711,12 @@ export const mandat = crmSchema.table(
 // trg_check_client_cabinet_banque (migration 0014). Un client peut avoir plusieurs
 // comptes (usage principal / secondaire / paie / tva).
 //
-// ⚠️ SÉCURITÉ — champs ULTRA-SENSIBLES (CLAUDE.md §2, ADR 0013) :
-//  - `iban` (NOT NULL) : IBAN du client → chiffrement au repos OBLIGATOIRE.
-//  - `credentials_open_banking` : secrets d'accès Open Banking (intégration future).
-// Tout chemin d'écriture DOIT chiffrer ces colonnes (Vault / pgsodium / AEAD appli —
-// décision tranchée à l'ADR 0013). Aucun chemin d'écriture n'existe encore (table de
-// contrat) ; l'enforcement est porté par la feature qui peuplera ces colonnes, pas
-// par ce run de schéma. Voir COMMENT ON COLUMN dans la migration 0014 + ADR 0013.
+// ⚠️ SÉCURITÉ — champs ULTRA-SENSIBLES (CLAUDE.md §2, ADR 0013). Depuis le Lot 5
+// (migration 0053), ils vivent chiffrés au Vault :
+//  - IBAN client → `iban_vault_id` (UUID du secret) + `iban_masque` (affichage).
+//  - secrets Open Banking → `credentials_open_banking_vault_id` (UUID du secret).
+// Les colonnes en clair `iban` (jadis NOT NULL) et `credentials_open_banking` ont été
+// retirées (jamais de clair au repos). Write-path : clients/banque/actions.ts.
 
 export const banque = crmSchema.table(
   "banque",
@@ -727,14 +729,17 @@ export const banque = crmSchema.table(
       .notNull()
       .references(() => client.id, { onDelete: "restrict" }),
     nom_banque: text("nom_banque"),
-    // Chiffré au repos (voir avertissement ci-dessus, ADR 0013).
-    iban: text("iban").notNull(),
+    // IBAN du compte → Vault (Lot 5, migration 0053, ADR 0013). On ne stocke que l'UUID du
+    // secret chiffré + un masque d'affichage ; la colonne `iban` en clair (jadis NOT NULL)
+    // est retirée (jamais de clair au repos).
+    iban_vault_id: uuid("iban_vault_id"),
+    iban_masque: text("iban_masque"),
     bic: text("bic"),
     devise: text("devise").notNull().default("CHF"),
     usage: usageBanqueEnum("usage"),
     actif: boolean("actif").notNull().default(true),
-    // Chiffré au repos (voir avertissement ci-dessus, ADR 0013).
-    credentials_open_banking: jsonb("credentials_open_banking"),
+    // Secrets Open Banking → Vault (Lot 5, migration 0053, ADR 0013). Seul l'UUID du secret.
+    credentials_open_banking_vault_id: uuid("credentials_open_banking_vault_id"),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     archived_at: timestamp("archived_at", { withTimezone: true }),

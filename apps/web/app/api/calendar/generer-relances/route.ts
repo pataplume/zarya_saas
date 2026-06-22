@@ -1,12 +1,16 @@
-import { genererBrouillonsRelances } from "@zarya/calendar";
+import { escaladerRelances, genererBrouillonsRelances } from "@zarya/calendar";
 import { logger } from "@zarya/logger";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-// Bloc C2a — génération quotidienne des brouillons de relance (Vercel Cron).
+// Bloc C2a + Lot 6 — génération quotidienne des brouillons de relance (Vercel Cron).
 // Mode A (validation humaine) : ce job crée les brouillons prêts à valider ; il
-// n'envoie RIEN (l'envoi = C2b). Protégé par CRON_SECRET (Vercel envoie
-// `Authorization: Bearer ${CRON_SECRET}`). Job système → toutes les cabinets.
+// n'envoie RIEN (l'envoi = C2b). Deux passes :
+//   1. genererBrouillonsRelances — première relance (n°1) des échéances dues sans relance ;
+//   2. escaladerRelances (Lot 6) — relance n°2/3… des échéances encore en retard dont la
+//      dernière relance envoyée est mûre, avec ARRÊT après N relances (politique d'escalade).
+// Protégé par CRON_SECRET (Vercel envoie `Authorization: Bearer ${CRON_SECRET}`).
+// Job système → toutes les cabinets.
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const secret = process.env.CRON_SECRET;
@@ -16,9 +20,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const result = await genererBrouillonsRelances();
-    logger.info({ ...result }, "[calendar.generer-relances] génération brouillons terminée");
-    return NextResponse.json(result);
+    const generation = await genererBrouillonsRelances();
+    const escalade = await escaladerRelances();
+    logger.info(
+      { generation, escalade },
+      "[calendar.generer-relances] génération + escalade terminées",
+    );
+    return NextResponse.json({ generation, escalade });
   } catch (err) {
     logger.error(
       { error: err instanceof Error ? err.message : "inconnu" },
