@@ -114,7 +114,7 @@ const ANCRES: { id: string; label: string }[] = [
   { id: "bancaire", label: "Bancaire" },
   { id: "factures", label: "Factures" },
   { id: "salaires", label: "Salaires" },
-  { id: "coordonnees", label: "Coordonnées" },
+  { id: "coordonnees", label: "Paramètres" },
 ];
 
 function formatDate(value: string | null): string {
@@ -723,7 +723,9 @@ function CoordonneesSection({
     } | null;
   };
 }) {
-  const { contacts, services_actifs, param_comptable } = coordonnees;
+  // Unification UI (ADR 0025) : contacts → section éditable (Lot 1) ; services → chips
+  // d'en-tête. Cette section ne porte plus que les paramètres comptables (non dupliqués).
+  const { param_comptable } = coordonnees;
   const params: { label: string; valeur: string }[] = [];
   if (param_comptable?.logiciel_comptable) {
     params.push({
@@ -745,84 +747,20 @@ function CoordonneesSection({
   }
 
   return (
-    <SectionShell id="coordonnees" titre="Coordonnées & paramètres">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Contacts */}
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Contacts
-          </h3>
-          {contacts.length === 0 ? (
-            <p className="text-sm text-slate-400">Aucun contact enregistré.</p>
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {contacts.map((c) => (
-                <li key={c.id} className="py-2.5 first:pt-0 last:pb-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-slate-800">
-                      {[c.prenom, c.nom].filter(Boolean).join(" ")}
-                    </span>
-                    {c.est_principal && (
-                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
-                        Principal
-                      </span>
-                    )}
-                    {c.a_acces_portail && (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                        Accès portail
-                      </span>
-                    )}
-                  </div>
-                  {c.fonction && <p className="text-xs text-slate-500">{c.fonction}</p>}
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {[c.email, c.telephone].filter(Boolean).join(" · ") || "—"}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Services + paramètres comptables */}
-        <div className="space-y-4">
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-              Services actifs
-            </h3>
-            {services_actifs.length === 0 ? (
-              <p className="text-sm text-slate-400">Aucun service actif.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {services_actifs.map((s) => (
-                  <span
-                    key={s.id}
-                    className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
-                  >
-                    {libelleService(s.type)}
-                  </span>
-                ))}
+    <SectionShell id="coordonnees" titre="Paramètres comptables">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        {params.length === 0 ? (
+          <p className="text-sm text-slate-400">Aucun paramètre comptable renseigné.</p>
+        ) : (
+          <dl className="space-y-2">
+            {params.map((p) => (
+              <div key={p.label} className="flex justify-between gap-3 text-sm">
+                <dt className="text-slate-500">{p.label}</dt>
+                <dd className="font-medium text-slate-800">{p.valeur}</dd>
               </div>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-              Paramètres comptables
-            </h3>
-            {params.length === 0 ? (
-              <p className="text-sm text-slate-400">Aucun paramètre renseigné.</p>
-            ) : (
-              <dl className="space-y-2">
-                {params.map((p) => (
-                  <div key={p.label} className="flex justify-between gap-3 text-sm">
-                    <dt className="text-slate-500">{p.label}</dt>
-                    <dd className="font-medium text-slate-800">{p.valeur}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-          </div>
-        </div>
+            ))}
+          </dl>
+        )}
       </div>
     </SectionShell>
   );
