@@ -104,11 +104,19 @@ export async function extraireFactureDepuisDocument(
     ...(input.type_mime ? { type_mime: input.type_mime } : {}),
   };
   let result: Awaited<ReturnType<FactureExtractor["extract"]>>;
+  let repliStub = false;
   try {
     result = await extractor.extract(baseInput);
   } catch (err) {
     await traceFailedInvocation(input, extractor.mode, err);
-    throw err;
+    // Robustesse (V1, miroir de classify-document) : si le mode LIVE échoue (IK 4xx, config
+    // modèle, timeout épuisé…), on NE perd PAS le document — repli sur l'extracteur stub pour
+    // créer quand même une proposition_facture (visible dans Factures à valider, anomalie
+    // `extraction_stub`, complétable à la main puis ré-extractible quand le live est rétabli).
+    // En stub, pas de second filet : on re-lève (hook best-effort → document conservé).
+    if (extractor.mode !== "live") throw err;
+    repliStub = true;
+    result = await getFactureExtractor("stub").extract(baseInput);
   }
   let proposal = result.proposal;
 
@@ -145,7 +153,8 @@ export async function extraireFactureDepuisDocument(
   // 2bis. 2e passe IA CIBLÉE (Lot 3, ADR 0024 §6). Gated live : aucune 2e passe en stub.
   // Déclenchée UNIQUEMENT si la passe 1 laisse des champs manquants/douteux (coût borné).
   // Best-effort : un échec laisse la proposition de la passe 1 intacte.
-  if (extractor.mode === "live") {
+  // `!repliStub` : si la passe 1 a déjà basculé en stub (live KO), inutile de re-tenter le live.
+  if (extractor.mode === "live" && !repliStub) {
     const aCompleter = champsACompleter(proposal);
     if (aCompleter.length > 0) {
       try {

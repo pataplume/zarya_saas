@@ -52,6 +52,29 @@ function parseRetryAfterMs(header: string | null | undefined): number | undefine
   return secs * 1000;
 }
 
+// Extrait compact du corps d'une réponse en erreur, pour rendre les 4xx DIAGNOSABLES
+// (ex. « The selected model is invalid. » quand un IK_MODEL_* pointe un modèle non-chat).
+// Le corps d'erreur IK est sa propre validation (jamais le token ni le prompt) ; on remonte
+// le message si JSON `{error:{message}}`, sinon un texte tronqué. Défensif : `.text()` peut
+// manquer (mocks de test) ou échouer → undefined (l'appelant garde le message générique).
+async function readErrorBody(response: Response): Promise<string | undefined> {
+  try {
+    if (typeof response.text !== "function") return undefined;
+    const txt = (await response.text())?.trim();
+    if (!txt) return undefined;
+    try {
+      const parsed = JSON.parse(txt) as { error?: { message?: string } | string };
+      const msg = typeof parsed.error === "string" ? parsed.error : parsed.error?.message;
+      if (msg) return msg.slice(0, 300);
+    } catch {
+      // Corps non-JSON : on tronque le texte brut.
+    }
+    return txt.slice(0, 300);
+  } catch {
+    return undefined;
+  }
+}
+
 // ─── Erreur typée ─────────────────────────────────────────────────────────────
 
 export type InfomaniakErrorCode =
@@ -217,9 +240,11 @@ export class InfomaniakClient {
     }
     if (!response.ok) {
       // 5xx → transitoire (réessayable) ; autres 4xx → erreur applicative (non).
+      // On joint un extrait du corps d'erreur IK (sans secret) pour diagnostiquer les 4xx.
+      const detail = await readErrorBody(response);
       throw new InfomaniakError(
         "api_error",
-        `Infomaniak a retourné HTTP ${response.status}.`,
+        `Infomaniak a retourné HTTP ${response.status}.${detail ? ` ${detail}` : ""}`,
         undefined,
         { retryable: response.status >= 500 },
       );

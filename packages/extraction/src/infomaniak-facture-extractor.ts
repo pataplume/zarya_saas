@@ -34,7 +34,11 @@ export interface ChatModelClient {
   chatCompletion(params: IkChatCompletionParams): Promise<IkChatCompletionResponse>;
 }
 
-const MAX_TOKENS = 1024;
+// La catégorie chat_large peut être servie par un modèle « reasoning » (ex. Qwen3.5) qui émet
+// une trace de raisonnement AVANT le JSON. Un budget trop court (1024) est intégralement
+// consommé par le raisonnement → `content` vide → extraction inexploitable. On donne une marge
+// confortable pour que la sortie structurée tienne après le raisonnement (cf. diag IK).
+const MAX_TOKENS = 4096;
 
 function parseJsonLenient(content: string | undefined | null): unknown {
   if (!content) return null;
