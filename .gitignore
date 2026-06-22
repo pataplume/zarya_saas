@@ -236,3 +236,6 @@ data/
 
 # Verrou runtime du loop /schedule (ne pas committer)
 .claude/scheduled_tasks.lock
+
+# Livrables QA manuels (rapports/checklists locaux, non versionnés)
+qa/
