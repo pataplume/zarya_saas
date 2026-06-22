@@ -17,6 +17,8 @@ import {
   libelleTypeEcheance,
   styleFamille,
 } from "@/lib/libelles";
+import { getBancaireDossier } from "../../../../../lib/bancaire-dossier-data";
+import { getCompletudeClient } from "../../../../../lib/completude-client-data";
 import {
   type DossierContact,
   type DossierDocument,
@@ -28,6 +30,20 @@ import {
   getDossierFactures,
   getDossierSalaires,
 } from "../../../../../lib/dossier-client-data";
+import { getClientEditData } from "../../../../../lib/dossier-client-edit-data";
+import {
+  getDocumentsAttendus,
+  getPauseActive,
+  getRelancesAVenir,
+  getRelancesTimeline,
+} from "../../../../../lib/relances-dossier-data";
+import { BancaireSection } from "./bancaire-section";
+import { CompletudeSection } from "./completude-section";
+import { DossierEditClient } from "./dossier-edit-client";
+import { RelancesSection } from "./relances-section";
+
+// RBAC Lot 1 (ADR 0025) : lecteur = lecture seule. Les rôles opérationnels éditent.
+const ROLES_ECRITURE = new Set(["responsable", "gestionnaire_salaires", "collaborateur"]);
 
 // C4.1 — libellés FR centralisés dans `@/lib/libelles`. Le badge de risque garde un
 // libellé préfixé « Risque … » + symbole (jamais couleur seule), spécifique à cet écran.
@@ -90,8 +106,12 @@ function formatMontant(montant: string | null, devise: string): string {
 // Sections ancrées du dossier (ordre d'affichage + barre de navigation).
 const ANCRES: { id: string; label: string }[] = [
   { id: "vue-ensemble", label: "Vue d'ensemble" },
+  { id: "completude", label: "Complétude" },
+  { id: "identite", label: "Dossier" },
   { id: "documents", label: "Documents" },
   { id: "echeances", label: "Échéances" },
+  { id: "relances", label: "Relances" },
+  { id: "bancaire", label: "Bancaire" },
   { id: "factures", label: "Factures" },
   { id: "salaires", label: "Salaires" },
   { id: "coordonnees", label: "Coordonnées" },
@@ -111,6 +131,9 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
   const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
   if (!cabinet_id) redirect("/onboarding");
 
+  const role = user?.app_metadata.role as string | undefined;
+  const peutEcrire = !!role && ROLES_ECRITURE.has(role);
+
   // Scope STRICT (cabinet_id, client_id) : null ⇒ 404 indistinct (anti-fuite).
   // C'est la porte de sécurité : les sections détaillées ne sont chargées QUE si le
   // client appartient bien au cabinet courant. Chaque fetcher refiltre néanmoins
@@ -118,11 +141,30 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
   const dossier = await getDossierClient(cabinet_id, id);
   if (!dossier) notFound();
 
-  const [documents, factures, salaires, coordonnees] = await Promise.all([
+  const [
+    documents,
+    factures,
+    salaires,
+    coordonnees,
+    editData,
+    completude,
+    docsAttendus,
+    relancesTimeline,
+    relancesAVenir,
+    pauseActive,
+    bancaire,
+  ] = await Promise.all([
     getDossierDocuments(cabinet_id, id),
     getDossierFactures(cabinet_id, id),
     getDossierSalaires(cabinet_id, id),
     getDossierCoordonnees(cabinet_id, id),
+    getClientEditData(cabinet_id, id),
+    getCompletudeClient(cabinet_id, id),
+    getDocumentsAttendus(cabinet_id, id),
+    getRelancesTimeline(cabinet_id, id),
+    getRelancesAVenir(cabinet_id, id),
+    getPauseActive(cabinet_id, id),
+    getBancaireDossier(cabinet_id, id),
   ]);
 
   const { identite, agregats, services_actifs, nb_factures_a_valider, periode_salaire_courante } =
@@ -280,11 +322,41 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
         </div>
       </section>
 
+      {/* Lot 3 (ADR 0025) — Assistant de complétude (score + checklist non bloquante) */}
+      {completude && <CompletudeSection completude={completude} />}
+
+      {/* Lot 1 (ADR 0025) — Dossier éditable : identité + contacts + adresses */}
+      {editData && (
+        <div className="mt-10">
+          <DossierEditClient data={editData} peutEcrire={peutEcrire} />
+        </div>
+      )}
+
       {/* C1.3 — Documents (groupés par période puis type) */}
       <DocumentsSection documents={documents} />
 
       {/* C1.4 — Échéances */}
       <EcheancesSection echeances={dossier.echeances} />
+
+      {/* Lot 4 (ADR 0025) — Documents attendus & relances (brouillon Mode A + journal + à venir) */}
+      <RelancesSection
+        data={{
+          clientId: identite.id,
+          documents: docsAttendus,
+          timeline: relancesTimeline,
+          aVenir: relancesAVenir,
+          pause: pauseActive,
+          services: services_actifs.map((s) => ({ id: s.id, type: s.type })),
+        }}
+        peutEcrire={peutEcrire}
+      />
+
+      {/* Lot 5 (ADR 0025 §6) — Bancaire & facturation (IBAN/credentials chiffrés au Vault) */}
+      {bancaire && (
+        <div className="scroll-mt-20">
+          <BancaireSection clientId={identite.id} data={bancaire} peutEcrire={peutEcrire} />
+        </div>
+      )}
 
       {/* C1.4 — Factures */}
       <FacturesSection factures={factures} />
