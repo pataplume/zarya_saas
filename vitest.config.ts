@@ -49,11 +49,14 @@ export default defineConfig({
       },
     },
     // Tests d'intégration sur la base Supabase DISTANTE (latence réseau × N round-trips).
-    // Les plus lourds (ex. valider-lot « lot nominal ») frôlent 15 s et dépassent au moindre
-    // pic de latence CI → flake récurrent. 30 s (= hookTimeout) donne la marge nécessaire ;
-    // un vrai test cassé échoue toujours sur son assertion, pas sur le timeout.
-    testTimeout: 30_000,
-    hookTimeout: 30_000, // seed / cleanup
+    // Les plus lourds — moteur d'échéances (genererEcheancesPourClient : 1 lecture de templates +
+    // N inserts idempotents, Lot 2/6) et valider-lot — multiplient les allers-retours et peuvent
+    // dépasser 30 s lors d'un pic de latence / charge de la base partagée (run CI nocturne observé
+    // à 63 min vs 44 min → 4 timeouts sur le moteur, MÊME commit vert au run précédent). 60 s donne
+    // une marge confortable (run lent ≈ 1,4× → ~42 s) ; un vrai test cassé échoue toujours sur son
+    // assertion, pas sur le timeout. (Fix de fond à terme : batcher les inserts du moteur.)
+    testTimeout: 60_000,
+    hookTimeout: 60_000, // seed / cleanup
     reporters: ["verbose"],
     pool: "forks",
     poolOptions: {
