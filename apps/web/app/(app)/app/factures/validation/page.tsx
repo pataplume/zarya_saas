@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@zarya/auth";
-import { client, db, facture, propositionFacture } from "@zarya/db";
+import { client, db, document, facture, fichierPhysique, propositionFacture } from "@zarya/db";
 import { and, count, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { Pagination } from "@/components/ui/pagination";
@@ -79,9 +79,16 @@ export default async function FacturesValidationPage({
       anomalies_detectees: propositionFacture.anomalies_detectees,
       confiance_globale: propositionFacture.confiance_globale,
       confiance_par_champ: propositionFacture.confiance_par_champ,
+      // Aperçu du document (split-screen) : identifiant du fichier physique servi par
+      // /api/documents/[fichierId]/apercu (qui re-vérifie session + cabinet) + type MIME.
+      // Aucune donnée sensible supplémentaire (pas d'IBAN, pas de chemin storage).
+      fichier_id: document.fichier_physique_id,
+      type_mime: fichierPhysique.type_mime,
     })
     .from(propositionFacture)
     .leftJoin(client, eq(propositionFacture.client_id, client.id))
+    .leftJoin(document, eq(propositionFacture.document_id, document.id))
+    .leftJoin(fichierPhysique, eq(document.fichier_physique_id, fichierPhysique.id))
     .where(
       and(
         eq(propositionFacture.cabinet_id, cabinet_id),
@@ -120,11 +127,14 @@ export default async function FacturesValidationPage({
       anomalies: r.anomalies_detectees ?? [],
       confiance_globale: n(r.confiance_globale),
       confiance_par_champ: normaliserConfianceParChamp(r.confiance_par_champ),
+      fichier_id: r.fichier_id,
+      type_mime: r.type_mime,
     };
   });
 
   return (
-    <main className="mx-auto max-w-4xl p-6">
+    // lg:max-w-7xl : donne au split-screen aperçu/formulaire la largeur nécessaire (lg+).
+    <main className="mx-auto max-w-4xl p-6 lg:max-w-7xl">
       <h1 className="mb-1 text-2xl font-semibold">Factures à valider</h1>
       <p className="mb-6 text-sm text-gray-500">
         {total} facture{total > 1 ? "s" : ""} en attente

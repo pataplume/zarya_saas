@@ -7,7 +7,7 @@
 // renvoie null si le client n'appartient pas au cabinet (→ 404 indistinct).
 // Aucune colonne ultra-sensible (IBAN/AVS/tokens) n'est projetée.
 
-import { adresse, cabinetMembre, client, contact, db } from "@zarya/db";
+import { adresse, cabinetMembre, client, contact, db, paramComptable, service } from "@zarya/db";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 export interface ClientEditIdentite {
@@ -176,5 +176,100 @@ export async function getClientEditData(
       id: m.id,
       nom_complet: [m.prenom, m.nom].filter(Boolean).join(" ") || "Membre du cabinet",
     })),
+  };
+}
+
+// ─── UX Lot 4 — Services & régime (formulaire éditable du dossier) ────────────
+//
+// Données d'édition de la section « Services & régime » : services actifs (avec le
+// régime TVA porté par service.parametres) + paramètres comptables (crm.param_comptable).
+// AUCUNE colonne ultra-sensible projetée (acces_logiciel_externe_vault_id ignoré).
+
+export interface ServiceRegime {
+  id: string;
+  type: string;
+  frequence: string | null;
+  /** Régime TVA depuis service.parametres (`regime_tva`, fallback legacy `regime`). */
+  regime_tva: string | null;
+}
+
+export interface ParamComptableEdit {
+  logiciel: string | null;
+  logiciel_autre: string | null;
+  plan_comptable: string | null;
+  date_debut_exercice: string | null;
+  date_bouclement: string | null;
+  mode_transmission: string | null;
+}
+
+export interface ServicesRegimeData {
+  services: ServiceRegime[];
+  param_comptable: ParamComptableEdit | null;
+}
+
+/** Lit le régime TVA dans le jsonb `parametres` (clé `regime_tva`, fallback `regime`). */
+function regimeDepuisParametres(parametres: unknown): string | null {
+  if (parametres == null || typeof parametres !== "object") return null;
+  const rec = parametres as Record<string, unknown>;
+  const r = rec.regime_tva ?? rec.regime;
+  return typeof r === "string" && r.length > 0 ? r : null;
+}
+
+export async function getServicesRegime(
+  cabinet_id: string,
+  client_id: string,
+): Promise<ServicesRegimeData> {
+  const [servicesRows, paramRows] = await Promise.all([
+    db
+      .select({
+        id: service.id,
+        type: service.type,
+        frequence: service.frequence,
+        parametres: service.parametres,
+      })
+      .from(service)
+      .where(
+        and(
+          eq(service.cabinet_id, cabinet_id),
+          eq(service.client_id, client_id),
+          eq(service.actif, true),
+        ),
+      )
+      .orderBy(asc(service.type)),
+    db
+      .select({
+        logiciel: paramComptable.logiciel,
+        logiciel_autre: paramComptable.logiciel_autre,
+        plan_comptable: paramComptable.plan_comptable,
+        date_debut_exercice: paramComptable.date_debut_exercice,
+        date_bouclement: paramComptable.date_bouclement,
+        mode_transmission: paramComptable.mode_transmission,
+      })
+      .from(paramComptable)
+      .where(
+        and(eq(paramComptable.cabinet_id, cabinet_id), eq(paramComptable.client_id, client_id)),
+      )
+      .limit(1),
+  ]);
+
+  const param = paramRows[0];
+  return {
+    services: servicesRows.map((s) => ({
+      id: s.id,
+      type: s.type,
+      frequence: s.frequence ?? null,
+      regime_tva: regimeDepuisParametres(s.parametres),
+    })),
+    param_comptable: param
+      ? {
+          logiciel: param.logiciel ?? null,
+          logiciel_autre: param.logiciel_autre ?? null,
+          plan_comptable: param.plan_comptable ?? null,
+          date_debut_exercice:
+            param.date_debut_exercice != null ? String(param.date_debut_exercice) : null,
+          date_bouclement: param.date_bouclement != null ? String(param.date_bouclement) : null,
+          mode_transmission: param.mode_transmission ?? null,
+        }
+      : null,
   };
 }

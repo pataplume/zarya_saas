@@ -1,7 +1,8 @@
 import { getCurrentUser } from "@zarya/auth";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   badgeStatutClassement,
   badgeStatutFacture,
@@ -20,6 +21,7 @@ import {
 import { getBancaireDossier } from "../../../../../lib/bancaire-dossier-data";
 import { getCompletudeClient } from "../../../../../lib/completude-client-data";
 import {
+  type DossierClientService,
   type DossierContact,
   type DossierDocument,
   type DossierFactures,
@@ -30,7 +32,7 @@ import {
   getDossierFactures,
   getDossierSalaires,
 } from "../../../../../lib/dossier-client-data";
-import { getClientEditData } from "../../../../../lib/dossier-client-edit-data";
+import { getClientEditData, getServicesRegime } from "../../../../../lib/dossier-client-edit-data";
 import {
   getDocumentsAttendus,
   getPauseActive,
@@ -41,6 +43,7 @@ import { BancaireSection } from "./bancaire-section";
 import { CompletudeSection } from "./completude-section";
 import { DossierEditClient } from "./dossier-edit-client";
 import { RelancesSection } from "./relances-section";
+import { ServicesRegimeSection } from "./services-regime-section";
 
 // RBAC Lot 1 (ADR 0025) : lecteur = lecture seule. Les rôles opérationnels éditent.
 const ROLES_ECRITURE = new Set(["responsable", "gestionnaire_salaires", "collaborateur"]);
@@ -108,6 +111,7 @@ const ANCRES: { id: string; label: string }[] = [
   { id: "vue-ensemble", label: "Vue d'ensemble" },
   { id: "completude", label: "Complétude" },
   { id: "identite", label: "Dossier" },
+  { id: "services", label: "Services" },
   { id: "documents", label: "Documents" },
   { id: "echeances", label: "Échéances" },
   { id: "relances", label: "Relances" },
@@ -141,31 +145,15 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
   const dossier = await getDossierClient(cabinet_id, id);
   if (!dossier) notFound();
 
-  const [
-    documents,
-    factures,
-    salaires,
-    coordonnees,
-    editData,
-    completude,
-    docsAttendus,
-    relancesTimeline,
-    relancesAVenir,
-    pauseActive,
-    bancaire,
-  ] = await Promise.all([
-    getDossierDocuments(cabinet_id, id),
-    getDossierFactures(cabinet_id, id),
-    getDossierSalaires(cabinet_id, id),
-    getDossierCoordonnees(cabinet_id, id),
-    getClientEditData(cabinet_id, id),
-    getCompletudeClient(cabinet_id, id),
-    getDocumentsAttendus(cabinet_id, id),
-    getRelancesTimeline(cabinet_id, id),
-    getRelancesAVenir(cabinet_id, id),
-    getPauseActive(cabinet_id, id),
-    getBancaireDossier(cabinet_id, id),
-  ]);
+  // Streaming (UX Lot 4) : SEULE la requête-porte ci-dessus bloque le 1er rendu.
+  // L'en-tête + barre d'ancres + « Vue d'ensemble » + Échéances (déjà portées par
+  // `dossier`) partent immédiatement ; chaque autre section est un composant async
+  // wrappé dans <Suspense> qui exécute SA requête scopée (cabinet_id, client_id)
+  // — les requêtes existantes sont déplacées telles quelles, pas réécrites.
+  // Les sections éditables (dossier, services, bancaire, relances) sont découplées
+  // aussi : leurs fetchers sont indépendants et refiltrent (cabinet_id, client_id)
+  // (défense en profondeur), et les server actions restent inchangées — le découplage
+  // ne change ni les props ni la sécurité. Le 404 anti-fuite reste AVANT tout rendu.
 
   const { identite, agregats, services_actifs, nb_factures_a_valider, periode_salaire_courante } =
     dossier;
@@ -183,6 +171,12 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
 
   return (
     <div className="px-4 py-8 sm:px-6 lg:px-8">
+      {/* Scroll fluide sur les ancres : le conteneur de scroll est le document (le layout
+          (app)/app ne crée pas de conteneur overflow) → `scroll-behavior: smooth` sur <html>,
+          limité au montage de cette page. Les `scroll-mt-20` des sections restent inchangés.
+          `prefers-reduced-motion` est respecté (a11y). */}
+      <style>{`html{scroll-behavior:smooth}@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}`}</style>
+
       {/* Fil d'Ariane + retour vers la liste des clients */}
       <nav className="mb-4 text-sm text-slate-500">
         <Link href="/app/clients" className="font-medium text-blue-600 hover:text-blue-700">
@@ -323,51 +317,192 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
       </section>
 
       {/* Lot 3 (ADR 0025) — Assistant de complétude (score + checklist non bloquante) */}
-      {completude && <CompletudeSection completude={completude} />}
+      <Suspense fallback={<SectionSkeleton id="completude" titre="Complétude du dossier" />}>
+        <CompletudeAsync cabinet_id={cabinet_id} clientId={id} />
+      </Suspense>
 
       {/* Lot 1 (ADR 0025) — Dossier éditable : identité + contacts + adresses */}
-      {editData && (
-        <div className="mt-10">
-          <DossierEditClient data={editData} peutEcrire={peutEcrire} />
-        </div>
-      )}
+      <Suspense fallback={<SectionSkeleton id="identite" titre="Identité" />}>
+        <DossierEditAsync cabinet_id={cabinet_id} clientId={id} peutEcrire={peutEcrire} />
+      </Suspense>
+
+      {/* UX Lot 4 — Services & régime (moteur d'échéances, back Lot 2 ADR 0025) */}
+      <Suspense fallback={<SectionSkeleton id="services" titre="Services & régime" />}>
+        <ServicesRegimeAsync cabinet_id={cabinet_id} clientId={id} peutEcrire={peutEcrire} />
+      </Suspense>
 
       {/* C1.3 — Documents (groupés par période puis type) */}
-      <DocumentsSection documents={documents} />
+      <Suspense fallback={<SectionSkeleton id="documents" titre="Documents" />}>
+        <DocumentsAsync cabinet_id={cabinet_id} clientId={id} />
+      </Suspense>
 
-      {/* C1.4 — Échéances */}
+      {/* C1.4 — Échéances — données déjà portées par la requête-porte : rendu immédiat. */}
       <EcheancesSection echeances={dossier.echeances} />
 
       {/* Lot 4 (ADR 0025) — Documents attendus & relances (brouillon Mode A + journal + à venir) */}
-      <RelancesSection
-        data={{
-          clientId: identite.id,
-          documents: docsAttendus,
-          timeline: relancesTimeline,
-          aVenir: relancesAVenir,
-          pause: pauseActive,
-          services: services_actifs.map((s) => ({ id: s.id, type: s.type })),
-        }}
-        peutEcrire={peutEcrire}
-      />
+      <Suspense fallback={<SectionSkeleton id="relances" titre="Documents attendus & relances" />}>
+        <RelancesAsync
+          cabinet_id={cabinet_id}
+          clientId={identite.id}
+          services={services_actifs}
+          peutEcrire={peutEcrire}
+        />
+      </Suspense>
 
       {/* Lot 5 (ADR 0025 §6) — Bancaire & facturation (IBAN/credentials chiffrés au Vault) */}
-      {bancaire && (
-        <div className="scroll-mt-20">
-          <BancaireSection clientId={identite.id} data={bancaire} peutEcrire={peutEcrire} />
-        </div>
-      )}
+      <Suspense fallback={<SectionSkeleton id="bancaire" titre="Bancaire & facturation" />}>
+        <BancaireAsync cabinet_id={cabinet_id} clientId={identite.id} peutEcrire={peutEcrire} />
+      </Suspense>
 
       {/* C1.4 — Factures */}
-      <FacturesSection factures={factures} />
+      <Suspense fallback={<SectionSkeleton id="factures" titre="Factures" />}>
+        <FacturesAsync cabinet_id={cabinet_id} clientId={id} />
+      </Suspense>
 
       {/* C1.5 — Salaires */}
-      <SalairesSection periodes={salaires} clientId={identite.id} />
+      <Suspense fallback={<SectionSkeleton id="salaires" titre="Salaires" />}>
+        <SalairesAsync cabinet_id={cabinet_id} clientId={identite.id} />
+      </Suspense>
 
       {/* C1.5 — Coordonnées & paramètres */}
-      <CoordonneesSection coordonnees={coordonnees} />
+      <Suspense fallback={<SectionSkeleton id="coordonnees" titre="Paramètres comptables" />}>
+        <CoordonneesAsync cabinet_id={cabinet_id} clientId={id} />
+      </Suspense>
     </div>
   );
+}
+
+// ─── Streaming — squelette de section (même id/scroll-mt que la section réelle,
+// pour que les ancres de la barre sticky restent fonctionnelles pendant le chargement) ──
+
+function SectionSkeleton({ id, titre }: { id: string; titre: string }) {
+  return (
+    <section id={id} className="mt-10 scroll-mt-20" aria-busy="true">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">{titre}</h2>
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <Skeleton className="h-4 w-2/3 max-w-full bg-slate-100" />
+        <Skeleton className="mt-3 h-4 w-1/2 max-w-full bg-slate-100" />
+        <Skeleton className="mt-3 h-24 w-full bg-slate-100" />
+      </div>
+    </section>
+  );
+}
+
+// ─── Streaming — composants async serveur : chaque section exécute SA requête
+// scopée (cabinet_id, client_id) sous <Suspense>. Les fetchers refiltrent tous
+// (cabinet_id, client_id) — défense en profondeur derrière la porte 404 du dossier. ──
+
+async function CompletudeAsync({ cabinet_id, clientId }: { cabinet_id: string; clientId: string }) {
+  const completude = await getCompletudeClient(cabinet_id, clientId);
+  if (!completude) return null;
+  return <CompletudeSection completude={completude} />;
+}
+
+async function DossierEditAsync({
+  cabinet_id,
+  clientId,
+  peutEcrire,
+}: {
+  cabinet_id: string;
+  clientId: string;
+  peutEcrire: boolean;
+}) {
+  const editData = await getClientEditData(cabinet_id, clientId);
+  if (!editData) return null;
+  return (
+    <div className="mt-10">
+      <DossierEditClient data={editData} peutEcrire={peutEcrire} />
+    </div>
+  );
+}
+
+async function ServicesRegimeAsync({
+  cabinet_id,
+  clientId,
+  peutEcrire,
+}: {
+  cabinet_id: string;
+  clientId: string;
+  peutEcrire: boolean;
+}) {
+  const data = await getServicesRegime(cabinet_id, clientId);
+  return <ServicesRegimeSection clientId={clientId} data={data} peutEcrire={peutEcrire} />;
+}
+
+async function DocumentsAsync({ cabinet_id, clientId }: { cabinet_id: string; clientId: string }) {
+  const documents = await getDossierDocuments(cabinet_id, clientId);
+  return <DocumentsSection documents={documents} />;
+}
+
+async function RelancesAsync({
+  cabinet_id,
+  clientId,
+  services,
+  peutEcrire,
+}: {
+  cabinet_id: string;
+  clientId: string;
+  services: DossierClientService[];
+  peutEcrire: boolean;
+}) {
+  const [docsAttendus, relancesTimeline, relancesAVenir, pauseActive] = await Promise.all([
+    getDocumentsAttendus(cabinet_id, clientId),
+    getRelancesTimeline(cabinet_id, clientId),
+    getRelancesAVenir(cabinet_id, clientId),
+    getPauseActive(cabinet_id, clientId),
+  ]);
+  return (
+    <RelancesSection
+      data={{
+        clientId,
+        documents: docsAttendus,
+        timeline: relancesTimeline,
+        aVenir: relancesAVenir,
+        pause: pauseActive,
+        services: services.map((s) => ({ id: s.id, type: s.type })),
+      }}
+      peutEcrire={peutEcrire}
+    />
+  );
+}
+
+async function BancaireAsync({
+  cabinet_id,
+  clientId,
+  peutEcrire,
+}: {
+  cabinet_id: string;
+  clientId: string;
+  peutEcrire: boolean;
+}) {
+  const bancaire = await getBancaireDossier(cabinet_id, clientId);
+  if (!bancaire) return null;
+  return (
+    <div className="scroll-mt-20">
+      <BancaireSection clientId={clientId} data={bancaire} peutEcrire={peutEcrire} />
+    </div>
+  );
+}
+
+async function FacturesAsync({ cabinet_id, clientId }: { cabinet_id: string; clientId: string }) {
+  const factures = await getDossierFactures(cabinet_id, clientId);
+  return <FacturesSection factures={factures} />;
+}
+
+async function SalairesAsync({ cabinet_id, clientId }: { cabinet_id: string; clientId: string }) {
+  const salaires = await getDossierSalaires(cabinet_id, clientId);
+  return <SalairesSection periodes={salaires} clientId={clientId} />;
+}
+
+async function CoordonneesAsync({
+  cabinet_id,
+  clientId,
+}: {
+  cabinet_id: string;
+  clientId: string;
+}) {
+  const coordonnees = await getDossierCoordonnees(cabinet_id, clientId);
+  return <CoordonneesSection coordonnees={coordonnees} />;
 }
 
 // ─── Cartouche de section (titre ancré + lien optionnel) ─────────────────────────

@@ -276,9 +276,15 @@ function IdentiteSection({
         </div>
         <Erreur message={state.error} />
         <Succes visible={!!state.success} />
-        <div className="mt-4">
+        <div className="mt-4 flex gap-2">
           <button type="submit" className={BTN_PRIMARY} disabled={pending}>
             {pending ? "Enregistrement…" : "Enregistrer l'identité"}
+          </button>
+          {/* Annuler explicite (UX Lot 4) : la section identité est un formulaire toujours
+              ouvert (pas de bascule lecture/édition comme EditRow) — le reset natif restaure
+              les valeurs enregistrées (defaultValue) sans sauvegarder. */}
+          <button type="reset" className={BTN_SECONDARY}>
+            Annuler
           </button>
         </div>
       </form>

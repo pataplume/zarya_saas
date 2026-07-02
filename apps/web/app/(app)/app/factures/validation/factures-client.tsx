@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronLeft, ChevronRight, ExternalLink, RotateCw } from "lucide-react";
 import Link from "next/link";
 import {
   useCallback,
@@ -56,6 +57,14 @@ export interface FactureItem {
   confiance_globale: number | null;
   /** Provenance + confiance par champ (normalisée, ADR 0024). */
   confiance_par_champ: ConfianceParChampUi;
+  /**
+   * Fichier physique du document source (doc.document → doc.fichier_physique), servi par
+   * /api/documents/[fichierId]/apercu (session + cabinet re-vérifiés côté route). Null si
+   * la jointure n'aboutit pas → « Aperçu indisponible ».
+   */
+  fichier_id: string | null;
+  /** Type MIME du fichier (sert à décider si l'iframe peut rendre l'aperçu nativement). */
+  type_mime: string | null;
 }
 
 function val(n: number | null): string {
@@ -171,6 +180,71 @@ export function ChampBadge({ prov }: { prov: ConfianceChampUi | undefined }) {
   );
 }
 
+/** Types MIME que le navigateur sait rendre nativement dans une iframe (PDF, images, texte). */
+function estPrevisualisable(typeMime: string | null): boolean {
+  if (!typeMime) return true; // inconnu → on tente l'iframe plutôt que de priver d'aperçu
+  return (
+    typeMime === "application/pdf" || typeMime.startsWith("image/") || typeMime.startsWith("text/")
+  );
+}
+
+/**
+ * Volet gauche du split-screen (desktop lg+) : aperçu du document source via
+ * /api/documents/[fichierId]/apercu (URL signée Storage, TTL 300 s — la route re-vérifie
+ * session + cabinet, on ne contourne rien). L'URL signée expirant après 5 min, le bouton
+ * « Recharger l'aperçu » re-set le src avec un cache-buster pour re-signer.
+ */
+function ApercuDocument({
+  fichierId,
+  typeMime,
+  titre,
+}: {
+  fichierId: string | null;
+  typeMime: string | null;
+  titre: string;
+}) {
+  const [version, setVersion] = useState(0);
+  const disponible = fichierId !== null && estPrevisualisable(typeMime);
+  return (
+    <div className="hidden lg:sticky lg:top-4 lg:block lg:self-start">
+      {disponible ? (
+        <>
+          <iframe
+            key={version}
+            src={`/api/documents/${fichierId}/apercu${version > 0 ? `?v=${version}` : ""}`}
+            title={`Aperçu du document — ${titre}`}
+            className="h-[80vh] w-full rounded border border-gray-200 bg-gray-50"
+          />
+          <button
+            type="button"
+            onClick={() => setVersion(Date.now())}
+            title="L'aperçu expire après 5 minutes — recharger si la page grise"
+            className="mt-1 inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
+          >
+            <RotateCw className="h-3 w-3" aria-hidden />
+            Recharger l'aperçu
+          </button>
+        </>
+      ) : (
+        <div className="flex h-[80vh] flex-col items-center justify-center gap-2 rounded border border-dashed border-gray-200 bg-gray-50">
+          <p className="text-sm text-gray-500">Aperçu indisponible</p>
+          {fichierId !== null ? (
+            <a
+              href={`/api/documents/${fichierId}/apercu`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+            >
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+              Ouvrir le document
+            </a>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FactureCard({
   f,
   peutValider,
@@ -185,6 +259,8 @@ function FactureCard({
   onToggleSelection,
   onValider,
   onRejeter,
+  onPrecedente,
+  onSuivante,
 }: {
   f: FactureItem;
   peutValider: boolean;
@@ -202,6 +278,10 @@ function FactureCard({
   onToggleSelection: () => void;
   onValider: (formData: FormData) => void;
   onRejeter: () => void;
+  /** Navigation dans la file sans fermer le split — null = pas de facture précédente. */
+  onPrecedente: (() => void) | null;
+  /** Navigation dans la file sans fermer le split — null = pas de facture suivante. */
+  onSuivante: (() => void) | null;
 }) {
   // Provenance d'un champ de formulaire pour ce document (ADR 0024).
   const prov = (champ: string): ConfianceChampUi | undefined =>
@@ -265,140 +345,190 @@ function FactureCard({
           ) : null}
         </div>
         {peutValider ? (
-          <button
-            type="button"
-            onClick={onToggleOpen}
-            className="shrink-0 rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-          >
-            {open ? "Fermer" : "Vérifier & valider"}
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {open ? (
+              // En-tête du split : passer à la facture précédente/suivante de la liste
+              // visible sans fermer le mode vérification (déplace aussi le curseur clavier).
+              <>
+                <button
+                  type="button"
+                  onClick={onPrecedente ?? undefined}
+                  disabled={onPrecedente === null}
+                  title="Facture précédente"
+                  className="inline-flex items-center gap-1 rounded border px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden />
+                  Précédente
+                </button>
+                <button
+                  type="button"
+                  onClick={onSuivante ?? undefined}
+                  disabled={onSuivante === null}
+                  title="Facture suivante"
+                  className="inline-flex items-center gap-1 rounded border px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Suivante
+                  <ChevronRight className="h-4 w-4" aria-hidden />
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              onClick={onToggleOpen}
+              className="shrink-0 rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+            >
+              {open ? "Fermer" : "Vérifier & valider"}
+            </button>
+          </div>
         ) : null}
       </div>
 
       {open && peutValider ? (
-        <form action={onValider} className="mt-4 grid grid-cols-2 gap-3 border-t pt-4 text-sm">
-          <input type="hidden" name="proposition_id" value={f.id} />
-          <Field
-            label="Raison sociale"
-            name="fournisseur_raison_sociale"
-            def={f.fournisseur_raison_sociale}
-            required
-            prov={prov("fournisseur_raison_sociale")}
+        // Split-screen (lg+) : aperçu du document à gauche (sticky), formulaire à droite.
+        // Sur mobile, pas d'iframe — un lien « Ouvrir le document » au-dessus du formulaire.
+        <div className="mt-4 border-t pt-4 lg:grid lg:grid-cols-[1fr_1fr] lg:items-start lg:gap-6">
+          <ApercuDocument
+            fichierId={f.fichier_id}
+            typeMime={f.type_mime}
+            titre={f.fournisseur_raison_sociale || f.numero_facture || "facture à valider"}
           />
-          <Field
-            label="IDE"
-            name="fournisseur_ide"
-            def={f.fournisseur_ide}
-            prov={prov("fournisseur_ide")}
-          />
-          {f.a_iban_qr ? (
-            <IbanQrField masque={f.iban_paiement_masque} />
-          ) : (
-            <Field
-              label="IBAN (à saisir)"
-              name="fournisseur_iban"
-              def=""
-              placeholder="CHxx…"
-              prov={prov("iban")}
-            />
-          )}
-          <Field
-            label="N° TVA"
-            name="fournisseur_numero_tva"
-            def={f.fournisseur_numero_tva}
-            prov={prov("fournisseur_numero_tva")}
-          />
-          <Field
-            label="N° facture"
-            name="numero_facture"
-            def={f.numero_facture}
-            required
-            prov={prov("numero_facture")}
-          />
-          <Field
-            label="Compte de charge"
-            name="compte_charge"
-            def={f.categorie || "6000"}
-            required
-          />
-          <Field
-            label="Date émission"
-            name="date_emission"
-            def={f.date_emission}
-            placeholder="AAAA-MM-JJ"
-            required
-            prov={prov("date_emission")}
-          />
-          <Field
-            label="Date échéance"
-            name="date_echeance"
-            def={f.date_echeance}
-            placeholder="AAAA-MM-JJ"
-            prov={prov("date_echeance")}
-          />
-          <Field
-            label="Total HT"
-            name="total_ht"
-            def={val(f.total_ht)}
-            required
-            prov={prov("total_ht")}
-          />
-          <Field
-            label="Total TVA"
-            name="total_tva"
-            def={val(f.total_tva)}
-            prov={prov("total_tva")}
-          />
-          <Field
-            label="Total TTC"
-            name="total_ttc"
-            def={val(f.total_ttc)}
-            required
-            prov={prov("total_ttc")}
-          />
-          <Field
-            label="Montant à payer"
-            name="montant_a_payer"
-            def={val(f.montant_a_payer ?? f.total_ttc)}
-            required
-            prov={prov("montant_a_payer")}
-          />
-          <Field
-            label="Taux TVA %"
-            name="taux_tva_principal"
-            def={val(f.taux_tva_principal)}
-            prov={prov("taux_tva_principal")}
-          />
-          <label className="flex flex-col gap-1">
-            <span className="flex items-center gap-1.5 text-gray-600">
-              <span>Devise</span>
-              <ChampBadge prov={prov("devise")} />
-            </span>
-            <select name="devise" defaultValue={f.devise} className="rounded border px-2 py-1">
-              <option>CHF</option>
-              <option>EUR</option>
-              <option>USD</option>
-            </select>
-          </label>
+          <div className="min-w-0">
+            {f.fichier_id !== null ? (
+              <a
+                href={`/api/documents/${f.fichier_id}/apercu`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mb-3 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline lg:hidden"
+              >
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                Ouvrir le document
+              </a>
+            ) : null}
+            <form action={onValider} className="grid grid-cols-2 gap-3 text-sm">
+              <input type="hidden" name="proposition_id" value={f.id} />
+              <Field
+                label="Raison sociale"
+                name="fournisseur_raison_sociale"
+                def={f.fournisseur_raison_sociale}
+                required
+                prov={prov("fournisseur_raison_sociale")}
+              />
+              <Field
+                label="IDE"
+                name="fournisseur_ide"
+                def={f.fournisseur_ide}
+                prov={prov("fournisseur_ide")}
+              />
+              {f.a_iban_qr ? (
+                <IbanQrField masque={f.iban_paiement_masque} />
+              ) : (
+                <Field
+                  label="IBAN (à saisir)"
+                  name="fournisseur_iban"
+                  def=""
+                  placeholder="CHxx…"
+                  prov={prov("iban")}
+                />
+              )}
+              <Field
+                label="N° TVA"
+                name="fournisseur_numero_tva"
+                def={f.fournisseur_numero_tva}
+                prov={prov("fournisseur_numero_tva")}
+              />
+              <Field
+                label="N° facture"
+                name="numero_facture"
+                def={f.numero_facture}
+                required
+                prov={prov("numero_facture")}
+              />
+              <Field
+                label="Compte de charge"
+                name="compte_charge"
+                def={f.categorie || "6000"}
+                required
+              />
+              <Field
+                label="Date émission"
+                name="date_emission"
+                def={f.date_emission}
+                placeholder="AAAA-MM-JJ"
+                required
+                prov={prov("date_emission")}
+              />
+              <Field
+                label="Date échéance"
+                name="date_echeance"
+                def={f.date_echeance}
+                placeholder="AAAA-MM-JJ"
+                prov={prov("date_echeance")}
+              />
+              <Field
+                label="Total HT"
+                name="total_ht"
+                def={val(f.total_ht)}
+                required
+                prov={prov("total_ht")}
+              />
+              <Field
+                label="Total TVA"
+                name="total_tva"
+                def={val(f.total_tva)}
+                prov={prov("total_tva")}
+              />
+              <Field
+                label="Total TTC"
+                name="total_ttc"
+                def={val(f.total_ttc)}
+                required
+                prov={prov("total_ttc")}
+              />
+              <Field
+                label="Montant à payer"
+                name="montant_a_payer"
+                def={val(f.montant_a_payer ?? f.total_ttc)}
+                required
+                prov={prov("montant_a_payer")}
+              />
+              <Field
+                label="Taux TVA %"
+                name="taux_tva_principal"
+                def={val(f.taux_tva_principal)}
+                prov={prov("taux_tva_principal")}
+              />
+              <label className="flex flex-col gap-1">
+                <span className="flex items-center gap-1.5 text-gray-600">
+                  <span>Devise</span>
+                  <ChampBadge prov={prov("devise")} />
+                </span>
+                <select name="devise" defaultValue={f.devise} className="rounded border px-2 py-1">
+                  <option>CHF</option>
+                  <option>EUR</option>
+                  <option>USD</option>
+                </select>
+              </label>
 
-          <div className="col-span-2 flex gap-2">
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
-            >
-              ✓ Valider la facture
-            </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={onRejeter}
-              className="rounded border px-4 py-2 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Rejeter
-            </button>
+              <div className="col-span-2 flex gap-2">
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  ✓ Valider la facture
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={onRejeter}
+                  className="rounded border px-4 py-2 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Rejeter
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       ) : null}
     </li>
   );
@@ -641,6 +771,19 @@ export function FacturesValidation({
     enabled: peutValider && !formulaireOuvert,
   });
 
+  // Navigation précédent/suivant depuis l'en-tête du split : ferme le formulaire courant,
+  // ouvre celui de la facture voisine dans la liste VISIBLE et déplace le curseur clavier
+  // (cohérent avec J/N/P + V : à la fermeture par Échap, le curseur est sur la bonne carte).
+  const naviguer = useCallback(
+    (index: number, delta: number) => {
+      const cible = enAttente[index + delta];
+      if (!cible) return;
+      setCursor(index + delta);
+      setOpenId(cible.id);
+    },
+    [enAttente],
+  );
+
   // Échap referme le formulaire ouvert (pendant que les autres raccourcis sont suspendus).
   useEffect(() => {
     if (!formulaireOuvert) return;
@@ -715,6 +858,8 @@ export function FacturesValidation({
             onToggleSelection={() => toggleUn(f.id)}
             onValider={(formData) => valider(f.id, formData)}
             onRejeter={() => rejeter(f.id)}
+            onPrecedente={i > 0 ? () => naviguer(i, -1) : null}
+            onSuivante={i < enAttente.length - 1 ? () => naviguer(i, 1) : null}
           />
         ))}
       </ul>

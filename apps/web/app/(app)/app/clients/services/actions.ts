@@ -68,13 +68,16 @@ export async function configurerServicesClientAction(
   const role = user.app_metadata.role as string | undefined;
   if (!role || !ROLES_ECRITURE.has(role)) return { error: "Droits insuffisants." };
 
+  // Normalisation formulaire : un <select> vide soumet "" — traité comme absent
+  // (sinon les z.enum optionnels rejettent la chaîne vide). Même helper `optionnel`
+  // que le CRUD granulaire ci-dessous.
   const parsed = Schema.safeParse({
     client_id: formData.get("client_id"),
     services: formData.getAll("services"),
-    compta_logiciel: formData.get("compta_logiciel") ?? undefined,
-    compta_plan: formData.get("compta_plan") ?? undefined,
-    tva_regime: formData.get("tva_regime") ?? undefined,
-    tva_frequence: formData.get("tva_frequence") ?? undefined,
+    compta_logiciel: optionnel(formData.get("compta_logiciel")),
+    compta_plan: optionnel(formData.get("compta_plan")),
+    tva_regime: optionnel(formData.get("tva_regime")),
+    tva_frequence: optionnel(formData.get("tva_frequence")),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   const v = parsed.data;
