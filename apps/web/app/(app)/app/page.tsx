@@ -110,15 +110,15 @@ async function FocusSection({ cabinetId }: { cabinetId: string }) {
 
   if (total === 0) {
     return (
-      <div className="flex items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6 shadow-card">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100">
-          <CheckCircle2 className="size-6 text-emerald-600" aria-hidden />
+      <div className="flex items-center gap-4 rounded-xl bg-emerald-400/10 p-5 ring-1 ring-emerald-400/20">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-400/15">
+          <CheckCircle2 className="size-6 text-emerald-300" aria-hidden />
         </span>
         <div>
-          <p className="text-lg font-semibold tracking-tight text-emerald-900">
+          <p className="text-base font-semibold tracking-tight text-white">
             Tout est à jour, rien ne t'attend
           </p>
-          <p className="text-[13px] text-emerald-700">
+          <p className="text-[13px] text-slate-400">
             Aucun document, facture, échéance, relance ou salaire en attente.
           </p>
         </div>
@@ -134,22 +134,22 @@ async function FocusSection({ cabinetId }: { cabinetId: string }) {
   const autres = lignes.filter((l) => l.id !== focus.id);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+    <div className="overflow-hidden rounded-xl bg-white/[0.03] ring-1 ring-white/10">
       {/* Focus — l'action qui domine */}
-      <div className="flex flex-col gap-4 border-l-[3px] border-amber-400 bg-amber-50/40 p-5 sm:flex-row sm:items-center">
-        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+      <div className="flex flex-col gap-4 border-l-2 border-amber-400 bg-amber-400/[0.06] p-5 sm:flex-row sm:items-center">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
           <FocusIcon className="size-7" strokeWidth={1.75} aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-2xl font-semibold tracking-tight text-foreground">
+          <p className="text-2xl font-semibold tracking-tight text-white">
             <span className="tabular-nums">{formatCompte(focus.valeur)}</span>{" "}
             <span className="font-medium">{focus.label}</span>
           </p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">{focus.detail ?? "À traiter"}</p>
+          <p className="mt-0.5 text-[13px] text-slate-400">{focus.detail ?? "À traiter"}</p>
         </div>
         <Link
           href={focus.href}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-slate-800"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-indigo-400"
         >
           Traiter maintenant
           <ArrowRight className="size-4" aria-hidden />
@@ -157,7 +157,7 @@ async function FocusSection({ cabinetId }: { cabinetId: string }) {
       </div>
 
       {/* Le reste, résumé */}
-      <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+      <div className="flex flex-wrap gap-2 border-t border-white/10 px-4 py-3">
         {autres.map((l) => {
           const Icon = l.icon;
           const actif = l.valeur > 0;
@@ -168,8 +168,8 @@ async function FocusSection({ cabinetId }: { cabinetId: string }) {
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[13px] transition-colors",
                 actif
-                  ? "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-300"
-                  : "border-border bg-card text-slate-500 hover:border-slate-300",
+                  ? "border-amber-400/30 bg-amber-400/10 text-amber-200 hover:border-amber-400/50"
+                  : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20",
               )}
             >
               <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />
@@ -177,7 +177,7 @@ async function FocusSection({ cabinetId }: { cabinetId: string }) {
               {actif ? (
                 <span className="font-semibold tabular-nums">{formatCompte(l.valeur)}</span>
               ) : (
-                <CheckCircle2 className="size-3.5 text-emerald-500" aria-hidden />
+                <CheckCircle2 className="size-3.5 text-emerald-400" aria-hidden />
               )}
             </Link>
           );
@@ -189,18 +189,18 @@ async function FocusSection({ cabinetId }: { cabinetId: string }) {
 
 function FocusSkeleton() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+    <div className="overflow-hidden rounded-xl bg-white/[0.03] ring-1 ring-white/10">
       <div className="flex items-center gap-4 p-5">
-        <Skeleton className="size-14 rounded-2xl" />
+        <div className="size-14 shrink-0 animate-pulse rounded-2xl bg-white/10" />
         <div className="flex-1 space-y-2">
-          <Skeleton className="h-7 w-64" />
-          <Skeleton className="h-3 w-40" />
+          <div className="h-7 w-64 animate-pulse rounded bg-white/10" />
+          <div className="h-3 w-40 animate-pulse rounded bg-white/10" />
         </div>
-        <Skeleton className="h-10 w-40 rounded-lg" />
+        <div className="h-10 w-40 animate-pulse rounded-lg bg-white/10" />
       </div>
-      <div className="flex gap-2 border-t border-border px-4 py-3">
+      <div className="flex gap-2 border-t border-white/10 px-4 py-3">
         {["a", "b", "c", "d"].map((id) => (
-          <Skeleton key={id} className="h-7 w-32 rounded-md" />
+          <div key={id} className="h-7 w-32 animate-pulse rounded-md bg-white/10" />
         ))}
       </div>
     </div>
@@ -560,29 +560,39 @@ export default async function AppHomePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-      {/* ─── Salutation éditoriale ───────────────────────────────────────────── */}
-      <div className="mb-5">
-        <p className="text-[13px] font-medium uppercase tracking-wider text-muted-foreground first-letter:uppercase">
+      {/* ─── Bande « co-pilote » sombre : salutation + commande + focus ──────── */}
+      <section className="mb-6 overflow-hidden rounded-2xl bg-[#0d1220] p-5 ring-1 ring-white/[0.06] sm:p-7">
+        <p className="text-[13px] font-medium uppercase tracking-wider text-slate-400 first-letter:uppercase">
           {dateDuJour}
           {cabinetData && <> · {cabinetData.raison_sociale}</>}
           {cabinetData?.plan_tarifaire && (
             <>
               {" "}
-              <span className="text-slate-400">
+              <span className="text-slate-500">
                 · {planLabel[cabinetData.plan_tarifaire] ?? cabinetData.plan_tarifaire}
               </span>
             </>
           )}
         </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">
           Bonjour, {prenomAffiche}.
         </h1>
-      </div>
 
-      {/* ─── Barre « demande à ZARYA » (surface de commande → RAG) ───────────── */}
-      <div className="mb-6">
-        <DashboardAskBar />
-      </div>
+        {/* Barre « demande à ZARYA » (surface de commande → RAG) */}
+        <div className="mt-5">
+          <DashboardAskBar />
+        </div>
+
+        {/* À faire maintenant — le focus qui domine (streamé) */}
+        <div className="mt-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+            À faire maintenant
+          </p>
+          <Suspense fallback={<FocusSkeleton />}>
+            <FocusSection cabinetId={cabinet_id} />
+          </Suspense>
+        </div>
+      </section>
 
       {/* ─── KPIs ────────────────────────────────────────────────────────────── */}
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
@@ -605,16 +615,6 @@ export default async function AppHomePage() {
           icon={FileText}
         />
       </div>
-
-      {/* ─── À faire maintenant (focus — streamé) ───────────────────────────── */}
-      <section className="mb-6">
-        <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-          À faire maintenant
-        </h2>
-        <Suspense fallback={<FocusSkeleton />}>
-          <FocusSection cabinetId={cabinet_id} />
-        </Suspense>
-      </section>
 
       {/* ─── Clients à suivre + Fil d'activité (streamés) ───────────────────── */}
       <div className="grid gap-6 lg:grid-cols-3">
