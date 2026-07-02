@@ -30,11 +30,24 @@ export async function updateSupabaseSession(request: NextRequest) {
     },
   );
 
-  // Rafraîchit le token si expiré
-  // Ne jamais exécuter de logique entre ici et getUser()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Rafraîchit le token si expiré.
+  // Ne jamais exécuter de logique entre createServerClient et getUser().
+  // Un cookie de session dont le refresh token n'existe plus (rotation, révocation,
+  // déconnexion ailleurs) fait LEVER une AuthApiError ici — non attrapée, elle
+  // rendait toute l'app inaccessible (500 sur chaque route, /login compris).
+  // → on traite l'utilisateur comme déconnecté ET on purge les cookies sb-*
+  // pour que le navigateur se répare tout seul à la requête suivante.
+  let user: Awaited<ReturnType<typeof supabase.auth.getUser>>["data"]["user"] = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    for (const cookie of request.cookies.getAll()) {
+      if (cookie.name.startsWith("sb-")) {
+        supabaseResponse.cookies.delete(cookie.name);
+      }
+    }
+  }
 
   // Rediriger vers /login si la route est protégée et l'utilisateur non connecté
   const { pathname } = request.nextUrl;
