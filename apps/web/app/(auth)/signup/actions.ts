@@ -17,11 +17,21 @@ const SignupSchema = z
     path: ["confirmPassword"],
   });
 
+const SIGNUP_FIELDS = ["email", "password", "confirmPassword", "acceptCgu"] as const;
+type SignupField = (typeof SIGNUP_FIELDS)[number];
+
+export type SignupFieldErrors = Partial<Record<SignupField, string>>;
+
 export type SignupState = {
   error?: string;
+  fieldErrors?: SignupFieldErrors;
   success?: boolean;
   email?: string;
 };
+
+function isSignupField(value: unknown): value is SignupField {
+  return (SIGNUP_FIELDS as readonly unknown[]).includes(value);
+}
 
 export async function signupAction(
   _prevState: SignupState,
@@ -35,7 +45,18 @@ export async function signupAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.errors[0]?.message ?? "Données invalides" };
+    // Erreurs par champ (1re erreur de chaque champ) pour affichage sous les inputs.
+    const fieldErrors: SignupFieldErrors = {};
+    for (const issue of parsed.error.issues) {
+      const field = issue.path[0];
+      if (isSignupField(field) && fieldErrors[field] === undefined) {
+        fieldErrors[field] = issue.message;
+      }
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      return { fieldErrors };
+    }
+    return { error: "Données invalides" };
   }
 
   const supabase = await createSupabaseServerClient();

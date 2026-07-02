@@ -1,53 +1,74 @@
 "use client";
 
 // Run C1 — formulaire « définir mon mot de passe » pour l'activation d'un compte invité.
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { PasswordStrength } from "@/components/auth/password-strength";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { type ActiverState, definirMotDePasseAction } from "./actions";
 
 const INITIAL: ActiverState = {};
 
 export function ActiverForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState(definirMotDePasseAction, INITIAL);
+  const [password, setPassword] = useState("");
+  const fieldErrors = state.fieldErrors;
+
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="next" value={next} />
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-          Choisissez un mot de passe
-        </label>
-        <input
+        <Label htmlFor="password">Choisissez un mot de passe</Label>
+        <Input
           id="password"
           name="password"
           type="password"
           required
           minLength={12}
           autoComplete="new-password"
-          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          className="mt-1"
+          onChange={(e) => setPassword(e.target.value)}
+          aria-invalid={fieldErrors?.password ? true : undefined}
+          aria-describedby={
+            fieldErrors?.password ? "password-hint password-error" : "password-hint"
+          }
         />
-        <p className="mt-1 text-xs text-gray-400">Au moins 12 caractères.</p>
+        <p id="password-hint" className="mt-1 text-xs text-gray-400">
+          Au moins 12 caractères.
+        </p>
+        <PasswordStrength password={password} />
+        {fieldErrors?.password && (
+          <p id="password-error" className="mt-1 text-xs text-rose-600">
+            {fieldErrors.password}
+          </p>
+        )}
       </div>
       <div>
-        <label htmlFor="confirm" className="block text-sm font-medium text-gray-700">
-          Confirmez le mot de passe
-        </label>
-        <input
+        <Label htmlFor="confirm">Confirmez le mot de passe</Label>
+        <Input
           id="confirm"
           name="confirm"
           type="password"
           required
           minLength={12}
           autoComplete="new-password"
-          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          className="mt-1"
+          aria-invalid={fieldErrors?.confirm ? true : undefined}
+          aria-describedby={fieldErrors?.confirm ? "confirm-error" : undefined}
         />
+        {fieldErrors?.confirm && (
+          <p id="confirm-error" className="mt-1 text-xs text-rose-600">
+            {fieldErrors.confirm}
+          </p>
+        )}
       </div>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-      >
+      <div aria-live="polite">
+        {state.error && <p className="text-sm text-rose-600">{state.error}</p>}
+      </div>
+      <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Activation…" : "Activer mon compte"}
-      </button>
+      </Button>
     </form>
   );
 }
