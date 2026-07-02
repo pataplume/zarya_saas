@@ -1,8 +1,9 @@
 "use client";
 
-import { Archive } from "lucide-react";
+import { Archive, ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useActionState, useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,46 @@ const FILTRES_STATUT = [
   { value: "inactif", label: "Inactif" },
 ];
 
+// ─── Tri par colonne (état dans l'URL : ?tri=…&dir=asc|desc) ──────────────────
+
+type TriKey = "raison_sociale" | "type" | "statut" | "risque" | "echeance" | "docs" | "activite";
+
+type TriDir = "asc" | "desc";
+
+// Nombres nullable : null trié comme le plus petit (donc en fin de liste en desc).
+function cmpNumber(a: number | null, b: number | null): number {
+  const av = a ?? Number.NEGATIVE_INFINITY;
+  const bv = b ?? Number.NEGATIVE_INFINITY;
+  return av === bv ? 0 : av < bv ? -1 : 1;
+}
+
+// Dates ISO nullable : comparaison lexicale suffisante, null = plus petit.
+function cmpDate(a: string | null, b: string | null): number {
+  return (a ?? "").localeCompare(b ?? "");
+}
+
+const COMPARATEURS: Record<TriKey, (a: ClientRow, b: ClientRow) => number> = {
+  raison_sociale: (a, b) => a.raison_sociale.localeCompare(b.raison_sociale, "fr"),
+  type: (a, b) => (a.type ?? "").localeCompare(b.type ?? "", "fr"),
+  statut: (a, b) => a.statut.localeCompare(b.statut, "fr"),
+  risque: (a, b) => cmpNumber(a.risque_score, b.risque_score),
+  echeance: (a, b) => cmpDate(a.prochaine_echeance, b.prochaine_echeance),
+  docs: (a, b) => a.nb_documents_manquants - b.nb_documents_manquants,
+  activite: (a, b) => cmpDate(a.derniere_activite, b.derniere_activite),
+};
+
+function isTriKey(value: string | null): value is TriKey {
+  return value != null && value in COMPARATEURS;
+}
+
+// Minuscules + accents retirés, pour une recherche insensible casse/accents.
+function normaliser(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 // Formate une date ISO (YYYY-MM-DD ou ISO complet) en jj.mm.aaaa, ou "—".
 function formatDate(value: string | null): string {
   if (!value) return "—";
@@ -64,18 +105,66 @@ function formatRelatif(value: string | null): string {
 
 export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [filtreRisque, setFiltreRisque] = useState("tous");
-  const [filtreStatut, setFiltreStatut] = useState("tous");
 
-  const actifs = useMemo(
-    () =>
-      clients.filter((c) => {
-        if (filtreRisque !== "tous" && c.risque_niveau !== filtreRisque) return false;
-        if (filtreStatut !== "tous" && c.statut !== filtreStatut) return false;
-        return true;
-      }),
-    [clients, filtreRisque, filtreStatut],
+  // État filtres/tri piloté par l'URL (survit au refresh, partageable).
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const filtreRisque = searchParams.get("risque") ?? "tous";
+  const filtreStatut = searchParams.get("statut") ?? "tous";
+  const triParam = searchParams.get("tri");
+  const tri = isTriKey(triParam) ? triParam : null;
+  const dirParam = searchParams.get("dir");
+  const dir: TriDir | null = dirParam === "asc" || dirParam === "desc" ? dirParam : null;
+
+  // Recherche : état local immédiat, écrit dans l'URL avec un débounce (250 ms).
+  const qUrl = searchParams.get("q") ?? "";
+  const [recherche, setRecherche] = useState(qUrl);
+
+  const setParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      for (const [cle, valeur] of Object.entries(updates)) {
+        if (valeur == null || valeur === "") params.delete(cle);
+        else params.set(cle, valeur);
+      }
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [searchParams, router, pathname],
   );
+
+  useEffect(() => {
+    if (recherche === qUrl) return;
+    const timer = setTimeout(() => setParams({ q: recherche || null }), 250);
+    return () => clearTimeout(timer);
+  }, [recherche, qUrl, setParams]);
+
+  // Clic en-tête : asc → desc → retour à l'ordre serveur (risque desc).
+  const basculerTri = useCallback(
+    (colonne: TriKey) => {
+      if (tri !== colonne || dir == null) setParams({ tri: colonne, dir: "asc" });
+      else if (dir === "asc") setParams({ tri: colonne, dir: "desc" });
+      else setParams({ tri: null, dir: null });
+    },
+    [tri, dir, setParams],
+  );
+
+  const actifs = useMemo(() => {
+    const rechercheNorm = normaliser(recherche.trim());
+    const filtres = clients.filter((c) => {
+      if (filtreRisque !== "tous" && c.risque_niveau !== filtreRisque) return false;
+      if (filtreStatut !== "tous" && c.statut !== filtreStatut) return false;
+      if (rechercheNorm && !normaliser(c.raison_sociale).includes(rechercheNorm)) return false;
+      return true;
+    });
+    // dir absent = ordre serveur (risque desc, raison sociale asc) inchangé.
+    if (tri == null || dir == null) return filtres;
+    const cmp = COMPARATEURS[tri];
+    const facteur = dir === "asc" ? 1 : -1;
+    return [...filtres].sort((a, b) => facteur * cmp(a, b));
+  }, [clients, filtreRisque, filtreStatut, recherche, tri, dir]);
 
   return (
     <div className="px-4 py-8 sm:px-6 lg:px-8">
@@ -94,13 +183,26 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
             Clients · {actifs.length}
           </h2>
           <div className="flex flex-wrap gap-2">
+            <label className="sr-only" htmlFor="recherche-client">
+              Rechercher un client
+            </label>
+            <Input
+              id="recherche-client"
+              type="search"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder="Rechercher un client…"
+              className="h-8 w-56 py-1"
+            />
             <label className="sr-only" htmlFor="filtre-risque">
               Filtrer par risque
             </label>
             <Select
               id="filtre-risque"
               value={filtreRisque}
-              onChange={(e) => setFiltreRisque(e.target.value)}
+              onChange={(e) =>
+                setParams({ risque: e.target.value === "tous" ? null : e.target.value })
+              }
               className="h-8 w-auto py-1"
             >
               {FILTRES_RISQUE.map((f) => (
@@ -115,7 +217,9 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
             <Select
               id="filtre-statut"
               value={filtreStatut}
-              onChange={(e) => setFiltreStatut(e.target.value)}
+              onChange={(e) =>
+                setParams({ statut: e.target.value === "tous" ? null : e.target.value })
+              }
               className="h-8 w-auto py-1"
             >
               {FILTRES_STATUT.map((f) => (
@@ -138,15 +242,29 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-            {/* En-tête de colonnes (desktop) */}
+            {/* En-tête de colonnes (desktop) — cliquables pour trier */}
             <div className="hidden grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1fr_auto] gap-3 border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
-              <span>Raison sociale</span>
-              <span>Type</span>
-              <span>Statut</span>
-              <span>Risque</span>
-              <span>Prochaine échéance</span>
-              <span>Docs manq.</span>
-              <span>Dernière activité</span>
+              <EnteteTriable colonne="raison_sociale" tri={tri} dir={dir} onTri={basculerTri}>
+                Raison sociale
+              </EnteteTriable>
+              <EnteteTriable colonne="type" tri={tri} dir={dir} onTri={basculerTri}>
+                Type
+              </EnteteTriable>
+              <EnteteTriable colonne="statut" tri={tri} dir={dir} onTri={basculerTri}>
+                Statut
+              </EnteteTriable>
+              <EnteteTriable colonne="risque" tri={tri} dir={dir} onTri={basculerTri}>
+                Risque
+              </EnteteTriable>
+              <EnteteTriable colonne="echeance" tri={tri} dir={dir} onTri={basculerTri}>
+                Prochaine échéance
+              </EnteteTriable>
+              <EnteteTriable colonne="docs" tri={tri} dir={dir} onTri={basculerTri}>
+                Docs manq.
+              </EnteteTriable>
+              <EnteteTriable colonne="activite" tri={tri} dir={dir} onTri={basculerTri}>
+                Dernière activité
+              </EnteteTriable>
               <span className="sr-only">Actions</span>
             </div>
 
@@ -205,6 +323,39 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
         </section>
       )}
     </div>
+  );
+}
+
+// ─── En-tête de colonne triable (icône = état du tri, jamais couleur seule) ───
+
+function EnteteTriable({
+  colonne,
+  tri,
+  dir,
+  onTri,
+  children,
+}: {
+  colonne: TriKey;
+  tri: TriKey | null;
+  dir: TriDir | null;
+  onTri: (colonne: TriKey) => void;
+  children: React.ReactNode;
+}) {
+  const actif = tri === colonne && dir != null;
+  const Icone = actif ? (dir === "asc" ? ChevronUp : ChevronDown) : ChevronsUpDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onTri(colonne)}
+      aria-pressed={actif}
+      className={cn(
+        "flex items-center gap-1 text-left font-semibold uppercase tracking-wide hover:text-foreground",
+        actif && "text-foreground",
+      )}
+    >
+      {children}
+      <Icone className={cn("h-3 w-3 shrink-0", !actif && "opacity-50")} aria-hidden />
+    </button>
   );
 }
 

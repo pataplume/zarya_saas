@@ -16,8 +16,18 @@ function urlPourOnglet(tab: HubTab): string {
 
 // Next.js synchronise useSearchParams avec window.history.replaceState :
 // l'URL reflète l'onglet (lien direct partageable) sans navigation serveur.
-function changerOnglet(tab: HubTab) {
-  window.history.replaceState(null, "", urlPourOnglet(tab));
+// Exception : si une pagination est active (?page=), changer d'onglet remet
+// page=1 via une vraie navigation serveur, pour que les panneaux (rendus
+// serveur par ?page=, onglet inactif = page 1) restent cohérents avec l'URL.
+function useChangerOnglet(): (tab: HubTab) => void {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const aPagination = searchParams.has("page");
+  return (tab: HubTab) => {
+    const url = urlPourOnglet(tab);
+    if (aPagination) router.push(url);
+    else window.history.replaceState(null, "", url);
+  };
 }
 
 export function HubTabs({
@@ -34,6 +44,7 @@ export function HubTabs({
   emailsPanel: ReactNode;
 }) {
   const searchParams = useSearchParams();
+  const changerOnglet = useChangerOnglet();
   const param = searchParams.get("tab");
   const tab: HubTab =
     param === "emails" ? "emails" : param === "documents" ? "documents" : initialTab;
@@ -106,6 +117,7 @@ export function LienOngletDocuments({
   children: ReactNode;
   className?: string;
 }) {
+  const changerOnglet = useChangerOnglet();
   return (
     <button type="button" onClick={() => changerOnglet("documents")} className={className}>
       {children}

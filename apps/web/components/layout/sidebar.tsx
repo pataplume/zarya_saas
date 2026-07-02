@@ -19,6 +19,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { logoutAction } from "@/app/(app)/app/actions";
+import { OPEN_PALETTE_EVENT } from "@/components/layout/command-palette";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -109,6 +110,24 @@ export function Sidebar({ cabinetName, userEmail, userRole }: SidebarProps) {
           Cabinet
         </p>
         <p className="mt-0.5 truncate text-sm font-semibold text-white">{cabinetName}</p>
+      </div>
+
+      {/* Recherche rapide (palette ⌘K) */}
+      <div className="px-3 pt-3">
+        <button
+          type="button"
+          onClick={() => {
+            setMobileOpen(false);
+            document.dispatchEvent(new CustomEvent(OPEN_PALETTE_EVENT));
+          }}
+          className="flex w-full items-center gap-3 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200"
+        >
+          <Search className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+          <span className="flex-1 text-left">Recherche rapide</span>
+          <kbd className="rounded border border-slate-600 bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+            ⌘K
+          </kbd>
+        </button>
       </div>
 
       {/* Navigation principale */}

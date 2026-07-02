@@ -14,19 +14,25 @@ import {
 import { and, asc, count, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
 import {
-  badgeStatutEmail,
-  badgeStatutUpload,
-  libelleSourceIngestion,
-  styleFamille,
-} from "@/lib/libelles";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { badgeStatutEmail, badgeStatutUpload, libelleSourceIngestion } from "@/lib/libelles";
 import { DocumentsUploader } from "./documents-client";
 import { type HubTab, HubTabs, LienOngletDocuments, ReclasserButton } from "./hub-client";
 import { type InboxItem, ValidationInbox } from "./validation/validation-client";
 
 // Hub Documents — page unique : file de validation intégrée (l'action d'abord,
 // ux-principles § 6), zone d'upload, puis onglets « Documents reçus » /
-// « Emails reçus » (?tab=). Toutes les queries sont scopées cabinet_id
+// « Emails reçus » (?tab=), paginés côté serveur (?page=, 25/page — le param
+// s'applique à l'onglet actif). Toutes les queries sont scopées cabinet_id
 // (frontière de sécurité réelle sur le chemin service-role — ADR 0005 addendum).
 
 // ─── Libellés & styles de statut (centralisés dans `@/lib/libelles`, C4.1) ───────
@@ -70,7 +76,8 @@ function resumeFournisseurPropose(prop: {
   return null;
 }
 
-const TH = "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500";
+// Pagination serveur (?page=) : taille de page commune aux deux onglets.
+const PAR_PAGE = 25;
 
 // ─── Onglet « Documents reçus » (rendu serveur) ────────────────────────────────
 
@@ -123,104 +130,99 @@ function DocumentsTable({ uploads, peutAgir }: { uploads: UploadRow[]; peutAgir:
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <table className="min-w-full divide-y divide-slate-200">
-        <thead className="bg-slate-50">
-          <tr>
-            <th className={TH}>Fichier</th>
-            <th className={`hidden sm:table-cell ${TH}`}>Source</th>
-            <th className={`hidden md:table-cell ${TH}`}>Taille</th>
-            <th className={`hidden lg:table-cell ${TH}`}>Reçu le</th>
-            <th className={TH}>Statut</th>
-            <th className={`${TH} text-right`}>Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {uploads.map((u) => {
-            const statut = badgeStatutUpload(u.statut);
-            const badge = `inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(statut.famille)}`;
-            const reclassable = peutAgir && (u.statut === "recu" || u.statut === "erreur");
-            return (
-              <tr key={u.id} className="hover:bg-slate-50">
-                <td className="max-w-xs px-4 py-3">
-                  {/* C2.2 — libellé cliquable vers la fiche quand l'upload est validé */}
-                  {u.document_id ? (
+    <Table className="divide-y divide-slate-200">
+      <TableHeader>
+        <TableRow className="hover:bg-transparent">
+          <TableHead>Fichier</TableHead>
+          <TableHead className="hidden sm:table-cell">Source</TableHead>
+          <TableHead className="hidden md:table-cell">Taille</TableHead>
+          <TableHead className="hidden lg:table-cell">Reçu le</TableHead>
+          <TableHead>Statut</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {uploads.map((u) => {
+          const statut = badgeStatutUpload(u.statut);
+          const reclassable = peutAgir && (u.statut === "recu" || u.statut === "erreur");
+          return (
+            <TableRow key={u.id}>
+              <TableCell className="max-w-xs">
+                {/* C2.2 — libellé cliquable vers la fiche quand l'upload est validé */}
+                {u.document_id ? (
+                  <Link
+                    href={`/app/documents/${u.document_id}`}
+                    className="block truncate text-sm font-medium text-slate-800 hover:text-blue-700"
+                    title={u.nom}
+                  >
+                    {u.nom}
+                  </Link>
+                ) : (
+                  <p className="truncate text-sm font-medium text-slate-800" title={u.nom}>
+                    {u.nom}
+                  </p>
+                )}
+                {/* C2.1 — résumé extrait (facture → fournisseur + montant) si dispo */}
+                {u.resume && (
+                  <p className="truncate text-xs text-slate-500" title={u.resume}>
+                    {u.resume}
+                  </p>
+                )}
+                <p className="truncate text-xs text-slate-400 sm:hidden">
+                  {sourceUpload(u)} · {formatTaille(u.taille)}
+                </p>
+              </TableCell>
+              <TableCell className="hidden max-w-[14rem] text-slate-500 sm:table-cell">
+                <span className="block truncate" title={sourceUpload(u)}>
+                  {sourceUpload(u)}
+                </span>
+              </TableCell>
+              <TableCell className="hidden text-slate-500 md:table-cell">
+                {formatTaille(u.taille)}
+              </TableCell>
+              <TableCell className="hidden text-slate-500 lg:table-cell">
+                {formatDate(u.date_upload)}
+              </TableCell>
+              <TableCell>
+                {u.statut === "a_valider" ? (
+                  <a href="#file-validation" title="Aller à la file de validation en haut de page">
+                    <Badge famille={statut.famille} className="hover:bg-amber-100">
+                      À valider ↑
+                    </Badge>
+                  </a>
+                ) : (
+                  <Badge famille={statut.famille}>{statut.label}</Badge>
+                )}
+              </TableCell>
+              <TableCell className="text-right">
+                <span className="inline-flex items-center justify-end gap-2">
+                  {reclassable && <ReclasserButton uploadBrutId={u.id} />}
+                  {/* C2.2 — lien fiche pour les documents validés (doc.document présent) */}
+                  {u.document_id && (
                     <Link
                       href={`/app/documents/${u.document_id}`}
-                      className="block truncate text-sm font-medium text-slate-800 hover:text-blue-700"
-                      title={u.nom}
+                      className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
-                      {u.nom}
+                      Fiche
                     </Link>
-                  ) : (
-                    <p className="truncate text-sm font-medium text-slate-800" title={u.nom}>
-                      {u.nom}
-                    </p>
                   )}
-                  {/* C2.1 — résumé extrait (facture → fournisseur + montant) si dispo */}
-                  {u.resume && (
-                    <p className="truncate text-xs text-slate-500" title={u.resume}>
-                      {u.resume}
-                    </p>
-                  )}
-                  <p className="truncate text-xs text-slate-400 sm:hidden">
-                    {sourceUpload(u)} · {formatTaille(u.taille)}
-                  </p>
-                </td>
-                <td className="hidden max-w-[14rem] px-4 py-3 text-sm text-slate-500 sm:table-cell">
-                  <span className="block truncate" title={sourceUpload(u)}>
-                    {sourceUpload(u)}
-                  </span>
-                </td>
-                <td className="hidden px-4 py-3 text-sm text-slate-500 md:table-cell">
-                  {formatTaille(u.taille)}
-                </td>
-                <td className="hidden px-4 py-3 text-sm text-slate-500 lg:table-cell">
-                  {formatDate(u.date_upload)}
-                </td>
-                <td className="px-4 py-3">
-                  {u.statut === "a_valider" ? (
+                  {u.fichier_physique_id && (
                     <a
-                      href="#file-validation"
-                      title="Aller à la file de validation en haut de page"
-                      className={`${badge} hover:bg-amber-100`}
+                      href={`/api/documents/${u.fichier_physique_id}/apercu`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                     >
-                      À valider ↑
+                      Ouvrir
                     </a>
-                  ) : (
-                    <span className={badge}>{statut.label}</span>
                   )}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <span className="inline-flex items-center justify-end gap-2">
-                    {reclassable && <ReclasserButton uploadBrutId={u.id} />}
-                    {/* C2.2 — lien fiche pour les documents validés (doc.document présent) */}
-                    {u.document_id && (
-                      <Link
-                        href={`/app/documents/${u.document_id}`}
-                        className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        Fiche
-                      </Link>
-                    )}
-                    {u.fichier_physique_id && (
-                      <a
-                        href={`/api/documents/${u.fichier_physique_id}/apercu`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        Ouvrir
-                      </a>
-                    )}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                </span>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -269,85 +271,85 @@ function EmailsTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <table className="min-w-full divide-y divide-slate-200">
-        <thead className="bg-slate-50">
-          <tr>
-            <th className={TH}>Objet</th>
-            <th className={`hidden sm:table-cell ${TH}`}>Expéditeur</th>
-            <th className={`hidden md:table-cell ${TH}`}>Documents</th>
-            <th className={`hidden lg:table-cell ${TH}`}>Reçu le</th>
-            <th className={TH}>Statut</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {emails.map((e) => {
-            const n = docsParEmail.get(e.id) ?? 0;
-            return (
-              <tr key={e.id} className="hover:bg-slate-50">
-                <td className="max-w-xs px-4 py-3">
-                  <p
-                    className="truncate text-sm font-medium text-slate-800"
-                    title={e.subject ?? ""}
-                  >
-                    {e.subject ?? "(sans objet)"}
-                  </p>
-                  <p className="truncate text-xs text-slate-400 sm:hidden">
-                    {e.from_address ?? "—"}
-                  </p>
-                </td>
-                <td className="hidden max-w-xs px-4 py-3 text-sm text-slate-500 sm:table-cell">
-                  <span className="block truncate" title={e.from_address ?? ""}>
-                    {e.from_address ?? "—"}
-                  </span>
-                </td>
-                <td className="hidden px-4 py-3 md:table-cell">
-                  {n > 0 ? (
-                    <LienOngletDocuments className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
-                      → {n} document{n > 1 ? "s" : ""}
-                    </LienOngletDocuments>
-                  ) : e.has_attachments && e.statut === "traite" ? (
-                    <span className="text-sm text-slate-500">0 retenu</span>
-                  ) : (
-                    <span className="text-sm text-slate-400">—</span>
-                  )}
-                </td>
-                <td className="hidden px-4 py-3 text-sm text-slate-500 lg:table-cell">
-                  {formatDate(e.received_at)}
-                </td>
-                <td className="px-4 py-3">
-                  {(() => {
-                    const badge = badgeStatutEmail(e.statut);
-                    return (
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(
-                          badge.famille,
-                        )}`}
-                      >
-                        {badge.label}
-                      </span>
-                    );
-                  })()}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <Table className="divide-y divide-slate-200">
+      <TableHeader>
+        <TableRow className="hover:bg-transparent">
+          <TableHead>Objet</TableHead>
+          <TableHead className="hidden sm:table-cell">Expéditeur</TableHead>
+          <TableHead className="hidden md:table-cell">Documents</TableHead>
+          <TableHead className="hidden lg:table-cell">Reçu le</TableHead>
+          <TableHead>Statut</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {emails.map((e) => {
+          const n = docsParEmail.get(e.id) ?? 0;
+          const badge = badgeStatutEmail(e.statut);
+          return (
+            <TableRow key={e.id}>
+              <TableCell className="max-w-xs">
+                <p className="truncate text-sm font-medium text-slate-800" title={e.subject ?? ""}>
+                  {e.subject ?? "(sans objet)"}
+                </p>
+                <p className="truncate text-xs text-slate-400 sm:hidden">{e.from_address ?? "—"}</p>
+              </TableCell>
+              <TableCell className="hidden max-w-xs text-slate-500 sm:table-cell">
+                <span className="block truncate" title={e.from_address ?? ""}>
+                  {e.from_address ?? "—"}
+                </span>
+              </TableCell>
+              <TableCell className="hidden md:table-cell">
+                {n > 0 ? (
+                  <LienOngletDocuments className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
+                    → {n} document{n > 1 ? "s" : ""}
+                  </LienOngletDocuments>
+                ) : e.has_attachments && e.statut === "traite" ? (
+                  <span className="text-sm text-slate-500">0 retenu</span>
+                ) : (
+                  <span className="text-sm text-slate-400">—</span>
+                )}
+              </TableCell>
+              <TableCell className="hidden text-slate-500 lg:table-cell">
+                {formatDate(e.received_at)}
+              </TableCell>
+              <TableCell>
+                <Badge famille={badge.famille}>{badge.label}</Badge>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
+// URL d'une page d'onglet : préserve ?tab= et omet les valeurs par défaut
+// (tab=documents, page=1) pour garder des URLs canoniques.
+function hrefPage(tab: HubTab, page: number): string {
+  const params = new URLSearchParams();
+  if (tab === "emails") params.set("tab", "emails");
+  if (page > 1) params.set("page", String(page));
+  const qs = params.toString();
+  return qs ? `/app/documents?${qs}` : "/app/documents";
+}
+
 export default async function DocumentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string | string[] }>;
+  searchParams: Promise<{ tab?: string | string[]; page?: string | string[] }>;
 }) {
   const sp = await searchParams;
   const tabParam = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab;
   const initialTab: HubTab = tabParam === "emails" ? "emails" : "documents";
+
+  // ?page= s'applique à l'onglet actif ; l'onglet inactif est rendu en page 1
+  // (les liens d'onglet remettent page=1 — cf. hub-client.tsx).
+  const pageParam = Array.isArray(sp.page) ? sp.page[0] : sp.page;
+  const pageActive = Math.max(1, Number.parseInt(pageParam ?? "1", 10) || 1);
+  const pageDocuments = initialTab === "documents" ? pageActive : 1;
+  const pageEmails = initialTab === "emails" ? pageActive : 1;
 
   const user = await getCurrentUser();
   const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
@@ -358,101 +360,116 @@ export default async function DocumentsPage({
   const role = (user?.app_metadata.role as string | undefined) ?? "lecteur";
   const peutAgir = role !== "lecteur";
 
-  const [uploadsRaw, inboxRows, clients, emails, docsParEmailRows, facturesRows, propositionsRows] =
-    await Promise.all([
-      // C2.2 — on joint doc.document (via fichier_physique) pour relier un upload validé
-      // à sa fiche, et facture_id pour le résumé. Toutes les jointures restent scopées
-      // cabinet_id (frontière de sécurité sur le chemin service-role — ADR 0005 addendum).
-      db
-        .select({
-          id: uploadBrut.id,
-          nom: uploadBrut.nom_fichier_original,
-          taille: uploadBrut.taille_octets,
-          source: uploadBrut.source,
-          statut: uploadBrut.statut,
-          date_upload: uploadBrut.date_upload,
-          email_brut_id: uploadBrut.email_brut_id,
-          email_from: emailBrut.from_address,
-          fichier_physique_id: fichierPhysique.id,
-          document_id: document.id,
-          document_facture_id: document.facture_id,
-        })
-        .from(uploadBrut)
-        .leftJoin(fichierPhysique, eq(fichierPhysique.upload_brut_id, uploadBrut.id))
-        .leftJoin(
-          document,
-          and(
-            eq(document.fichier_physique_id, fichierPhysique.id),
-            eq(document.cabinet_id, cabinet_id),
-          ),
-        )
-        .leftJoin(emailBrut, eq(emailBrut.id, uploadBrut.email_brut_id))
-        .where(eq(uploadBrut.cabinet_id, cabinet_id))
-        .orderBy(desc(uploadBrut.date_upload))
-        .limit(100),
-      db
-        .select({
-          proposition_id: vInboxAValider.proposition_id,
-          type_propose: vInboxAValider.type_propose,
-          categorie_proposee: vInboxAValider.categorie_proposee,
-          periode_proposee: vInboxAValider.periode_proposee,
-          libelle_propose: vInboxAValider.libelle_propose,
-          client_id_propose: vInboxAValider.client_id_propose,
-          client_nom: vInboxAValider.client_nom,
-          confiance_globale: vInboxAValider.confiance_globale,
-          anomalies: vInboxAValider.anomalies_detectees,
-          nom_fichier: vInboxAValider.nom_fichier_original,
-        })
-        .from(vInboxAValider)
-        .where(eq(vInboxAValider.cabinet_id, cabinet_id))
-        .limit(100),
-      db
-        .select({ id: client.id, raison_sociale: client.raison_sociale })
-        .from(client)
-        .where(and(eq(client.cabinet_id, cabinet_id), isNull(client.archived_at)))
-        .orderBy(asc(client.raison_sociale)),
-      db
-        .select({
-          id: emailBrut.id,
-          subject: emailBrut.subject,
-          from_address: emailBrut.from_address,
-          received_at: emailBrut.received_at,
-          has_attachments: emailBrut.has_attachments,
-          statut: emailBrut.statut,
-        })
-        .from(emailBrut)
-        .where(eq(emailBrut.cabinet_id, cabinet_id))
-        .orderBy(desc(emailBrut.received_at))
-        .limit(200),
-      db
-        .select({ email_brut_id: uploadBrut.email_brut_id, n: count() })
-        .from(uploadBrut)
-        .where(and(eq(uploadBrut.cabinet_id, cabinet_id), isNotNull(uploadBrut.email_brut_id)))
-        .groupBy(uploadBrut.email_brut_id),
-      // C2.1 — résumés facture (clé = doc.document.id), scopés cabinet_id : entité finale.
-      db
-        .select({
-          document_id: facture.document_id,
-          fournisseur_nom: fournisseur.raison_sociale,
-          total_ttc: facture.total_ttc,
-          devise: facture.devise,
-        })
-        .from(facture)
-        .innerJoin(fournisseur, eq(fournisseur.id, facture.fournisseur_id))
-        .where(eq(facture.cabinet_id, cabinet_id)),
-      // C2.1 — résumés facture (clé = doc.document.id), scopés cabinet_id : proposition (fallback).
-      db
-        .select({
-          document_id: propositionFacture.document_id,
-          fournisseur_nom: fournisseur.raison_sociale,
-          fournisseur_propose_data: propositionFacture.fournisseur_propose_data,
-          total_ttc: propositionFacture.total_ttc_propose,
-          devise: propositionFacture.devise_proposee,
-        })
-        .from(propositionFacture)
-        .leftJoin(fournisseur, eq(fournisseur.id, propositionFacture.fournisseur_existant_id))
-        .where(eq(propositionFacture.cabinet_id, cabinet_id)),
-    ]);
+  const [
+    uploadsRaw,
+    totalUploadsRows,
+    inboxRows,
+    clients,
+    emails,
+    totalEmailsRows,
+    docsParEmailRows,
+    facturesRows,
+    propositionsRows,
+  ] = await Promise.all([
+    // C2.2 — on joint doc.document (via fichier_physique) pour relier un upload validé
+    // à sa fiche, et facture_id pour le résumé. Toutes les jointures restent scopées
+    // cabinet_id (frontière de sécurité sur le chemin service-role — ADR 0005 addendum).
+    db
+      .select({
+        id: uploadBrut.id,
+        nom: uploadBrut.nom_fichier_original,
+        taille: uploadBrut.taille_octets,
+        source: uploadBrut.source,
+        statut: uploadBrut.statut,
+        date_upload: uploadBrut.date_upload,
+        email_brut_id: uploadBrut.email_brut_id,
+        email_from: emailBrut.from_address,
+        fichier_physique_id: fichierPhysique.id,
+        document_id: document.id,
+        document_facture_id: document.facture_id,
+      })
+      .from(uploadBrut)
+      .leftJoin(fichierPhysique, eq(fichierPhysique.upload_brut_id, uploadBrut.id))
+      .leftJoin(
+        document,
+        and(
+          eq(document.fichier_physique_id, fichierPhysique.id),
+          eq(document.cabinet_id, cabinet_id),
+        ),
+      )
+      .leftJoin(emailBrut, eq(emailBrut.id, uploadBrut.email_brut_id))
+      .where(eq(uploadBrut.cabinet_id, cabinet_id))
+      .orderBy(desc(uploadBrut.date_upload))
+      .limit(PAR_PAGE)
+      .offset((pageDocuments - 1) * PAR_PAGE),
+    // Count total (même WHERE scopé cabinet_id) pour la pagination.
+    db.select({ n: count() }).from(uploadBrut).where(eq(uploadBrut.cabinet_id, cabinet_id)),
+    db
+      .select({
+        proposition_id: vInboxAValider.proposition_id,
+        type_propose: vInboxAValider.type_propose,
+        categorie_proposee: vInboxAValider.categorie_proposee,
+        periode_proposee: vInboxAValider.periode_proposee,
+        libelle_propose: vInboxAValider.libelle_propose,
+        client_id_propose: vInboxAValider.client_id_propose,
+        client_nom: vInboxAValider.client_nom,
+        confiance_globale: vInboxAValider.confiance_globale,
+        anomalies: vInboxAValider.anomalies_detectees,
+        nom_fichier: vInboxAValider.nom_fichier_original,
+      })
+      .from(vInboxAValider)
+      .where(eq(vInboxAValider.cabinet_id, cabinet_id))
+      .limit(100),
+    db
+      .select({ id: client.id, raison_sociale: client.raison_sociale })
+      .from(client)
+      .where(and(eq(client.cabinet_id, cabinet_id), isNull(client.archived_at)))
+      .orderBy(asc(client.raison_sociale)),
+    db
+      .select({
+        id: emailBrut.id,
+        subject: emailBrut.subject,
+        from_address: emailBrut.from_address,
+        received_at: emailBrut.received_at,
+        has_attachments: emailBrut.has_attachments,
+        statut: emailBrut.statut,
+      })
+      .from(emailBrut)
+      .where(eq(emailBrut.cabinet_id, cabinet_id))
+      .orderBy(desc(emailBrut.received_at))
+      .limit(PAR_PAGE)
+      .offset((pageEmails - 1) * PAR_PAGE),
+    // Count total (même WHERE scopé cabinet_id) pour la pagination.
+    db.select({ n: count() }).from(emailBrut).where(eq(emailBrut.cabinet_id, cabinet_id)),
+    db
+      .select({ email_brut_id: uploadBrut.email_brut_id, n: count() })
+      .from(uploadBrut)
+      .where(and(eq(uploadBrut.cabinet_id, cabinet_id), isNotNull(uploadBrut.email_brut_id)))
+      .groupBy(uploadBrut.email_brut_id),
+    // C2.1 — résumés facture (clé = doc.document.id), scopés cabinet_id : entité finale.
+    db
+      .select({
+        document_id: facture.document_id,
+        fournisseur_nom: fournisseur.raison_sociale,
+        total_ttc: facture.total_ttc,
+        devise: facture.devise,
+      })
+      .from(facture)
+      .innerJoin(fournisseur, eq(fournisseur.id, facture.fournisseur_id))
+      .where(eq(facture.cabinet_id, cabinet_id)),
+    // C2.1 — résumés facture (clé = doc.document.id), scopés cabinet_id : proposition (fallback).
+    db
+      .select({
+        document_id: propositionFacture.document_id,
+        fournisseur_nom: fournisseur.raison_sociale,
+        fournisseur_propose_data: propositionFacture.fournisseur_propose_data,
+        total_ttc: propositionFacture.total_ttc_propose,
+        devise: propositionFacture.devise_proposee,
+      })
+      .from(propositionFacture)
+      .leftJoin(fournisseur, eq(fournisseur.id, propositionFacture.fournisseur_existant_id))
+      .where(eq(propositionFacture.cabinet_id, cabinet_id)),
+  ]);
 
   // C2.1/C2.2 — assemble le résumé facture par doc.document (entité finale prioritaire).
   const factureParDoc = new Map(facturesRows.map((f) => [f.document_id, f]));
@@ -510,6 +527,9 @@ export default async function DocumentsPage({
     if (r.email_brut_id) docsParEmail.set(r.email_brut_id, r.n);
   }
 
+  const totalUploads = totalUploadsRows[0]?.n ?? 0;
+  const totalEmails = totalEmailsRows[0]?.n ?? 0;
+
   return (
     <div className="px-4 py-8 sm:px-6 lg:px-8">
       {/* En-tête */}
@@ -558,10 +578,30 @@ export default async function DocumentsPage({
       <div className="mt-8">
         <HubTabs
           initialTab={initialTab}
-          nbDocuments={uploads.length}
-          nbEmails={emails.length}
-          documentsPanel={<DocumentsTable uploads={uploads} peutAgir={peutAgir} />}
-          emailsPanel={<EmailsTable emails={emails} docsParEmail={docsParEmail} />}
+          nbDocuments={totalUploads}
+          nbEmails={totalEmails}
+          documentsPanel={
+            <>
+              <DocumentsTable uploads={uploads} peutAgir={peutAgir} />
+              <Pagination
+                page={pageDocuments}
+                total={totalUploads}
+                parPage={PAR_PAGE}
+                hrefPour={(p) => hrefPage("documents", p)}
+              />
+            </>
+          }
+          emailsPanel={
+            <>
+              <EmailsTable emails={emails} docsParEmail={docsParEmail} />
+              <Pagination
+                page={pageEmails}
+                total={totalEmails}
+                parPage={PAR_PAGE}
+                hrefPour={(p) => hrefPage("emails", p)}
+              />
+            </>
+          }
         />
       </div>
     </div>

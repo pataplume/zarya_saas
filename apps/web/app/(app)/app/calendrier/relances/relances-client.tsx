@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useFileKeyboard } from "@/lib/hooks/use-file-keyboard";
 import { envoyerLotAction, envoyerRelanceAction, modifierRelanceAction } from "./actions";
 
 export interface RelanceItem {
@@ -34,6 +35,8 @@ export function RelancesFile({
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<RelanceItem | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [cursor, setCursor] = useState(0);
+  const rowRefs = useRef<(HTMLLIElement | null)[]>([]);
 
   // Optimistic UI : la carte disparaît dès le clic « Envoyer ». Si l'envoi échoue (aucun
   // destinataire, reconnexion Microsoft requise…), la fin de la transition annule l'ajout
@@ -87,6 +90,32 @@ export function RelancesFile({
     });
   }
 
+  // Raccourcis clavier du hook partagé des files de travail :
+  // J début · N suivant · P précédent · V envoyer · C modifier.
+  useFileKeyboard({
+    count: visibles.length,
+    cursor,
+    setCursor,
+    onAction: (i) => {
+      if (!peutEnvoyer || pending) return;
+      const r = visibles[i];
+      if (r) envoyer(r.relance_id);
+    },
+    onCorriger: (i) => {
+      if (!peutEnvoyer) return;
+      const r = visibles[i];
+      if (r) setEditing(r);
+    },
+    enabled: editing === null,
+  });
+
+  // Garder le curseur valide + visible quand la liste change (y compris après disparition
+  // optimiste : le curseur pointe alors l'item suivant visible, jamais hors limites).
+  useEffect(() => {
+    if (cursor > visibles.length - 1) setCursor(Math.max(0, visibles.length - 1));
+    rowRefs.current[cursor]?.scrollIntoView({ block: "nearest" });
+  }, [cursor, visibles.length]);
+
   if (visibles.length === 0) {
     return <p className="text-gray-500">Aucune relance en attente. 🎉</p>;
   }
@@ -109,12 +138,29 @@ export function RelancesFile({
           >
             Envoyer la sélection ({selected.size})
           </button>
+          <span className="ml-auto hidden text-xs text-gray-400 sm:flex">
+            <span>
+              Raccourcis : <kbd className="font-semibold">J</kbd> début ·{" "}
+              <kbd className="font-semibold">N</kbd> suivant ·{" "}
+              <kbd className="font-semibold">V</kbd> envoyer ·{" "}
+              <kbd className="font-semibold">C</kbd> modifier
+            </span>
+          </span>
         </div>
       )}
 
       <ul className="space-y-3">
-        {visibles.map((r) => (
-          <li key={r.relance_id} className="rounded border border-gray-200 p-3">
+        {visibles.map((r, i) => (
+          <li
+            key={r.relance_id}
+            ref={(el) => {
+              rowRefs.current[i] = el;
+            }}
+            onMouseDown={() => setCursor(i)}
+            className={`rounded border border-gray-200 p-3 transition ${
+              i === cursor ? "ring-2 ring-blue-500" : ""
+            }`}
+          >
             <div className="flex items-start gap-3">
               {peutEnvoyer && (
                 <input
