@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import { toast } from "sonner";
 import { libelleAnomalie, libelleTypeDocument } from "@/lib/libelles";
 import { rejeterPropositionAction, validerLotAction, validerPropositionAction } from "./actions";
 
@@ -55,36 +64,59 @@ export function ValidationInbox({
   const [rejecting, setRejecting] = useState<InboxItem | null>(null);
   const [confirmLot, setConfirmLot] = useState<string[] | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Optimistic UI : les propositions validées/rejetées disparaissent immédiatement de la
+  // liste ; si le serveur échoue, React annule l'état optimiste en fin de transition
+  // (rollback automatique) et l'item réapparaît.
+  const [idsTraites, marquerTraites] = useOptimistic<Set<string>, string[]>(
+    new Set(),
+    (prev, ids) => new Set([...prev, ...ids]),
+  );
+  const visibles = useMemo(
+    () => propositions.filter((p) => !idsTraites.has(p.proposition_id)),
+    [propositions, idsTraites],
+  );
 
   const rowRefs = useRef<(HTMLLIElement | null)[]>([]);
   const sansClient = clients.length === 0;
   const modalOuverte = correcting !== null || rejecting !== null || confirmLot !== null;
 
-  const reset = useCallback(() => {
-    setMessage(null);
-    setError(null);
+  const retirerDeSelection = useCallback((ids: string[]) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
   }, []);
 
   const lancerLot = useCallback(
     (ids: string[]) => {
       if (ids.length === 0) return;
-      reset();
+      setError(null);
+      setConfirmLot(null);
       startTransition(async () => {
+        // Doit être appelé DANS la transition (contrainte useOptimistic).
+        marquerTraites(ids);
         const r = await validerLotAction(ids);
         if (r.error) {
-          setError(r.error);
+          toast.error(r.error);
           return;
         }
-        setSelected(new Set());
-        setConfirmLot(null);
-        const parts = [`${r.valides ?? 0} validé${(r.valides ?? 0) > 1 ? "s" : ""}`];
-        if (r.ignores) parts.push(`${r.ignores} ignoré${r.ignores > 1 ? "s" : ""} (à corriger)`);
-        setMessage(parts.join(" · "));
+        retirerDeSelection(ids);
+        // Toast de succès uniquement pour un lot : pour une validation unitaire,
+        // la disparition de l'item EST le feedback.
+        if (ids.length > 1) {
+          const valides = r.valides ?? 0;
+          const parts = [
+            `${valides} document${valides > 1 ? "s" : ""} validé${valides > 1 ? "s" : ""}`,
+          ];
+          if (r.ignores) parts.push(`${r.ignores} ignoré${r.ignores > 1 ? "s" : ""} (à corriger)`);
+          toast.success(parts.join(" · "));
+        }
       });
     },
-    [reset],
+    [marquerTraites, retirerDeSelection],
   );
 
   const valider1Clic = useCallback(
@@ -135,33 +167,34 @@ export function ValidationInbox({
         setCursor(0);
       } else if (k === "n") {
         e.preventDefault();
-        setCursor((c) => Math.min(c + 1, propositions.length - 1));
+        setCursor((c) => Math.min(c + 1, visibles.length - 1));
       } else if (k === "v") {
         e.preventDefault();
-        valider1Clic(propositions[cursor]);
+        valider1Clic(visibles[cursor]);
       } else if (k === "c") {
         e.preventDefault();
-        const item = propositions[cursor];
+        const item = visibles[cursor];
         if (item) setCorrecting(item);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [modalOuverte, cursor, propositions, valider1Clic]);
+  }, [modalOuverte, cursor, visibles, valider1Clic]);
 
-  // Garder le curseur valide + visible quand la liste change.
+  // Garder le curseur valide + visible quand la liste change (y compris après disparition
+  // optimiste : le curseur pointe alors l'item suivant visible, jamais hors limites).
   useEffect(() => {
-    if (cursor > propositions.length - 1) setCursor(Math.max(0, propositions.length - 1));
+    if (cursor > visibles.length - 1) setCursor(Math.max(0, visibles.length - 1));
     rowRefs.current[cursor]?.scrollIntoView({ block: "nearest" });
-  }, [cursor, propositions.length]);
+  }, [cursor, visibles.length]);
 
   const toutSelectionne = useMemo(
-    () => propositions.length > 0 && selected.size === propositions.length,
-    [propositions.length, selected.size],
+    () => visibles.length > 0 && selected.size === visibles.length,
+    [visibles.length, selected.size],
   );
 
   function toggleTout() {
-    setSelected(toutSelectionne ? new Set() : new Set(propositions.map((p) => p.proposition_id)));
+    setSelected(toutSelectionne ? new Set() : new Set(visibles.map((p) => p.proposition_id)));
   }
 
   function toggleUn(id: string) {
@@ -204,11 +237,6 @@ export function ValidationInbox({
         </span>
       </div>
 
-      {message && (
-        <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          {message}
-        </div>
-      )}
       {error && (
         <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
           {error}
@@ -216,7 +244,7 @@ export function ValidationInbox({
       )}
 
       <ul className="space-y-2">
-        {propositions.map((item, i) => {
+        {visibles.map((item, i) => {
           const conf = pourcent(item.confiance_globale);
           const actif = i === cursor;
           const complet = estComplete(item);
@@ -318,13 +346,16 @@ export function ValidationInbox({
           pending={isPending}
           onClose={() => setCorrecting(null)}
           onSubmit={(fd) => {
-            reset();
+            // Pas d'optimistic ici : les erreurs de formulaire restent inline et la
+            // modal reste ouverte pour corriger.
+            const id = correcting.proposition_id;
+            setError(null);
             startTransition(async () => {
               const r = await validerPropositionAction({}, fd);
               if (r.error) setError(r.error);
               else {
                 setCorrecting(null);
-                setMessage("Document validé.");
+                retirerDeSelection([id]);
               }
             });
           }}
@@ -337,14 +368,15 @@ export function ValidationInbox({
           pending={isPending}
           onClose={() => setRejecting(null)}
           onSubmit={(fd) => {
-            reset();
+            const id = rejecting.proposition_id;
+            setError(null);
+            setRejecting(null);
             startTransition(async () => {
+              // Disparition optimiste ; rollback automatique + toast si le serveur échoue.
+              marquerTraites([id]);
               const r = await rejeterPropositionAction({}, fd);
-              if (r.error) setError(r.error);
-              else {
-                setRejecting(null);
-                setMessage("Document rejeté.");
-              }
+              if (r.error) toast.error(r.error);
+              else retirerDeSelection([id]);
             });
           }}
         />

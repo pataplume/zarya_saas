@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { libelleAnomalie } from "@/lib/libelles";
-import { type FactureActionState, rejeterFactureAction, validerFactureAction } from "./actions";
+import { rejeterFactureAction, validerFactureAction } from "./actions";
 
 // C4.1 — les libellés d'anomalies vivent désormais dans `@/lib/libelles`. On réexporte
 // `libelleAnomalie` pour ne pas casser les imports existants (fiche document C2.3).
@@ -113,35 +114,24 @@ export function ChampBadge({ prov }: { prov: ConfianceChampUi | undefined }) {
   );
 }
 
-function FactureCard({ f, peutValider }: { f: FactureItem; peutValider: boolean }) {
+function FactureCard({
+  f,
+  peutValider,
+  pending,
+  onValider,
+  onRejeter,
+}: {
+  f: FactureItem;
+  peutValider: boolean;
+  pending: boolean;
+  onValider: (formData: FormData) => void;
+  onRejeter: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [state, formAction, pending] = useActionState<FactureActionState, FormData>(
-    validerFactureAction,
-    {},
-  );
-  const [rejet, setRejet] = useState<FactureActionState>({});
-  const [rejetPending, startRejet] = useTransition();
 
   // Provenance d'un champ de formulaire pour ce document (ADR 0024).
   const prov = (champ: string): ConfianceChampUi | undefined =>
     provenanceChamp(f.confiance_par_champ, champ);
-
-  if (state.success) {
-    return (
-      <li className="rounded border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-        Facture validée pour <strong>{f.client_nom}</strong>
-        {state.iban_change_detecte ? " — ⚠️ changement d'IBAN signalé (fraude possible)" : ""}
-        {state.doublons ? ` — ⚠️ ${state.doublons} doublon(s) potentiel(s)` : ""}
-      </li>
-    );
-  }
-  if (rejet.success) {
-    return (
-      <li className="rounded border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-        Facture rejetée ({f.fournisseur_raison_sociale || "fournisseur inconnu"}).
-      </li>
-    );
-  }
 
   return (
     <li className="rounded border border-gray-200 p-4">
@@ -197,7 +187,7 @@ function FactureCard({ f, peutValider }: { f: FactureItem; peutValider: boolean 
       </div>
 
       {open && peutValider ? (
-        <form action={formAction} className="mt-4 grid grid-cols-2 gap-3 border-t pt-4 text-sm">
+        <form action={onValider} className="mt-4 grid grid-cols-2 gap-3 border-t pt-4 text-sm">
           <input type="hidden" name="proposition_id" value={f.id} />
           <Field
             label="Raison sociale"
@@ -302,30 +292,23 @@ function FactureCard({ f, peutValider }: { f: FactureItem; peutValider: boolean 
             </select>
           </label>
 
-          {state.error ? <p className="col-span-2 text-sm text-red-600">{state.error}</p> : null}
-
           <div className="col-span-2 flex gap-2">
             <button
               type="submit"
               disabled={pending}
               className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
             >
-              {pending ? "Validation…" : "✓ Valider la facture"}
+              ✓ Valider la facture
             </button>
             <button
               type="button"
-              disabled={rejetPending}
-              onClick={() =>
-                startRejet(async () => {
-                  setRejet(await rejeterFactureAction(f.id, "Pas une facture"));
-                })
-              }
+              disabled={pending}
+              onClick={onRejeter}
               className="rounded border px-4 py-2 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
             >
               Rejeter
             </button>
           </div>
-          {rejet.error ? <p className="col-span-2 text-sm text-red-600">{rejet.error}</p> : null}
         </form>
       ) : null}
     </li>
@@ -414,13 +397,64 @@ export function FacturesValidation({
   factures: FactureItem[];
   peutValider: boolean;
 }) {
-  if (factures.length === 0) {
+  // Deux régimes de disparition :
+  // - REJET (pas de saisie en jeu) : optimiste — la carte disparaît immédiatement, rollback
+  //   automatique de useOptimistic + toast en cas d'échec serveur.
+  // - VALIDATION (formulaire de correction rempli) : disparition SEULEMENT à la confirmation
+  //   serveur — si on démontait la carte optimistiquement, un échec (IBAN invalide, Zod…)
+  //   perdrait les saisies de l'utilisateur au remontage. En erreur, le formulaire reste
+  //   monté avec ses valeurs + toast.
+  const [idsTraitees, marquerTraitees] = useOptimistic<Set<string>, string[]>(
+    new Set(),
+    (prev, ids) => new Set([...prev, ...ids]),
+  );
+  const [pending, startTransition] = useTransition();
+
+  const enAttente = factures.filter((f) => !idsTraitees.has(f.id));
+
+  function valider(id: string, formData: FormData) {
+    startTransition(async () => {
+      const res = await validerFactureAction({}, formData);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      // Masque la carte sans attendre le payload revalidé (toujours dans la transition).
+      marquerTraitees([id]);
+      // Pas de toast de succès unitaire (la disparition EST le feedback) — mais les signaux
+      // de vigilance retournés par la validation restent montrés, sinon ils partiraient avec
+      // la carte (icône + texte, pas seulement la couleur).
+      if (res.iban_change_detecte) {
+        toast.warning("⚠️ Changement d'IBAN signalé (fraude possible).");
+      }
+      if (res.doublons) {
+        toast.warning(`⚠️ ${res.doublons} doublon(s) potentiel(s) détecté(s).`);
+      }
+    });
+  }
+
+  function rejeter(id: string) {
+    startTransition(async () => {
+      marquerTraitees([id]);
+      const res = await rejeterFactureAction(id, "Pas une facture");
+      if (res.error) toast.error(res.error);
+    });
+  }
+
+  if (enAttente.length === 0) {
     return <p className="text-sm text-gray-500">Aucune facture en attente de validation.</p>;
   }
   return (
     <ul className="flex flex-col gap-3">
-      {factures.map((f) => (
-        <FactureCard key={f.id} f={f} peutValider={peutValider} />
+      {enAttente.map((f) => (
+        <FactureCard
+          key={f.id}
+          f={f}
+          peutValider={peutValider}
+          pending={pending}
+          onValider={(formData) => valider(f.id, formData)}
+          onRejeter={() => rejeter(f.id)}
+        />
       ))}
     </ul>
   );
