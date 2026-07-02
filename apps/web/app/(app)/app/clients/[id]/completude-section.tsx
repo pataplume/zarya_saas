@@ -1,4 +1,5 @@
 import type { CompletudeResult } from "@/lib/completude-client";
+import { helpAttrs } from "@/lib/help-attrs";
 
 // Lot 3 (ADR 0025) — Assistant de complétude affiché sur le dossier client. Server Component
 // pur (aucune interactivité) : score + checklist « ce qui manque pour activer tel service ».
@@ -69,6 +70,10 @@ export function CompletudeSection({ completude }: { completude: CompletudeResult
                       <a
                         href={item.ancre}
                         className="shrink-0 rounded-md border border-rose-300 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100"
+                        {...helpAttrs(
+                          "Compléter cet élément",
+                          "Saute à la section concernée du dossier pour renseigner cet élément manquant, requis pour générer les échéances.",
+                        )}
                       >
                         Compléter
                       </a>
@@ -94,6 +99,10 @@ export function CompletudeSection({ completude }: { completude: CompletudeResult
                       <a
                         href={item.ancre}
                         className="shrink-0 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        {...helpAttrs(
+                          "Compléter cet élément",
+                          "Saute à la section concernée pour renseigner cet élément recommandé et améliorer la qualité du dossier.",
+                        )}
                       >
                         Compléter
                       </a>

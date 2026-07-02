@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
+import { helpAttrs } from "@/lib/help-attrs";
 import { normaliserConfianceParChamp } from "./confiance-provenance";
 import { type FactureItem, FacturesValidation } from "./factures-client";
 
@@ -150,7 +151,15 @@ export default async function FacturesValidationPage({
             {nbExportables > 1 ? "s" : ""} prête{nbExportables > 1 ? "s" : ""} à exporter
           </span>
           <Button asChild size="sm">
-            <a href="/api/factures/export">Exporter (CSV)</a>
+            <a
+              href="/api/factures/export"
+              {...helpAttrs(
+                "Exporter (CSV)",
+                "Télécharge un fichier CSV de toutes les factures validées, prêt à importer dans votre logiciel de comptabilité.",
+              )}
+            >
+              Exporter (CSV)
+            </a>
           </Button>
         </div>
       )}

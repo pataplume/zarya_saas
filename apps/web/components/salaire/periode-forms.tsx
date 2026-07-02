@@ -9,6 +9,7 @@ import {
   validerPeriodeClientAction,
 } from "@/app/(app)/espace/validations/actions";
 import { Button } from "@/components/ui/button";
+import { helpAttrs } from "@/lib/help-attrs";
 
 const TYPES_CHANGEMENT_LABEL: Array<{ value: string; label: string }> = [
   { value: "entree", label: "Entrée (embauche)" },
@@ -88,7 +89,14 @@ export function SaisieElementForm({
           className={`w-28 ${CHAMP_CLASS}`}
         />
       </label>
-      <Button type="submit" disabled={pending}>
+      <Button
+        type="submit"
+        disabled={pending}
+        {...helpAttrs(
+          "Enregistrer l'élément",
+          "Ajoute cet élément de paie (heures, prime, absence…) à la période en cours. La dernière valeur saisie l'emporte.",
+        )}
+      >
         Enregistrer
       </Button>
       {state.error ? <p className="w-full text-sm text-rose-600">{state.error}</p> : null}
@@ -145,7 +153,14 @@ export function DeclarerChangementForm({
           Description
           <input name="description" type="text" className={CHAMP_CLASS} />
         </label>
-        <Button type="submit" disabled={pending}>
+        <Button
+          type="submit"
+          disabled={pending}
+          {...helpAttrs(
+            "Déclarer un changement",
+            "Signale une entrée, une sortie, une absence ou une modification de salaire pour la période. Votre fiduciaire en tient compte au traitement.",
+          )}
+        >
           Déclarer
         </Button>
         {state.error ? <p className="w-full text-sm text-rose-600">{state.error}</p> : null}
@@ -165,13 +180,28 @@ export function ValiderPeriodeForm({ periode_id }: { periode_id: string }) {
         <form action={action}>
           <input type="hidden" name="periode_id" value={periode_id} />
           <input type="hidden" name="sans_changement" value="true" />
-          <Button type="submit" variant="secondary" disabled={pending}>
+          <Button
+            type="submit"
+            variant="secondary"
+            disabled={pending}
+            {...helpAttrs(
+              "Valider sans changement",
+              "Confirme que rien n'a changé ce mois-ci et valide la période telle quelle. Votre fiduciaire est aussitôt informée.",
+            )}
+          >
             Aucun changement, je valide
           </Button>
         </form>
         <form action={action}>
           <input type="hidden" name="periode_id" value={periode_id} />
-          <Button type="submit" disabled={pending}>
+          <Button
+            type="submit"
+            disabled={pending}
+            {...helpAttrs(
+              "Valider la période",
+              "Confirme les éléments et changements saisis, puis transmet la période à votre fiduciaire pour le traitement de la paie.",
+            )}
+          >
             Valider la période
           </Button>
         </form>

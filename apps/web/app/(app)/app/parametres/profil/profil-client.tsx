@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { helpAttrs } from "@/lib/help-attrs";
 import {
   changerMotDePasseAction,
   type MotDePasseState,
@@ -128,6 +129,10 @@ export function ProfilClient({ email, prenom, nom, role, telephone, signatureEma
               type="submit"
               disabled={isProfilPending}
               className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-50"
+              {...helpAttrs(
+                "Enregistrer le profil",
+                "Sauvegarde votre prénom, nom, téléphone et signature email. La signature apparaît au bas des emails envoyés depuis votre boîte.",
+              )}
             >
               {isProfilPending ? "Enregistrement…" : "Enregistrer"}
             </button>
@@ -186,6 +191,10 @@ export function ProfilClient({ email, prenom, nom, role, telephone, signatureEma
               type="submit"
               disabled={isMdpPending}
               className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-50"
+              {...helpAttrs(
+                "Changer le mot de passe",
+                "Définit un nouveau mot de passe (au moins 8 caractères). Saisissez-le deux fois à l'identique pour confirmer.",
+              )}
             >
               {isMdpPending ? "Modification…" : "Changer le mot de passe"}
             </button>

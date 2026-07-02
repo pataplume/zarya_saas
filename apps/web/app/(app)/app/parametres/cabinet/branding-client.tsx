@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BRANDING_DEFAUT } from "@/lib/client-space";
+import { helpAttrs } from "@/lib/help-attrs";
 import { type SauvegarderBrandingState, sauvegarderBrandingAction } from "./actions";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -32,6 +33,7 @@ function ChampCouleur({
   defaut,
   disabled,
   error,
+  aide,
 }: {
   label: string;
   name: string;
@@ -40,6 +42,7 @@ function ChampCouleur({
   defaut: string;
   disabled?: boolean | undefined;
   error?: string | undefined;
+  aide: string;
 }) {
   // <input type="color"> n'accepte qu'un hex #RRGGBB valide — repli sur le défaut ZARYA sinon.
   const pickerValue = HEX.test(value) ? value : defaut;
@@ -64,6 +67,7 @@ function ChampCouleur({
           disabled={disabled}
           maxLength={7}
           className="w-32 font-mono"
+          {...helpAttrs(label, aide)}
         />
       </div>
       <p className="mt-1 text-xs text-slate-400">Vide = couleur ZARYA par défaut ({defaut})</p>
@@ -126,6 +130,7 @@ export function BrandingClient({ raisonSociale, branding, isResponsable }: Props
               defaut={BRANDING_DEFAUT.couleurPrimaire}
               disabled={!isResponsable}
               error={state.fieldErrors?.couleur_primaire}
+              aide="Couleur d'accent du portail client (titres, liens actifs). Choisissez au sélecteur ou saisissez un code hex ; vide = couleur ZARYA."
             />
             <ChampCouleur
               label="Couleur secondaire"
@@ -135,6 +140,7 @@ export function BrandingClient({ raisonSociale, branding, isResponsable }: Props
               defaut={BRANDING_DEFAUT.couleurSecondaire}
               disabled={!isResponsable}
               error={state.fieldErrors?.couleur_secondaire}
+              aide="Couleur secondaire du portail client (éléments discrets). Choisissez au sélecteur ou saisissez un code hex ; vide = couleur ZARYA."
             />
             <div className="sm:col-span-2">
               <Label htmlFor="logo_url">URL du logo</Label>
@@ -147,6 +153,10 @@ export function BrandingClient({ raisonSociale, branding, isResponsable }: Props
                 placeholder="https://cabinet.ch/logo.png"
                 disabled={!isResponsable}
                 className="mt-1"
+                {...helpAttrs(
+                  "URL du logo",
+                  "Adresse https:// d'un logo affiché en tête du portail client. Laissez vide pour afficher le nom du cabinet à la place.",
+                )}
               />
               <p className="mt-1 text-xs text-slate-400">
                 https:// uniquement. Vide = nom du cabinet affiché à la place du logo.
@@ -187,7 +197,14 @@ export function BrandingClient({ raisonSociale, branding, isResponsable }: Props
 
           {isResponsable && (
             <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit" disabled={isPending}>
+              <Button
+                type="submit"
+                disabled={isPending}
+                {...helpAttrs(
+                  "Enregistrer le branding",
+                  "Applique les couleurs et le logo choisis à l'espace client de vos clients PME. L'aperçu ci-dessus reflète le rendu final.",
+                )}
+              >
                 {isPending ? "Enregistrement…" : "Enregistrer le branding"}
               </Button>
               <Button
@@ -201,6 +218,10 @@ export function BrandingClient({ raisonSociale, branding, isResponsable }: Props
                   setSecondaire("");
                   setLogoUrl("");
                 }}
+                {...helpAttrs(
+                  "Réinitialiser le branding",
+                  "Rétablit les couleurs et le logo ZARYA par défaut pour l'espace client. Enregistrez pour confirmer le retour aux valeurs par défaut.",
+                )}
               >
                 Réinitialiser aux couleurs ZARYA
               </Button>

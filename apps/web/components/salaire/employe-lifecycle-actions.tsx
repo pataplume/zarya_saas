@@ -11,6 +11,7 @@ import {
   type SalaireFiduciaireState,
   sortirEmployeAction,
 } from "@/app/(app)/app/salaire/actions";
+import { helpAttrs } from "@/lib/help-attrs";
 
 const INITIAL: SalaireFiduciaireState = {};
 
@@ -51,6 +52,10 @@ export function SortieForm({
         type="submit"
         disabled={pending}
         className="rounded bg-amber-600 px-2 py-0.5 text-xs font-medium text-white disabled:opacity-50"
+        {...helpAttrs(
+          "Sortir un employé",
+          "Enregistre le départ de l'employé à la date indiquée. Le changement est déclaré sur la période ouverte ; l'employé pourra ensuite être archivé.",
+        )}
       >
         Sortir
       </button>
@@ -106,6 +111,10 @@ export function ModificationForm({
         type="submit"
         disabled={pending}
         className="rounded bg-blue-600 px-2 py-0.5 text-xs font-medium text-white disabled:opacity-50"
+        {...helpAttrs(
+          "Modifier le référentiel",
+          "Enregistre un changement de salaire ou de taux à la date d'effet indiquée. Le changement est rattaché à la période ouverte.",
+        )}
       >
         Modifier
       </button>
@@ -124,6 +133,10 @@ export function ArchiveForm({ employeId }: { employeId: string }) {
         type="submit"
         disabled={pending}
         className="rounded bg-gray-600 px-2 py-0.5 text-xs font-medium text-white disabled:opacity-50"
+        {...helpAttrs(
+          "Archiver un employé",
+          "Retire définitivement l'employé sorti du référentiel actif. Il n'apparaîtra plus dans les campagnes suivantes ; son historique reste conservé.",
+        )}
       >
         Archiver
       </button>

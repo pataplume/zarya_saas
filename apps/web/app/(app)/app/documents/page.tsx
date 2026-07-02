@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { helpAttrs } from "@/lib/help-attrs";
 import { badgeStatutEmail, badgeStatutUpload, libelleSourceIngestion } from "@/lib/libelles";
 import { DocumentsUploader } from "./documents-client";
 import { type HubTab, HubTabs, LienOngletDocuments, ReclasserButton } from "./hub-client";
@@ -173,7 +174,14 @@ function DocumentsTable({ uploads, peutAgir }: { uploads: UploadRow[]; peutAgir:
               </TableCell>
               <TableCell>
                 {u.statut === "a_valider" ? (
-                  <a href="#file-validation" title="Aller à la file de validation en haut de page">
+                  <a
+                    href="#file-validation"
+                    title="Aller à la file de validation en haut de page"
+                    {...helpAttrs(
+                      "Document à valider",
+                      "ZARYA a proposé un classement en attente de votre accord. Cliquez pour remonter à la file de validation en haut de page.",
+                    )}
+                  >
                     <Badge famille={statut.famille} className="hover:bg-amber-100">
                       À valider ↑
                     </Badge>
@@ -187,12 +195,28 @@ function DocumentsTable({ uploads, peutAgir }: { uploads: UploadRow[]; peutAgir:
                   {reclassable && <ReclasserButton uploadBrutId={u.id} />}
                   {/* C2.2 — lien fiche pour les documents validés (doc.document présent) */}
                   {u.document_id && (
-                    <Button asChild variant="secondary" size="sm">
+                    <Button
+                      asChild
+                      variant="secondary"
+                      size="sm"
+                      {...helpAttrs(
+                        "Ouvrir la fiche",
+                        "Affiche le détail du document classé : type, client, période et données extraites, avec les liens vers la facture ou l'échéance liée.",
+                      )}
+                    >
                       <Link href={`/app/documents/${u.document_id}`}>Fiche</Link>
                     </Button>
                   )}
                   {u.fichier_physique_id && (
-                    <Button asChild variant="secondary" size="sm">
+                    <Button
+                      asChild
+                      variant="secondary"
+                      size="sm"
+                      {...helpAttrs(
+                        "Ouvrir le document",
+                        "Ouvre le fichier d'origine dans un nouvel onglet pour le consulter.",
+                      )}
+                    >
                       <a
                         href={`/api/documents/${u.fichier_physique_id}/apercu`}
                         target="_blank"

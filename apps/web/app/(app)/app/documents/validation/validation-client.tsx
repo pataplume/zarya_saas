@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { helpAttrs } from "@/lib/help-attrs";
 import { useFileKeyboard } from "@/lib/hooks/use-file-keyboard";
 import { libelleAnomalie, libelleTypeDocument } from "@/lib/libelles";
 import { rejeterPropositionAction, validerLotAction, validerPropositionAction } from "./actions";
@@ -216,6 +217,10 @@ export function ValidationInbox({
             onChange={toggleTout}
             disabled={sansClient}
             className="h-4 w-4 rounded border-input"
+            {...helpAttrs(
+              "Tout sélectionner",
+              "Coche toutes les propositions visibles d'un coup pour les valider ensemble. Décochez pour tout désélectionner.",
+            )}
           />
           Tout sélectionner
         </label>
@@ -225,6 +230,10 @@ export function ValidationInbox({
           onClick={validerSelection}
           disabled={selected.size === 0 || isPending || sansClient}
           className="disabled:cursor-not-allowed"
+          {...helpAttrs(
+            "Valider la sélection",
+            "Confirme le classement proposé par l'IA pour tous les documents cochés et crée les documents définitifs. Au-delà de 20, une confirmation est demandée.",
+          )}
         >
           {isPending
             ? "Validation…"
@@ -319,6 +328,10 @@ export function ValidationInbox({
                     disabled={isPending || sansClient || !complet}
                     title={complet ? "Valider (V)" : "Document incomplet — corriger d'abord"}
                     className="disabled:cursor-not-allowed"
+                    {...helpAttrs(
+                      "Valider le classement",
+                      "Confirme la catégorie proposée par l'IA et crée le document définitif. Le raccourci V fait la même chose sur l'élément sélectionné.",
+                    )}
                   >
                     Valider
                   </Button>
@@ -329,6 +342,10 @@ export function ValidationInbox({
                       size="sm"
                       onClick={() => setCorrecting(item)}
                       disabled={isPending}
+                      {...helpAttrs(
+                        "Corriger puis valider",
+                        "Ouvre un formulaire pour rectifier le client, le type ou la période avant de valider. Le raccourci C fait la même chose.",
+                      )}
                     >
                       Corriger
                     </Button>
@@ -338,6 +355,10 @@ export function ValidationInbox({
                       size="sm"
                       onClick={() => setRejecting(item)}
                       disabled={isPending}
+                      {...helpAttrs(
+                        "Rejeter le document",
+                        "Écarte la proposition sans créer de document (illisible, hors périmètre…). Vous pourrez préciser un motif. Le raccourci R fait la même chose.",
+                      )}
                     >
                       Rejeter
                     </Button>

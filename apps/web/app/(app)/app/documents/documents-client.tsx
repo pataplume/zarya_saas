@@ -3,6 +3,7 @@
 import { UploadCloud } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
+import { helpAttrs } from "@/lib/help-attrs";
 
 type FileState = {
   name: string;
@@ -98,6 +99,10 @@ export function DocumentsUploader() {
             ? "border-ring bg-blue-50"
             : "border-input bg-card hover:border-ring/50 hover:bg-secondary"
         } ${busy ? "cursor-wait opacity-70" : "cursor-pointer"}`}
+        {...helpAttrs(
+          "Déposer des documents",
+          "Envoie vos fichiers à ZARYA pour classement automatique. Glissez-les sur la zone ou cliquez pour parcourir (PDF, images, Word, Excel, 50 Mo max).",
+        )}
       >
         <span className="flex size-10 items-center justify-center rounded-full bg-secondary">
           <UploadCloud className="size-5 text-muted-foreground" strokeWidth={1.75} aria-hidden />

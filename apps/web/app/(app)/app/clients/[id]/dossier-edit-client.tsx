@@ -10,6 +10,7 @@ import type {
   ClientEditIdentite,
   ClientEditMembre,
 } from "@/lib/dossier-client-edit-data";
+import { helpAttrs } from "@/lib/help-attrs";
 import { type ClientActionState, updateClientAction } from "../actions";
 import {
   type AdresseActionState,
@@ -282,13 +283,28 @@ function IdentiteSection({
         <Erreur message={state.error} />
         <Succes visible={!!state.success} />
         <div className="mt-4 flex gap-2">
-          <button type="submit" className={BTN_PRIMARY} disabled={pending}>
+          <button
+            type="submit"
+            className={BTN_PRIMARY}
+            disabled={pending}
+            {...helpAttrs(
+              "Enregistrer l'identité",
+              "Sauvegarde les informations d'identité du client (raison sociale, type, IDE, TVA…).",
+            )}
+          >
             {pending ? "Enregistrement…" : "Enregistrer l'identité"}
           </button>
           {/* Annuler explicite (UX Lot 4) : la section identité est un formulaire toujours
               ouvert (pas de bascule lecture/édition comme EditRow) — le reset natif restaure
               les valeurs enregistrées (defaultValue) sans sauvegarder. */}
-          <button type="reset" className={BTN_SECONDARY}>
+          <button
+            type="reset"
+            className={BTN_SECONDARY}
+            {...helpAttrs(
+              "Annuler les modifications",
+              "Restaure les valeurs enregistrées et abandonne les changements non sauvegardés.",
+            )}
+          >
             Annuler
           </button>
         </div>
@@ -346,11 +362,27 @@ function ContactForm({
       </div>
       <Erreur message={state.error} />
       <div className="flex gap-2">
-        <button type="submit" className={BTN_PRIMARY} disabled={pending}>
+        <button
+          type="submit"
+          className={BTN_PRIMARY}
+          disabled={pending}
+          {...helpAttrs(
+            contact ? "Enregistrer le contact" : "Ajouter le contact",
+            "Enregistre les coordonnées de ce contact et ses rôles (principal, RH, signataire).",
+          )}
+        >
           {pending ? "…" : contact ? "Enregistrer" : "Ajouter le contact"}
         </button>
         {contact && onDone && (
-          <button type="button" className={BTN_SECONDARY} onClick={onDone}>
+          <button
+            type="button"
+            className={BTN_SECONDARY}
+            onClick={onDone}
+            {...helpAttrs(
+              "Annuler l'édition",
+              "Ferme le formulaire sans sauvegarder les modifications de ce contact.",
+            )}
+          >
             Annuler
           </button>
         )}
@@ -401,7 +433,15 @@ function ContactLigne({ contact, clientId }: { contact: ClientEditContact; clien
         </p>
       </div>
       <div className="flex gap-2">
-        <button type="button" className={BTN_SECONDARY} onClick={() => setEdition(true)}>
+        <button
+          type="button"
+          className={BTN_SECONDARY}
+          onClick={() => setEdition(true)}
+          {...helpAttrs(
+            "Modifier le contact",
+            "Ouvre le formulaire d'édition pour corriger les coordonnées ou les rôles de ce contact.",
+          )}
+        >
           Modifier
         </button>
         <form action={supprimerAction}>
@@ -410,6 +450,10 @@ function ContactLigne({ contact, clientId }: { contact: ClientEditContact; clien
             type="submit"
             className="inline-flex h-8 items-center rounded-md border border-rose-300 px-3 text-[13px] font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
             disabled={pendingSuppr}
+            {...helpAttrs(
+              "Supprimer le contact",
+              "Retire définitivement ce contact du dossier client. Cette action est journalisée.",
+            )}
           >
             Supprimer
           </button>
@@ -434,7 +478,15 @@ function ContactsSection({
           Contacts
         </h2>
         {!ajout && (
-          <button type="button" className={BTN_SECONDARY} onClick={() => setAjout(true)}>
+          <button
+            type="button"
+            className={BTN_SECONDARY}
+            onClick={() => setAjout(true)}
+            {...helpAttrs(
+              "Ajouter un contact",
+              "Ouvre un formulaire pour enregistrer une nouvelle personne de contact chez ce client.",
+            )}
+          >
             + Ajouter un contact
           </button>
         )}
@@ -494,10 +546,23 @@ function ContactCreateInline({ clientId, onDone }: { clientId: string; onDone: (
       </div>
       <Erreur message={state.error} />
       <div className="flex gap-2">
-        <button type="submit" className={BTN_PRIMARY} disabled={pending}>
+        <button
+          type="submit"
+          className={BTN_PRIMARY}
+          disabled={pending}
+          {...helpAttrs(
+            "Ajouter le contact",
+            "Crée ce nouveau contact et l'ajoute à la liste des personnes du client.",
+          )}
+        >
           {pending ? "…" : "Ajouter le contact"}
         </button>
-        <button type="button" className={BTN_SECONDARY} onClick={onDone}>
+        <button
+          type="button"
+          className={BTN_SECONDARY}
+          onClick={onDone}
+          {...helpAttrs("Annuler l'ajout", "Ferme le formulaire sans créer de nouveau contact.")}
+        >
           Annuler
         </button>
       </div>
@@ -566,10 +631,26 @@ function AdresseCreateInline({ clientId, onDone }: { clientId: string; onDone: (
       <AdresseFields />
       <Erreur message={state.error} />
       <div className="flex gap-2">
-        <button type="submit" className={BTN_PRIMARY} disabled={pending}>
+        <button
+          type="submit"
+          className={BTN_PRIMARY}
+          disabled={pending}
+          {...helpAttrs(
+            "Ajouter l'adresse",
+            "Enregistre cette nouvelle adresse (siège, facturation ou postale) pour le client.",
+          )}
+        >
           {pending ? "…" : "Ajouter l'adresse"}
         </button>
-        <button type="button" className={BTN_SECONDARY} onClick={onDone}>
+        <button
+          type="button"
+          className={BTN_SECONDARY}
+          onClick={onDone}
+          {...helpAttrs(
+            "Annuler l'ajout",
+            "Ferme le formulaire sans enregistrer de nouvelle adresse.",
+          )}
+        >
           Annuler
         </button>
       </div>
@@ -606,10 +687,26 @@ function AdresseLigne({ adresse }: { adresse: ClientEditAdresse }) {
           <AdresseFields adresse={adresse} />
           <Erreur message={stateEdit.error} />
           <div className="flex gap-2">
-            <button type="submit" className={BTN_PRIMARY} disabled={pendingEdit}>
+            <button
+              type="submit"
+              className={BTN_PRIMARY}
+              disabled={pendingEdit}
+              {...helpAttrs(
+                "Enregistrer l'adresse",
+                "Sauvegarde les modifications apportées à cette adresse.",
+              )}
+            >
               {pendingEdit ? "…" : "Enregistrer"}
             </button>
-            <button type="button" className={BTN_SECONDARY} onClick={() => setEdition(false)}>
+            <button
+              type="button"
+              className={BTN_SECONDARY}
+              onClick={() => setEdition(false)}
+              {...helpAttrs(
+                "Annuler l'édition",
+                "Ferme le formulaire sans sauvegarder les modifications de cette adresse.",
+              )}
+            >
               Annuler
             </button>
           </div>
@@ -634,7 +731,15 @@ function AdresseLigne({ adresse }: { adresse: ClientEditAdresse }) {
         <p className="mt-0.5 text-xs text-slate-500">{lignes.join(", ") || "—"}</p>
       </div>
       <div className="flex gap-2">
-        <button type="button" className={BTN_SECONDARY} onClick={() => setEdition(true)}>
+        <button
+          type="button"
+          className={BTN_SECONDARY}
+          onClick={() => setEdition(true)}
+          {...helpAttrs(
+            "Modifier l'adresse",
+            "Ouvre le formulaire d'édition pour corriger cette adresse du client.",
+          )}
+        >
           Modifier
         </button>
         <form action={supprimerAction}>
@@ -643,6 +748,10 @@ function AdresseLigne({ adresse }: { adresse: ClientEditAdresse }) {
             type="submit"
             className="inline-flex h-8 items-center rounded-md border border-rose-300 px-3 text-[13px] font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
             disabled={pendingSuppr}
+            {...helpAttrs(
+              "Supprimer l'adresse",
+              "Retire définitivement cette adresse du dossier client. Cette action est journalisée.",
+            )}
           >
             Supprimer
           </button>
@@ -667,7 +776,15 @@ function AdressesSection({
           Adresses
         </h2>
         {!ajout && (
-          <button type="button" className={BTN_SECONDARY} onClick={() => setAjout(true)}>
+          <button
+            type="button"
+            className={BTN_SECONDARY}
+            onClick={() => setAjout(true)}
+            {...helpAttrs(
+              "Ajouter une adresse",
+              "Ouvre un formulaire pour enregistrer une nouvelle adresse (siège, facturation ou postale).",
+            )}
+          >
             + Ajouter une adresse
           </button>
         )}

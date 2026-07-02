@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import type { BancaireDossierData } from "@/lib/bancaire-dossier-data";
+import { helpAttrs } from "@/lib/help-attrs";
 import {
   type AccesLogicielActionState,
   upsertAccesLogicielAction,
@@ -104,7 +105,15 @@ function NouveauCompte({ clientId }: { clientId: string }) {
         />
       </label>
       <div className="sm:col-span-2">
-        <button className={BTN_PRIMARY} type="submit" disabled={pending}>
+        <button
+          className={BTN_PRIMARY}
+          type="submit"
+          disabled={pending}
+          {...helpAttrs(
+            "Ajouter le compte bancaire",
+            "Enregistre un nouveau compte pour ce client. L'IBAN et les identifiants sont chiffrés au repos.",
+          )}
+        >
           {pending ? "Enregistrement…" : "Ajouter le compte"}
         </button>
         <Erreur message={state.error} />
@@ -140,7 +149,15 @@ function CompteRow({ compte }: { compte: BancaireDossierData["comptes"][number] 
         </div>
         <form action={deleteAction}>
           <input type="hidden" name="id" value={compte.id} />
-          <button className={BTN_DANGER} type="submit" disabled={delPending}>
+          <button
+            className={BTN_DANGER}
+            type="submit"
+            disabled={delPending}
+            {...helpAttrs(
+              "Archiver le compte",
+              "Retire ce compte des comptes actifs du client. L'historique reste conservé.",
+            )}
+          >
             {delPending ? "…" : "Archiver"}
           </button>
         </form>
@@ -172,7 +189,15 @@ function CompteRow({ compte }: { compte: BancaireDossierData["comptes"][number] 
           </select>
         </label>
         <div className="sm:col-span-2">
-          <button className={BTN_PRIMARY} type="submit" disabled={updPending}>
+          <button
+            className={BTN_PRIMARY}
+            type="submit"
+            disabled={updPending}
+            {...helpAttrs(
+              "Mettre à jour le compte",
+              "Enregistre les modifications de ce compte. Laissez l'IBAN vide pour conserver l'actuel.",
+            )}
+          >
             {updPending ? "Enregistrement…" : "Mettre à jour"}
           </button>
           <Erreur message={upd.error} />
@@ -282,7 +307,15 @@ function Facturation({
         />
       </label>
       <div className="sm:col-span-2">
-        <button className={BTN_PRIMARY} type="submit" disabled={pending}>
+        <button
+          className={BTN_PRIMARY}
+          type="submit"
+          disabled={pending}
+          {...helpAttrs(
+            "Enregistrer la facturation",
+            "Sauvegarde les conditions de facturation (pack, honoraires, engagement) et l'IBAN de facturation chiffré.",
+          )}
+        >
           {pending ? "Enregistrement…" : "Enregistrer la facturation"}
         </button>
         <Erreur message={state.error} />
@@ -316,7 +349,15 @@ function AccesLogiciel({ clientId, configure }: { clientId: string; configure: b
         />
       </label>
       <div>
-        <button className={BTN_PRIMARY} type="submit" disabled={pending}>
+        <button
+          className={BTN_PRIMARY}
+          type="submit"
+          disabled={pending}
+          {...helpAttrs(
+            "Enregistrer l'accès logiciel",
+            "Sauvegarde les identifiants d'accès au logiciel comptable du client, chiffrés au Vault.",
+          )}
+        >
           {pending ? "Enregistrement…" : "Enregistrer l'accès"}
         </button>
         <Erreur message={state.error} />

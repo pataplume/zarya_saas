@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { helpAttrs } from "@/lib/help-attrs";
 import { badgeRisque, badgeStatutClient, libelleTypeClient } from "@/lib/libelles";
 import { cn } from "@/lib/utils";
 import { archiverClientAction, type ClientActionState, updateClientAction } from "./actions";
@@ -193,6 +194,10 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
               onChange={(e) => setRecherche(e.target.value)}
               placeholder="Rechercher un client…"
               className="h-8 w-56 py-1"
+              {...helpAttrs(
+                "Rechercher un client",
+                "Filtre la liste sur la raison sociale à mesure que vous tapez. La recherche ignore les accents et la casse.",
+              )}
             />
             <label className="sr-only" htmlFor="filtre-risque">
               Filtrer par risque
@@ -204,6 +209,10 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
                 setParams({ risque: e.target.value === "tous" ? null : e.target.value })
               }
               className="h-8 w-auto py-1"
+              {...helpAttrs(
+                "Filtrer par risque",
+                "Restreint la liste au niveau de risque choisi. Le filtre est mémorisé dans l'URL — vous pouvez partager le lien.",
+              )}
             >
               {FILTRES_RISQUE.map((f) => (
                 <option key={f.value} value={f.value}>
@@ -221,6 +230,10 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
                 setParams({ statut: e.target.value === "tous" ? null : e.target.value })
               }
               className="h-8 w-auto py-1"
+              {...helpAttrs(
+                "Filtrer par statut",
+                "Restreint la liste au statut choisi (actif, prospect, inactif). Le filtre est mémorisé dans l'URL — vous pouvez partager le lien.",
+              )}
             >
               {FILTRES_STATUT.map((f) => (
                 <option key={f.value} value={f.value}>
@@ -310,6 +323,10 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
                   "flex items-center gap-4 px-4 py-3 hover:bg-slate-100",
                   idx < archives.length - 1 && "border-b border-border/70",
                 )}
+                {...helpAttrs(
+                  "Ouvrir un client archivé",
+                  "Ouvre la fiche d'un client archivé en lecture. Vous pourrez le réactiver depuis son dossier.",
+                )}
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-500">{c.raison_sociale}</p>
@@ -352,6 +369,10 @@ function EnteteTriable({
       className={cn(
         "flex items-center gap-1 text-left font-semibold uppercase tracking-wider hover:text-foreground",
         actif && "text-foreground",
+      )}
+      {...helpAttrs(
+        "Trier la colonne",
+        "Cliquez pour trier par cette colonne ; re-cliquez pour inverser, une 3ᵉ fois pour revenir au tri par défaut.",
       )}
     >
       {children}
@@ -398,7 +419,14 @@ function DisplayRow({
       )}
     >
       {/* Raison sociale → lien dossier */}
-      <Link href={`/app/clients/${client.id}`} className="min-w-0">
+      <Link
+        href={`/app/clients/${client.id}`}
+        className="min-w-0"
+        {...helpAttrs(
+          "Ouvrir le dossier client",
+          "Ouvre la fiche complète du client : coordonnées, documents, échéances et risque. Cliquez sur le nom pour y accéder.",
+        )}
+      >
         <p className="truncate text-[13px] font-medium text-foreground hover:text-primary">
           {client.raison_sociale}
         </p>
@@ -442,7 +470,16 @@ function DisplayRow({
       {/* Actions (édition / archivage) */}
       <div className="flex shrink-0 items-center gap-2 justify-self-end">
         {peutEcrire && (
-          <Button type="button" variant="secondary" size="sm" onClick={onEdit}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onEdit}
+            {...helpAttrs(
+              "Modifier le client",
+              "Passe la ligne en mode édition pour corriger la raison sociale, l'IDE, l'email ou le statut, sans quitter la liste.",
+            )}
+          >
             Modifier
           </Button>
         )}
@@ -455,6 +492,10 @@ function DisplayRow({
               size="icon"
               className="text-slate-300 hover:bg-transparent hover:text-destructive"
               aria-label={`Archiver ${client.raison_sociale}`}
+              {...helpAttrs(
+                "Archiver le client",
+                "Retire le client de la liste active et le classe dans les archivés. Réservé au responsable ; le client reste consultable plus bas.",
+              )}
             >
               <Archive aria-hidden />
             </Button>
@@ -517,10 +558,25 @@ function EditRow({
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
+        <Button
+          type="submit"
+          disabled={pending}
+          {...helpAttrs(
+            "Enregistrer les modifications",
+            "Sauvegarde les changements de la ligne et referme le mode édition. Les champs vides sont refusés pour la raison sociale.",
+          )}
+        >
           {pending ? "Enregistrement…" : "Enregistrer"}
         </Button>
-        <Button type="button" variant="secondary" onClick={onDone}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onDone}
+          {...helpAttrs(
+            "Annuler l'édition",
+            "Ferme le mode édition sans rien enregistrer. La ligne revient à ses valeurs d'origine.",
+          )}
+        >
           Annuler
         </Button>
       </div>

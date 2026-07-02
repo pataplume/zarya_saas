@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { helpAttrs } from "@/lib/help-attrs";
 import { libelleStatutPeriode } from "@/lib/libelles";
 import { getKpisFiduciaire, getPeriodesFiduciaire } from "@/lib/salaire-fiduciaire-data";
 
@@ -73,6 +74,10 @@ export default async function SalaireFiduciairePage({
         <Link
           href="/app/salaire/relances"
           className="text-sm font-medium text-primary hover:text-primary-hover hover:underline"
+          {...helpAttrs(
+            "Relances à valider",
+            "Ouvre la file des relances des périodes de salaire en retard. Chaque relance est vérifiée puis envoyée depuis la boîte du cabinet.",
+          )}
         >
           Relances à valider →
         </Link>
@@ -117,6 +122,10 @@ export default async function SalaireFiduciairePage({
                       <Link
                         href={`/app/clients/${p.client_id}`}
                         className="text-primary hover:text-primary-hover hover:underline"
+                        {...helpAttrs(
+                          "Ouvrir la fiche client",
+                          "Ouvre le dossier complet du client (documents, échéances, factures, salaires). Vous y retrouvez toute l'activité de la PME.",
+                        )}
                       >
                         {p.raison_sociale}
                       </Link>
@@ -133,6 +142,10 @@ export default async function SalaireFiduciairePage({
                         <a
                           href={`/app/salaire/export/${p.id}?format=xlsx`}
                           className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                          {...helpAttrs(
+                            "Exporter la période (Excel)",
+                            "Télécharge le fichier Excel de la période validée, prêt à importer dans votre logiciel de paie. Disponible dès qu'une période est validée.",
+                          )}
                         >
                           Exporter (Excel)
                         </a>

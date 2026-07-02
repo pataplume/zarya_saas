@@ -4,6 +4,7 @@ import { Check, CheckCircle2, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { helpAttrs } from "@/lib/help-attrs";
 import { envoyerLotRelancesSalaireAction, envoyerRelanceSalaireAction } from "./actions";
 
 export interface RelanceSalaireItem {
@@ -86,6 +87,10 @@ export function RelancesSalaireFile({
             disabled={pending || selected.size === 0}
             onClick={envoyerSelection}
             className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+            {...helpAttrs(
+              "Envoyer la sélection",
+              "Envoie en une fois toutes les relances cochées, depuis la boîte du cabinet. Les relances sans destinataire actif sont ignorées.",
+            )}
           >
             Envoyer la sélection ({selected.size})
           </button>
@@ -135,6 +140,10 @@ export function RelancesSalaireFile({
                       disabled={pending || !r.destinataire_email}
                       onClick={() => envoyer(r.relance_id)}
                       className="inline-flex items-center gap-1 text-sm font-medium text-green-700 disabled:opacity-40"
+                      {...helpAttrs(
+                        "Envoyer la relance",
+                        "Envoie cette relance au client depuis la boîte du cabinet. Indisponible tant qu'aucun destinataire actif n'est renseigné.",
+                      )}
                     >
                       <Check className="size-3.5" aria-hidden />
                       Envoyer
@@ -144,6 +153,10 @@ export function RelancesSalaireFile({
                     type="button"
                     onClick={() => setDismissed((s) => toggle(s, r.relance_id))}
                     className="inline-flex items-center gap-1 text-sm text-slate-500"
+                    {...helpAttrs(
+                      "Traiter plus tard",
+                      "Masque cette relance de la file pour l'instant, sans l'envoyer. Elle réapparaîtra au prochain chargement de la page.",
+                    )}
                   >
                     <Clock className="size-3.5" aria-hidden />
                     Plus tard

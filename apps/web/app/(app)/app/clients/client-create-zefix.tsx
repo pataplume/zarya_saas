@@ -5,6 +5,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { helpAttrs } from "@/lib/help-attrs";
 import { type CreateClientZefixState, createClientDepuisZefixAction } from "./actions";
 
 // Lot 3 (ADR 0025) — Formulaire de création de client avec PRÉREMPLISSAGE ZEFIX (identité +
@@ -166,8 +167,20 @@ export function ClientCreateZefix() {
               }}
               placeholder="Nom de l'entreprise ou IDE (CHE-123.456.789)"
               className="w-auto flex-1"
+              {...helpAttrs(
+                "Rechercher dans Zefix",
+                "Saisissez le nom ou l'IDE de l'entreprise. Appuyez sur Entrée ou sur Rechercher pour interroger le registre suisse du commerce.",
+              )}
             />
-            <Button type="button" onClick={() => void lancerRecherche()} disabled={recherche}>
+            <Button
+              type="button"
+              onClick={() => void lancerRecherche()}
+              disabled={recherche}
+              {...helpAttrs(
+                "Lancer la recherche Zefix",
+                "Interroge le registre suisse du commerce et affiche les entreprises correspondantes. Cochez d'abord le consentement nLPD.",
+              )}
+            >
               {recherche ? "Recherche…" : "Rechercher"}
             </Button>
           </div>
@@ -193,6 +206,10 @@ export function ClientCreateZefix() {
                     type="button"
                     onClick={() => choisir(r)}
                     className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-blue-50"
+                    {...helpAttrs(
+                      "Choisir cette entreprise",
+                      "Préremplit le formulaire avec l'identité et l'adresse du siège de cette entreprise. Vous pourrez tout modifier avant de valider.",
+                    )}
                   >
                     <span className="text-[13px] font-medium text-foreground">
                       {r.raison_sociale}
@@ -337,7 +354,14 @@ export function ClientCreateZefix() {
             </p>
           )}
 
-          <Button type="submit" disabled={pending}>
+          <Button
+            type="submit"
+            disabled={pending}
+            {...helpAttrs(
+              "Ajouter le client",
+              "Crée le client avec les informations saisies. Seule la raison sociale est obligatoire ; le reste est facultatif.",
+            )}
+          >
             {pending ? "Ajout…" : "Ajouter le client →"}
           </Button>
         </form>

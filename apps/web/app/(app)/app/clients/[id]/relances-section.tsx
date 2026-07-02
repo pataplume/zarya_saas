@@ -4,6 +4,7 @@ import type { CibleRelance } from "@zarya/calendar";
 import { Pause } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { helpAttrs } from "@/lib/help-attrs";
 import type {
   DocumentAttenduRow,
   PauseActiveRow,
@@ -186,6 +187,10 @@ export function RelancesSection({
               className={BTN_GHOST}
               disabled={pending}
               onClick={() => data.pause && reprendre(data.pause.id)}
+              {...helpAttrs(
+                "Reprendre les relances",
+                "Lève la pause : les relances automatiques de ce client reprennent immédiatement.",
+              )}
             >
               Reprendre
             </button>
@@ -208,6 +213,10 @@ export function RelancesSection({
                 className={BTN_GHOST}
                 disabled={pending}
                 onClick={() => setShowDocForm((s) => !s)}
+                {...helpAttrs(
+                  "Ajouter un document attendu",
+                  "Ouvre un formulaire pour déclarer un document à réclamer régulièrement à ce client.",
+                )}
               >
                 {showDocForm ? "Annuler" : "+ Ajouter"}
               </button>
@@ -264,7 +273,15 @@ export function RelancesSection({
               <label className="flex items-center gap-2 text-sm text-slate-600">
                 <input type="checkbox" name="obligatoire" defaultChecked /> Obligatoire
               </label>
-              <button type="submit" className={BTN_PRIMARY} disabled={pending}>
+              <button
+                type="submit"
+                className={BTN_PRIMARY}
+                disabled={pending}
+                {...helpAttrs(
+                  "Ajouter le document attendu",
+                  "Enregistre ce document dans la checklist du client, avec sa fréquence et son délai.",
+                )}
+              >
                 Ajouter le document
               </button>
             </form>
@@ -300,6 +317,10 @@ export function RelancesSection({
                       className={BTN_GHOST}
                       disabled={pending}
                       onClick={() => supprimerDocument(d.id)}
+                      {...helpAttrs(
+                        "Retirer ce document attendu",
+                        "Retire ce document de la checklist du client. Il ne sera plus réclamé.",
+                      )}
                     >
                       Retirer
                     </button>
@@ -350,6 +371,10 @@ export function RelancesSection({
                               className={BTN_PRIMARY}
                               disabled={pending}
                               onClick={() => a.relance_id && envoyer(a.relance_id)}
+                              {...helpAttrs(
+                                "Confirmer l'envoi",
+                                "Envoie réellement l'email de relance au client. Cette action est définitive.",
+                              )}
                             >
                               Confirmer l'envoi
                             </button>
@@ -358,6 +383,10 @@ export function RelancesSection({
                               className={BTN_GHOST}
                               disabled={pending}
                               onClick={() => setConfirmSend(null)}
+                              {...helpAttrs(
+                                "Annuler l'envoi",
+                                "Revient en arrière sans envoyer la relance. Le brouillon reste disponible.",
+                              )}
                             >
                               Annuler
                             </button>
@@ -368,6 +397,10 @@ export function RelancesSection({
                             className={BTN_GHOST}
                             disabled={pending}
                             onClick={() => a.relance_id && setConfirmSend(a.relance_id)}
+                            {...helpAttrs(
+                              "Valider et envoyer la relance",
+                              "Relit le brouillon et demande confirmation avant l'envoi réel de l'email au client.",
+                            )}
                           >
                             Valider & envoyer…
                           </button>
@@ -378,6 +411,10 @@ export function RelancesSection({
                           className={BTN_GHOST}
                           disabled={pending}
                           onClick={() => relancer({ kind: "echeance", echeanceId: a.echeance_id })}
+                          {...helpAttrs(
+                            "Préparer une relance",
+                            "Crée un brouillon d'email de relance pour cette échéance. Rien n'est envoyé : vous le validez ensuite avant l'envoi.",
+                          )}
                         >
                           Préparer une relance
                         </button>
@@ -395,6 +432,10 @@ export function RelancesSection({
                 className={BTN_GHOST}
                 disabled={pending}
                 onClick={() => relancer({ kind: "client", clientId: data.clientId })}
+                {...helpAttrs(
+                  "Relancer le client",
+                  "Crée un brouillon de relance groupée pour tous les documents manquants du client. Rien n'est envoyé avant votre validation.",
+                )}
               >
                 Relancer le client (documents manquants)
               </button>
@@ -455,7 +496,15 @@ function PauseForm({ onSubmit, pending }: { onSubmit: (fd: FormData) => void; pe
   if (!open) {
     return (
       <div className="mb-4">
-        <button type="button" className={BTN_GHOST} onClick={() => setOpen(true)}>
+        <button
+          type="button"
+          className={BTN_GHOST}
+          onClick={() => setOpen(true)}
+          {...helpAttrs(
+            "Mettre les relances en pause",
+            "Suspend les relances automatiques du client sur une période (ex. vacances). Ouvre un formulaire de dates.",
+          )}
+        >
           <Pause className="size-3.5" aria-hidden />
           Mettre les relances en pause
         </button>
@@ -476,10 +525,26 @@ function PauseForm({ onSubmit, pending }: { onSubmit: (fd: FormData) => void; pe
         <input name="date_fin" type="date" required className={`${INPUT} mt-0.5`} />
       </label>
       <input name="motif" maxLength={200} placeholder="Motif (facultatif)" className={INPUT} />
-      <button type="submit" className={BTN_PRIMARY} disabled={pending}>
+      <button
+        type="submit"
+        className={BTN_PRIMARY}
+        disabled={pending}
+        {...helpAttrs(
+          "Confirmer la mise en pause",
+          "Enregistre la période de pause : aucune relance automatique ne partira entre ces deux dates.",
+        )}
+      >
         Mettre en pause
       </button>
-      <button type="button" className={BTN_GHOST} onClick={() => setOpen(false)}>
+      <button
+        type="button"
+        className={BTN_GHOST}
+        onClick={() => setOpen(false)}
+        {...helpAttrs(
+          "Annuler la mise en pause",
+          "Ferme le formulaire sans suspendre les relances.",
+        )}
+      >
         Annuler
       </button>
     </form>

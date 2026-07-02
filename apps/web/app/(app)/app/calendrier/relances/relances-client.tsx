@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { helpAttrs } from "@/lib/help-attrs";
 import { useFileKeyboard } from "@/lib/hooks/use-file-keyboard";
 import { envoyerLotAction, envoyerRelanceAction, modifierRelanceAction } from "./actions";
 
@@ -143,6 +144,10 @@ export function RelancesFile({
             disabled={pending || selected.size === 0}
             onClick={envoyerSelection}
             className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+            {...helpAttrs(
+              "Envoyer la sélection",
+              "Envoie d'un coup toutes les relances cochées à leurs destinataires. Chaque relance envoyée disparaît de la file ; les échecs y restent.",
+            )}
           >
             Envoyer la sélection ({selected.size})
           </button>
@@ -206,6 +211,10 @@ export function RelancesFile({
                     type="button"
                     onClick={() => setExpanded((s) => toggle(s, r.relance_id))}
                     className="text-sm text-blue-600"
+                    {...helpAttrs(
+                      "Aperçu",
+                      "Déplie le corps complet du courriel de relance pour le lire avant envoi. Recliquez pour le masquer.",
+                    )}
                   >
                     {expanded.has(r.relance_id) ? "Masquer" : "Aperçu"}
                   </button>
@@ -216,6 +225,10 @@ export function RelancesFile({
                         disabled={pending}
                         onClick={() => envoyer(r.relance_id)}
                         className="inline-flex items-center gap-1 text-sm font-medium text-green-700 disabled:opacity-40"
+                        {...helpAttrs(
+                          "Envoyer la relance",
+                          "Envoie ce courriel de relance au destinataire indiqué. La carte disparaît de la file dès l'envoi réussi.",
+                        )}
                       >
                         <Check className="size-3.5" aria-hidden />
                         Envoyer
@@ -224,6 +237,10 @@ export function RelancesFile({
                         type="button"
                         onClick={() => setEditing(r)}
                         className="inline-flex items-center gap-1 text-sm text-slate-700"
+                        {...helpAttrs(
+                          "Modifier",
+                          "Ouvre le brouillon pour ajuster le sujet et le corps du courriel avant de l'envoyer.",
+                        )}
                       >
                         <Pencil className="size-3.5" aria-hidden />
                         Modifier
@@ -234,6 +251,10 @@ export function RelancesFile({
                     type="button"
                     onClick={() => setDismissed((s) => toggle(s, r.relance_id))}
                     className="inline-flex items-center gap-1 text-sm text-slate-500"
+                    {...helpAttrs(
+                      "Plus tard",
+                      "Masque cette relance de la file pour l'instant, sans l'envoyer ni la supprimer. Elle réapparaîtra au prochain rechargement de la page.",
+                    )}
                   >
                     <Clock className="size-3.5" aria-hidden />
                     Plus tard

@@ -9,6 +9,7 @@ import {
 import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { ServiceRegime, ServicesRegimeData } from "@/lib/dossier-client-edit-data";
+import { helpAttrs } from "@/lib/help-attrs";
 import { libelleLogicielComptable, libelleModeTransmission, libelleService } from "@/lib/libelles";
 import {
   type ParamComptableActionState,
@@ -109,7 +110,15 @@ function ServiceActifLigne({ service }: { service: ServiceRegime }) {
           formulaire dédié) n'est pas documentée. À arbitrer avant de câbler. */}
       <form action={action}>
         <input type="hidden" name="id" value={service.id} />
-        <button type="submit" className={BTN_DANGER} disabled={pending}>
+        <button
+          type="submit"
+          className={BTN_DANGER}
+          disabled={pending}
+          {...helpAttrs(
+            "Désactiver ce service",
+            "Retire ce service du client et cesse de générer ses échéances. L'historique est conservé.",
+          )}
+        >
           {pending ? "…" : "Désactiver"}
         </button>
       </form>
@@ -238,7 +247,15 @@ function ServicesForm({
 
       <Erreur message={state.error} />
       <div className="flex items-center gap-3">
-        <button type="submit" className={BTN_PRIMARY} disabled={pending}>
+        <button
+          type="submit"
+          className={BTN_PRIMARY}
+          disabled={pending}
+          {...helpAttrs(
+            "Enregistrer les services",
+            "Applique les services souscrits et régénère automatiquement les échéances du client selon son régime.",
+          )}
+        >
           {pending ? "Enregistrement…" : "Enregistrer les services"}
         </button>
         <p className="text-xs text-slate-400">
@@ -317,7 +334,15 @@ function ParamComptableForm({
         </label>
       </div>
       <Erreur message={state.error} />
-      <button type="submit" className={BTN_PRIMARY} disabled={pending}>
+      <button
+        type="submit"
+        className={BTN_PRIMARY}
+        disabled={pending}
+        {...helpAttrs(
+          "Enregistrer les paramètres comptables",
+          "Sauvegarde l'exercice, le bouclement et le mode de transmission, puis régénère les échéances.",
+        )}
+      >
         {pending ? "Enregistrement…" : "Enregistrer les paramètres"}
       </button>
     </form>

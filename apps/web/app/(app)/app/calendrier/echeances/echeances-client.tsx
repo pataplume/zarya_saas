@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { helpAttrs } from "@/lib/help-attrs";
 import { badgeStatutEcheance, libelleTypeEcheance } from "@/lib/libelles";
 import {
   annulerEcheanceAction,
@@ -134,6 +135,10 @@ export function EcheancesListe({
             name="statut"
             defaultValue={filtres.statut}
             className="w-auto min-w-36"
+            {...helpAttrs(
+              "Filtrer par statut",
+              "Restreint la liste à un statut d'échéance (à venir, imminente, en retard, traitée…). Choisissez « Tous » pour lever le filtre, puis cliquez « Filtrer ».",
+            )}
           >
             <option value="">Tous</option>
             {statuts.map((s) => (
@@ -155,6 +160,10 @@ export function EcheancesListe({
             name="type"
             defaultValue={filtres.type}
             className="w-auto min-w-36"
+            {...helpAttrs(
+              "Filtrer par type",
+              "Restreint la liste à un type d'échéance (fiscale, TVA, bouclement, salaire…). Choisissez « Tous » pour lever le filtre, puis cliquez « Filtrer ».",
+            )}
           >
             <option value="">Tous</option>
             {types.map((t) => (
@@ -177,9 +186,21 @@ export function EcheancesListe({
             defaultValue={filtres.q}
             placeholder="Raison sociale…"
             className="w-auto"
+            {...helpAttrs(
+              "Filtrer par client",
+              "Ne garde que les échéances des clients dont la raison sociale contient ce texte. Laissez vide pour tous les clients, puis cliquez « Filtrer ».",
+            )}
           />
         </div>
-        <Button type="submit" size="sm" variant="secondary">
+        <Button
+          type="submit"
+          size="sm"
+          variant="secondary"
+          {...helpAttrs(
+            "Filtrer",
+            "Applique les filtres Statut, Type et Client choisis ci-dessus et recharge la liste depuis la première page.",
+          )}
+        >
           Filtrer
         </Button>
       </form>
@@ -200,6 +221,10 @@ export function EcheancesListe({
             size="sm"
             disabled={pending || selection.size === 0}
             onClick={() => agirLot(marquerTraiteesLotAction, (n) => `${n} échéance(s) traitée(s).`)}
+            {...helpAttrs(
+              "Traiter la sélection",
+              "Marque d'un coup toutes les échéances cochées comme traitées. Elles sortent de la liste des actions à faire.",
+            )}
           >
             Traiter la sélection ({selection.size})
           </Button>
@@ -209,6 +234,10 @@ export function EcheancesListe({
             variant="secondary"
             disabled={pending || selection.size === 0}
             onClick={() => setConfirmerAnnulation(true)}
+            {...helpAttrs(
+              "Annuler la sélection",
+              "Passe les échéances cochées au statut « Annulée » après confirmation. Action difficilement réversible.",
+            )}
           >
             Annuler la sélection ({selection.size})
           </Button>
@@ -296,6 +325,10 @@ export function EcheancesListe({
                             agir(() => marquerTraiteeAction(e.id), "Échéance traitée.")
                           }
                           className="text-emerald-700 hover:text-emerald-800"
+                          {...helpAttrs(
+                            "Traiter l'échéance",
+                            "Marque l'échéance comme traitée (document reçu / obligation remplie). Elle sort de la liste des actions à faire.",
+                          )}
                         >
                           Traiter
                         </Button>
@@ -305,6 +338,10 @@ export function EcheancesListe({
                           size="sm"
                           onClick={() => setReporting(e)}
                           className="text-blue-700 hover:text-blue-800"
+                          {...helpAttrs(
+                            "Reporter",
+                            "Décale la date limite : choisissez une nouvelle date et un motif ; l'échéance passe en « reportée ».",
+                          )}
                         >
                           Reporter
                         </Button>
@@ -316,6 +353,10 @@ export function EcheancesListe({
                           onClick={() =>
                             agir(() => annulerEcheanceAction(e.id), "Échéance annulée.")
                           }
+                          {...helpAttrs(
+                            "Annuler l'échéance",
+                            "Passe l'échéance au statut « Annulée ». À utiliser quand l'obligation ne s'applique plus ; action difficilement réversible.",
+                          )}
                         >
                           Annuler
                         </Button>

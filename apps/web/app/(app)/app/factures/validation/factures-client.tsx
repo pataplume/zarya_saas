@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { helpAttrs } from "@/lib/help-attrs";
 import { useFileKeyboard } from "@/lib/hooks/use-file-keyboard";
 import { libelleAnomalie } from "@/lib/libelles";
 import { rejeterFactureAction, validerFactureAction } from "./actions";
@@ -234,6 +235,10 @@ function ApercuDocument({
             onClick={() => setVersion(Date.now())}
             title="L'aperçu expire après 5 minutes — recharger si la page grise"
             className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            {...helpAttrs(
+              "Recharger l'aperçu",
+              "Régénère l'aperçu du document. À utiliser si l'image devient grise : le lien d'aperçu expire après 5 minutes.",
+            )}
           >
             <RotateCw className="h-3 w-3" aria-hidden />
             Recharger l'aperçu
@@ -248,6 +253,10 @@ function ApercuDocument({
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              {...helpAttrs(
+                "Ouvrir le document",
+                "Ouvre le document source dans un nouvel onglet, quand l'aperçu intégré n'est pas disponible pour ce format.",
+              )}
             >
               <ExternalLink className="h-3.5 w-3.5" aria-hidden />
               Ouvrir le document
@@ -376,6 +385,10 @@ function FactureCard({
                   disabled={onPrecedente === null}
                   title="Facture précédente"
                   className="disabled:cursor-not-allowed"
+                  {...helpAttrs(
+                    "Facture précédente",
+                    "Passe à la facture précédente de la file sans fermer l'écran de vérification. L'aperçu et le formulaire se mettent à jour.",
+                  )}
                 >
                   <ChevronLeft className="h-4 w-4" aria-hidden />
                   Précédente
@@ -388,13 +401,26 @@ function FactureCard({
                   disabled={onSuivante === null}
                   title="Facture suivante"
                   className="disabled:cursor-not-allowed"
+                  {...helpAttrs(
+                    "Facture suivante",
+                    "Passe à la facture suivante de la file sans fermer l'écran de vérification. L'aperçu et le formulaire se mettent à jour.",
+                  )}
                 >
                   Suivante
                   <ChevronRight className="h-4 w-4" aria-hidden />
                 </Button>
               </>
             ) : null}
-            <Button type="button" size="sm" onClick={onToggleOpen} className="shrink-0">
+            <Button
+              type="button"
+              size="sm"
+              onClick={onToggleOpen}
+              className="shrink-0"
+              {...helpAttrs(
+                "Vérifier & valider",
+                "Ouvre l'aperçu du document à côté du formulaire pré-rempli par l'IA. Contrôlez les champs (provenance QR/IA indiquée) puis validez.",
+              )}
+            >
               {open ? "Fermer" : "Vérifier & valider"}
             </Button>
           </div>
@@ -417,6 +443,10 @@ function FactureCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mb-3 inline-flex items-center gap-1 text-sm text-primary hover:underline lg:hidden"
+                {...helpAttrs(
+                  "Ouvrir le document",
+                  "Ouvre la facture source dans un nouvel onglet pour la consulter à côté du formulaire (l'aperçu côte à côte n'existe que sur grand écran).",
+                )}
               >
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                 Ouvrir le document
@@ -531,11 +561,27 @@ function FactureCard({
               </div>
 
               <div className="col-span-2 flex gap-2">
-                <Button type="submit" disabled={pending}>
+                <Button
+                  type="submit"
+                  disabled={pending}
+                  {...helpAttrs(
+                    "Valider la facture",
+                    "Enregistre les champs corrigés et crée la facture définitive. Un changement d'IBAN ou un doublon détecté vous est signalé après coup.",
+                  )}
+                >
                   <Check className="size-4" aria-hidden />
                   Valider la facture
                 </Button>
-                <Button type="button" variant="secondary" disabled={pending} onClick={onRejeter}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={pending}
+                  onClick={onRejeter}
+                  {...helpAttrs(
+                    "Rejeter",
+                    "Écarte cette proposition (ce n'est pas une facture, ou elle est erronée). La carte disparaît sans créer de facture.",
+                  )}
+                >
                   Rejeter
                 </Button>
               </div>
@@ -585,6 +631,10 @@ function IbanQrField({ masque }: { masque: string }) {
           type="button"
           onClick={() => setCorriger(true)}
           className="shrink-0 text-xs text-primary hover:underline"
+          {...helpAttrs(
+            "Corriger l'IBAN",
+            "Remplace l'IBAN issu du QR-bill par une saisie manuelle. À n'utiliser que si le QR est erroné : l'IBAN que vous tapez prime alors sur celui du QR.",
+          )}
         >
           Corriger
         </button>
@@ -849,6 +899,10 @@ export function FacturesValidation({
             onClick={validerSelection}
             disabled={selected.size === 0 || pending}
             className="disabled:cursor-not-allowed"
+            {...helpAttrs(
+              "Valider la sélection",
+              "Valide d'un coup les factures cochées, sans anomalie et avec IBAN — celles nécessitant une vérification restent décochées.",
+            )}
           >
             {pending
               ? "Validation…"

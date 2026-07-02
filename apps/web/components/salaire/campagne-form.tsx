@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { lancerCampagneAction, type SalaireFiduciaireState } from "@/app/(app)/app/salaire/actions";
+import { helpAttrs } from "@/lib/help-attrs";
 
 const INITIAL: SalaireFiduciaireState = {};
 
@@ -16,6 +17,10 @@ export function LancerCampagneForm({ annee, mois }: { annee: number; mois: numbe
         type="submit"
         disabled={pending}
         className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        {...helpAttrs(
+          "Lancer la campagne du mois",
+          "Crée les périodes de paie du mois pour tous les clients concernés, prépopulées depuis le mois précédent. Vos clients peuvent ensuite déclarer leurs changements.",
+        )}
       >
         Lancer la campagne du mois
       </button>

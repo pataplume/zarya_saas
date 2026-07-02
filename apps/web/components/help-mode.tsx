@@ -1,12 +1,21 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { type HelpAttrs, helpAttrs } from "@/lib/help-attrs";
 import { cn } from "@/lib/utils";
 
-// ─── Mode guide : survol d'un élément → carte futuriste « ce que ça fait /
-// comment l'utiliser ». Provider monté au niveau du shell app ; toggle dans la
-// sidebar (au-dessus de Paramètres). ────────────────────────────────────────
+// ─── Mode guide : survol/focus d'un élément portant `data-help-title/body` →
+// carte futuriste « ce que ça fait / comment l'utiliser ». Un seul écouteur
+// délégué (pas de wrapper par élément). Toggle dans la sidebar. ──────────────
 
 type Placement = "haut" | "bas";
 
@@ -21,8 +30,6 @@ type ActiveHint = {
 type HelpContextValue = {
   enabled: boolean;
   toggle: () => void;
-  showHint: (rect: DOMRect, title: string, body: string) => void;
-  hideHint: () => void;
 };
 
 const HelpContext = createContext<HelpContextValue | null>(null);
@@ -41,6 +48,7 @@ export function useHelpMode(): HelpContextValue {
 export function HelpModeProvider({ children }: { children: React.ReactNode }) {
   const [enabled, setEnabled] = useState(false);
   const [hint, setHint] = useState<ActiveHint | null>(null);
+  const currentEl = useRef<Element | null>(null);
 
   // Restaure la préférence (client-only pour éviter le mismatch SSR).
   useEffect(() => {
@@ -55,37 +63,67 @@ export function HelpModeProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined") {
         window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
       }
-      if (!next) setHint(null);
       return next;
     });
   }, []);
 
-  const showHint = useCallback((rect: DOMRect, title: string, body: string) => {
+  const showForElement = useCallback((el: Element) => {
+    const title = el.getAttribute("data-help-title") ?? "";
+    const body = el.getAttribute("data-help-body") ?? "";
+    if (!title) return;
+    const rect = el.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     let left = rect.left;
     if (left + CARD_WIDTH > vw - MARGIN) left = vw - CARD_WIDTH - MARGIN;
     if (left < MARGIN) left = MARGIN;
-    // Sous l'élément par défaut ; au-dessus si pas la place en bas.
+    // Sous l'élément par défaut ; au-dessus s'il n'y a pas la place en bas.
     const placeBas = rect.bottom + CARD_HEIGHT_EST + MARGIN < vh;
     const top = placeBas ? rect.bottom + 8 : rect.top - 8;
     setHint({ left, top, placement: placeBas ? "bas" : "haut", title, body });
   }, []);
 
-  const hideHint = useCallback(() => setHint(null), []);
-
-  // Le survol devient invalide dès qu'on scrolle : on masque.
+  // Écoute déléguée : active seulement quand le mode guide est ON.
   useEffect(() => {
-    if (!hint) return;
-    const onScroll = () => setHint(null);
-    window.addEventListener("scroll", onScroll, true);
-    return () => window.removeEventListener("scroll", onScroll, true);
-  }, [hint]);
+    if (!enabled) return;
+    const root = document.documentElement;
+    root.classList.add("zarya-guide-on");
 
-  const value = useMemo(
-    () => ({ enabled, toggle, showHint, hideHint }),
-    [enabled, toggle, showHint, hideHint],
-  );
+    const resolve = (target: EventTarget | null): Element | null =>
+      target instanceof Element ? target.closest("[data-help-title]") : null;
+
+    const onOver = (e: PointerEvent) => {
+      const el = resolve(e.target);
+      if (el === currentEl.current) return;
+      currentEl.current = el;
+      if (el) showForElement(el);
+      else setHint(null);
+    };
+    const onFocus = (e: FocusEvent) => {
+      const el = resolve(e.target);
+      currentEl.current = el;
+      if (el) showForElement(el);
+      else setHint(null);
+    };
+    const onScroll = () => {
+      currentEl.current = null;
+      setHint(null);
+    };
+
+    document.addEventListener("pointerover", onOver);
+    document.addEventListener("focusin", onFocus);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      root.classList.remove("zarya-guide-on");
+      document.removeEventListener("pointerover", onOver);
+      document.removeEventListener("focusin", onFocus);
+      window.removeEventListener("scroll", onScroll, true);
+      currentEl.current = null;
+      setHint(null);
+    };
+  }, [enabled, showForElement]);
+
+  const value = useMemo(() => ({ enabled, toggle }), [enabled, toggle]);
 
   return (
     <HelpContext.Provider value={value}>
@@ -121,7 +159,9 @@ function HintCard({ hint }: { hint: ActiveHint }) {
   );
 }
 
-// ─── Wrapper d'un élément annotable ──────────────────────────────────────────
+// ─── Wrapper de commodité (le dashboard l'utilise) : pose data-help sur un div
+// englobant. Pour un élément déjà cliquable, préférer `{...helpAttrs(...)}`
+// directement dessus (aucun div en plus). ────────────────────────────────────
 
 export function HelpHint({
   title,
@@ -134,28 +174,10 @@ export function HelpHint({
   className?: string;
   children: React.ReactNode;
 }) {
-  const { enabled, showHint, hideHint } = useHelpMode();
-  const descId = useId();
-
-  if (!enabled) return <div className={className}>{children}</div>;
-
+  const attrs: HelpAttrs = helpAttrs(title, body);
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: superposition d'aide non focusable ; les enfants restent interactifs
-    <div
-      className={cn(
-        "relative cursor-help rounded-xl outline-none ring-indigo-400/0 transition-shadow hover:ring-2 hover:ring-indigo-400/40",
-        className,
-      )}
-      aria-describedby={descId}
-      onMouseEnter={(e) => showHint(e.currentTarget.getBoundingClientRect(), title, body)}
-      onMouseLeave={hideHint}
-      onFocusCapture={(e) => showHint(e.currentTarget.getBoundingClientRect(), title, body)}
-      onBlurCapture={hideHint}
-    >
+    <div className={className} {...attrs}>
       {children}
-      <span id={descId} className="sr-only">
-        {title}. {body}
-      </span>
     </div>
   );
 }
