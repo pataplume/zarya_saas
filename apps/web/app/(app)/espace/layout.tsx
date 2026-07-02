@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import type { CSSProperties } from "react";
 import { ClientNav } from "@/components/client/client-nav";
+import { UserMenu } from "@/components/client/user-menu";
 import { resolveBranding } from "@/lib/client-space";
 
 /**
@@ -66,7 +67,7 @@ export default async function EspaceClientLayout({ children }: { children: React
             <span className="text-sm text-gray-500">· {cli.raison_sociale}</span>
           ) : null}
         </div>
-        <span className="text-sm text-gray-400">{user?.email}</span>
+        <UserMenu email={user?.email ?? ""} />
       </header>
 
       <ClientNav />

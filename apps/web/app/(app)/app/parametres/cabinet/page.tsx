@@ -2,6 +2,7 @@ import { getCurrentUser } from "@zarya/auth";
 import { cabinet, db } from "@zarya/db";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { BrandingClient } from "./branding-client";
 import { CabinetClient } from "./cabinet-client";
 
 export default async function CabinetPage() {
@@ -28,6 +29,9 @@ export default async function CabinetPage() {
       langue_principale: cabinet.langue_principale,
       devise: cabinet.devise,
       fuseau_horaire: cabinet.fuseau_horaire,
+      logo_url: cabinet.logo_url,
+      couleur_primaire: cabinet.couleur_primaire,
+      couleur_secondaire: cabinet.couleur_secondaire,
     })
     .from(cabinet)
     .where(eq(cabinet.id, cabinet_id))
@@ -35,5 +39,18 @@ export default async function CabinetPage() {
 
   if (!cab) redirect("/onboarding");
 
-  return <CabinetClient cabinet={cab} isResponsable={isResponsable} />;
+  return (
+    <div className="space-y-6">
+      <CabinetClient cabinet={cab} isResponsable={isResponsable} />
+      <BrandingClient
+        raisonSociale={cab.raison_sociale}
+        branding={{
+          logo_url: cab.logo_url,
+          couleur_primaire: cab.couleur_primaire,
+          couleur_secondaire: cab.couleur_secondaire,
+        }}
+        isResponsable={isResponsable}
+      />
+    </div>
+  );
 }
