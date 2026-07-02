@@ -31,6 +31,7 @@ import { type DigestCabinet, getDigestCabinet } from "@/lib/dashboard-data";
 import { badgeRisque } from "@/lib/libelles";
 import { cn } from "@/lib/utils";
 import { DashboardAskBar } from "./dashboard-ask-bar";
+import { HelpHint, HelpModeProvider, HelpModeToggle } from "./help-mode";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -223,15 +224,15 @@ function MetricCard({
   return (
     <Link
       href={href}
-      className="group flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3.5 shadow-card transition-colors hover:border-slate-300"
+      className="group flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3.5 shadow-card transition-all duration-150 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md motion-reduce:transform-none"
     >
       <span>
-        <span className="block text-3xl font-semibold tabular-nums tracking-tight text-foreground">
+        <span className="block text-3xl font-semibold tabular-nums tracking-tight text-foreground transition-colors group-hover:text-primary">
           {formatCompte(valeur)}
         </span>
         <span className="mt-0.5 block text-[13px] text-muted-foreground">{label}</span>
       </span>
-      <span className="flex size-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors group-hover:bg-blue-50 group-hover:text-primary">
+      <span className="flex size-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors group-hover:bg-indigo-50 group-hover:text-indigo-600">
         <Icon className="size-5" strokeWidth={1.75} aria-hidden />
       </span>
     </Link>
@@ -559,82 +560,124 @@ export default async function AppHomePage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-      {/* ─── Bande « co-pilote » sombre : salutation + commande + focus ──────── */}
-      <section className="mb-6 overflow-hidden rounded-2xl bg-[#0d1220] p-5 ring-1 ring-white/[0.06] sm:p-7">
-        <p className="text-[13px] font-medium uppercase tracking-wider text-slate-400 first-letter:uppercase">
-          {dateDuJour}
-          {cabinetData && <> · {cabinetData.raison_sociale}</>}
-          {cabinetData?.plan_tarifaire && (
-            <>
-              {" "}
-              <span className="text-slate-500">
-                · {planLabel[cabinetData.plan_tarifaire] ?? cabinetData.plan_tarifaire}
-              </span>
-            </>
-          )}
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">
-          Bonjour, {prenomAffiche}.
-        </h1>
+    <HelpModeProvider>
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* ─── Bande « co-pilote » sombre : salutation + commande + focus ──────── */}
+        <section className="mb-6 overflow-hidden rounded-2xl bg-[#0d1220] p-5 ring-1 ring-white/[0.06] sm:p-7">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[13px] font-medium uppercase tracking-wider text-slate-400 first-letter:uppercase">
+                {dateDuJour}
+                {cabinetData && <> · {cabinetData.raison_sociale}</>}
+                {cabinetData?.plan_tarifaire && (
+                  <>
+                    {" "}
+                    <span className="text-slate-500">
+                      · {planLabel[cabinetData.plan_tarifaire] ?? cabinetData.plan_tarifaire}
+                    </span>
+                  </>
+                )}
+              </p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">
+                Bonjour, {prenomAffiche}.
+              </h1>
+            </div>
+            <HelpModeToggle />
+          </div>
 
-        {/* Barre « demande à ZARYA » (surface de commande → RAG) */}
-        <div className="mt-5">
-          <DashboardAskBar />
+          {/* Barre « demande à ZARYA » (surface de commande → RAG) */}
+          <HelpHint
+            title="Demander à ZARYA"
+            body="Posez une question en langage naturel sur vos documents (« quelles factures TVA arrivent cette semaine ? »). Le co-pilote répond en citant ses sources, uniquement depuis les données de votre cabinet."
+            className="mt-5 block"
+          >
+            <DashboardAskBar />
+          </HelpHint>
+
+          {/* À faire maintenant — le focus qui domine (streamé) */}
+          <HelpHint
+            title="À faire maintenant"
+            body="L'action la plus urgente, isolée pour vous. L'IA a déjà préparé le travail : cliquez « Traiter maintenant » pour valider directement. Les autres catégories sont résumées en dessous."
+            className="mt-4 block"
+          >
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+              À faire maintenant
+            </p>
+            <Suspense fallback={<FocusSkeleton />}>
+              <FocusSection cabinetId={cabinet_id} />
+            </Suspense>
+          </HelpHint>
+        </section>
+
+        {/* ─── KPIs ────────────────────────────────────────────────────────────── */}
+        <div className="mb-6 grid gap-3 sm:grid-cols-3">
+          <HelpHint
+            title="Clients actifs"
+            body="Le nombre de PME que votre cabinet gère activement. Cliquez pour ouvrir la liste, la trier par risque et rechercher un dossier."
+          >
+            <MetricCard
+              label={nbClientsActifs > 1 ? "Clients actifs" : "Client actif"}
+              valeur={nbClientsActifs}
+              href="/app/clients"
+              icon={Users}
+            />
+          </HelpHint>
+          <HelpHint
+            title="Équipe"
+            body="Les membres de votre cabinet ayant accès à ZARYA. Cliquez pour inviter un collègue ou ajuster ses droits (responsable, collaborateur, lecteur…)."
+          >
+            <MetricCard
+              label={nbMembres > 1 ? "Membres d'équipe" : "Membre d'équipe"}
+              valeur={nbMembres}
+              href="/app/parametres/equipe"
+              icon={Briefcase}
+            />
+          </HelpHint>
+          <HelpHint
+            title="Documents ce mois"
+            body="Les pièces déposées ce mois-ci (upload, email capté, portail client). Cliquez pour ouvrir le hub et valider les classements proposés par l'IA."
+          >
+            <MetricCard
+              label="Documents ce mois"
+              valeur={nbDocsMois}
+              href="/app/documents"
+              icon={FileText}
+            />
+          </HelpHint>
         </div>
 
-        {/* À faire maintenant — le focus qui domine (streamé) */}
-        <div className="mt-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
-            À faire maintenant
-          </p>
-          <Suspense fallback={<FocusSkeleton />}>
-            <FocusSection cabinetId={cabinet_id} />
-          </Suspense>
+        {/* ─── Clients à suivre + Fil d'activité (streamés) ───────────────────── */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <section className="lg:col-span-2">
+            <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Clients à suivre
+            </h2>
+            <HelpHint
+              title="Clients à suivre"
+              body="Vos 5 clients au risque le plus élevé. La pastille colorée indique le niveau de risque et son score, avec la prochaine échéance et le nombre de documents manquants. Cliquez un client pour ouvrir son dossier."
+              className="block"
+            >
+              <Suspense fallback={<ClientsASuivreSkeleton />}>
+                <ClientsASuivreSection cabinetId={cabinet_id} />
+              </Suspense>
+            </HelpHint>
+          </section>
+          <section className="lg:col-span-1">
+            <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Fil d'activité
+            </h2>
+            <HelpHint
+              title="Fil d'activité"
+              body="Ce que le co-pilote, le système et votre équipe viennent de faire (classement IA, relance envoyée, anomalie détectée…). Le badge « IA » signale une action automatique."
+              className="block h-full"
+            >
+              <Suspense fallback={<ActiviteSkeleton />}>
+                <ActiviteSection cabinetId={cabinet_id} />
+              </Suspense>
+            </HelpHint>
+          </section>
         </div>
-      </section>
-
-      {/* ─── KPIs ────────────────────────────────────────────────────────────── */}
-      <div className="mb-6 grid gap-3 sm:grid-cols-3">
-        <MetricCard
-          label={nbClientsActifs > 1 ? "Clients actifs" : "Client actif"}
-          valeur={nbClientsActifs}
-          href="/app/clients"
-          icon={Users}
-        />
-        <MetricCard
-          label={nbMembres > 1 ? "Membres d'équipe" : "Membre d'équipe"}
-          valeur={nbMembres}
-          href="/app/parametres/equipe"
-          icon={Briefcase}
-        />
-        <MetricCard
-          label="Documents ce mois"
-          valeur={nbDocsMois}
-          href="/app/documents"
-          icon={FileText}
-        />
       </div>
-
-      {/* ─── Clients à suivre + Fil d'activité (streamés) ───────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <section className="lg:col-span-2">
-          <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Clients à suivre
-          </h2>
-          <Suspense fallback={<ClientsASuivreSkeleton />}>
-            <ClientsASuivreSection cabinetId={cabinet_id} />
-          </Suspense>
-        </section>
-        <section className="lg:col-span-1">
-          <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Fil d'activité
-          </h2>
-          <Suspense fallback={<ActiviteSkeleton />}>
-            <ActiviteSection cabinetId={cabinet_id} />
-          </Suspense>
-        </section>
-      </div>
-    </div>
+    </HelpModeProvider>
   );
 }
