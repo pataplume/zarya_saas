@@ -2,7 +2,7 @@
 
 // H4b — Interface de recherche conversationnelle (RAG). Formulaire + réponse sourcée + feedback.
 // useActionState ; sources visibles (UX ZARYA §5 traçabilité). Citations [N] → liste des sources.
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import {
   feedbackRechercheAction,
   type RechercheState,
@@ -19,25 +19,37 @@ const INTENT_LABEL: Record<string, string> = {
   hors_scope: "Hors périmètre",
 };
 
-export function RechercheClient() {
+export function RechercheClient({ questionInitiale }: { questionInitiale?: string | undefined }) {
   const [state, action, pending] = useActionState(rechercheAction, INITIAL);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Question passée en ?q= (barre « demande à ZARYA » du dashboard) : on exécute
+  // une fois au montage, sans re-jouer si l'utilisateur reformule ensuite.
+  const dejaLance = useRef(false);
+  useEffect(() => {
+    if (questionInitiale && questionInitiale.trim().length >= 3 && !dejaLance.current) {
+      dejaLance.current = true;
+      formRef.current?.requestSubmit();
+    }
+  }, [questionInitiale]);
 
   return (
     <div className="space-y-6">
-      <form action={action} className="flex gap-2">
+      <form ref={formRef} action={action} className="flex gap-2">
         <input
           type="text"
           name="question"
           required
           minLength={3}
+          defaultValue={questionInitiale}
           placeholder="Posez une question sur vos documents…"
           aria-label="Question"
-          className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          className="flex-1 rounded-lg border border-input bg-card px-4 py-2 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         />
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
         >
           {pending ? "Recherche…" : "Rechercher"}
         </button>
