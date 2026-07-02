@@ -10,7 +10,32 @@ referenced_by: [data-residency, multi-tenant, llm-strategy, security-and-audit, 
 > **Amendement 2026-06-14** — Régions réelles en production : données au repos sur **Supabase eu-central-2 (Zurich, Suisse)** ; compute/cron sur **Vercel fra1 (Frankfurt, UE)** ; couche IA sur **Infomaniak AI Services (Suisse)** (ADR 0010, remplace ADR 0003/Bedrock). Les justifications « Bedrock disponible uniquement en eu-central-1 » du corps ci-dessous sont **caduques**. La Suisse est un pays tiers adéquat (RGPD art. 45).
 
 ## Statut
-Acceptée — 26 mai 2026
+Acceptée — 26 mai 2026 · **Amendée — 12 juin 2026** (état déployé réel, voir ci-dessous)
+
+## ⚠️ Amendement — 12 juin 2026 (état déployé réel)
+
+La décision initiale (corps ci-dessous) visait « UE, principalement Frankfurt `eu-central-1` ».
+L'infrastructure **réellement déployée** est plus protectrice et doit être documentée comme telle
+dans les DPA et la politique de confidentialité. Vérifié le 12/06/2026 via l'API Supabase
+(`region: eu-central-2`) et le dashboard Vercel (Function Region = `fra1`).
+
+| Couche | Localisation réelle | Région |
+|---|---|---|
+| **Données au repos** (Supabase : Postgres, Auth, Storage, embeddings pgvector) | **Zurich, Suisse 🇨🇭** | `eu-central-2` |
+| **IA** (Infomaniak AI Services — ADR 0010, qui remplace ADR 0003/Bedrock) | **Suisse 🇨🇭** | — |
+| **Calcul** (Vercel serverless functions) | **Frankfurt, Allemagne (UE)** | `fra1` — Vercel n'offre pas de région suisse |
+| **Microsoft Graph** (emails) | région du tenant du cabinet | vérifiée à l'onboarding (D3), alerte si hors UE/EEE/CH/adéquat |
+
+Conséquences :
+- L'objectif de l'ADR (résidence en zone adéquate nLPD/RGPD) est **dépassé** : **stockage et IA sont
+  sur sol suisse**, le calcul est en UE (Allemagne, pays à décision d'adéquation suisse).
+- Le « Suisse stricte = Phase 2 » du corps ci-dessous est donc **déjà atteint au MVP pour le
+  stockage et l'IA** ; seul le calcul (Vercel) reste en UE faute de région suisse chez ce fournisseur.
+- Les rationales du corps mentionnant **Bedrock** (`eu-central-1`) et **Mistral Paris** (`eu-west-3`,
+  OCR) sont **caduques** : la couche IA passe entièrement par Infomaniak (Suisse), cf. ADR 0010.
+- `data-residency.md` est déjà à jour (Zurich `eu-central-2`). Ce présent amendement aligne l'ADR.
+
+La décision historique d'origine est conservée ci-dessous pour traçabilité.
 
 ## Contexte
 
