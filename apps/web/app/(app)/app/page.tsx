@@ -2,6 +2,7 @@ import { getCurrentUser } from "@zarya/auth";
 import { cabinet, cabinetMembre, client, db, sql, uploadBrut } from "@zarya/db";
 import { and, count, eq, gte } from "drizzle-orm";
 import {
+  ArrowRight,
   Briefcase,
   Calendar,
   CheckCircle2,
@@ -20,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type DigestCabinet, getDigestCabinet } from "@/lib/dashboard-data";
 import { badgeRisque } from "@/lib/libelles";
+import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,8 +32,8 @@ type Module = {
   href: string;
 };
 
-// Carte-compteur « à traiter » : libellé FR + icône (jamais couleur seule) + lien.
-type TuileDigest = {
+// Ligne de la file de travail : libellé FR + icône (jamais couleur seule) + lien.
+type LigneDigest = {
   id: string;
   icon: LucideIcon;
   valeur: number;
@@ -51,15 +53,15 @@ const MODULES: Module[] = [
   { id: "recherche", label: "Recherche", icon: Search, href: "/app/recherche" },
 ];
 
-// ─── Digest « à traiter » (C3.1) ─────────────────────────────────────────────
+// ─── File de travail (digest « à traiter », C3.1) ────────────────────────────
 
-// Compteur abrégé : au-delà de 999 on plafonne l'affichage à « 999+ » pour rester lisible.
+// Compteur abrégé : au-delà de 999 on plafonne l'affichage à « 999+ ».
 function formatCompte(n: number): string {
   if (n >= 1000) return "999+";
   return String(n);
 }
 
-function construireTuilesDigest(d: DigestCabinet): TuileDigest[] {
+function construireLignesDigest(d: DigestCabinet): LigneDigest[] {
   const echeancesTotal = d.echeances_en_retard + d.echeances_a_venir;
   return [
     {
@@ -75,7 +77,7 @@ function construireTuilesDigest(d: DigestCabinet): TuileDigest[] {
       icon: Receipt,
       valeur: d.factures_a_valider,
       label: "Factures à valider",
-      detail: d.factures_a_valider > 0 ? "Extraction à confirmer" : null,
+      detail: d.factures_a_valider > 0 ? "Extraction IA à confirmer" : null,
       href: "/app/factures/validation",
     },
     {
@@ -110,21 +112,23 @@ function construireTuilesDigest(d: DigestCabinet): TuileDigest[] {
   ];
 }
 
-// ─── Digest « à traiter » — section streamée (le reste de la page s'affiche
-// sans attendre la requête la plus lente) ────────────────────────────────────
+// ─── File de travail — section streamée (le reste de la page s'affiche sans
+// attendre la requête la plus lente) ────────────────────────────────────────
 
 async function DigestSection({ cabinetId }: { cabinetId: string }) {
   const digest = await getDigestCabinet(cabinetId);
-  const tuilesDigest = construireTuilesDigest(digest);
-  const totalATraiter = tuilesDigest.reduce((acc, t) => acc + t.valeur, 0);
+  const lignes = construireLignesDigest(digest);
+  const totalATraiter = lignes.reduce((acc, t) => acc + t.valeur, 0);
 
   if (totalATraiter === 0) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-5">
-        <CheckCircle2 className="size-6 shrink-0 text-emerald-600" aria-hidden />
+      <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-card">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+          <CheckCircle2 className="size-5 text-emerald-600" aria-hidden />
+        </span>
         <div>
-          <p className="text-sm font-medium text-emerald-800">Rien à traiter, tout est à jour</p>
-          <p className="text-xs text-emerald-700">
+          <p className="text-sm font-medium text-emerald-900">Tout est à jour</p>
+          <p className="text-[13px] text-emerald-700">
             Aucun document, facture, échéance, relance ou salaire en attente.
           </p>
         </div>
@@ -132,57 +136,94 @@ async function DigestSection({ cabinetId }: { cabinetId: string }) {
     );
   }
 
+  // Ce qui demande attention (valeur > 0) remonte en tête et prend le poids visuel ;
+  // le reste passe en pied, compact et discret.
+  const attention = lignes.filter((l) => l.valeur > 0).sort((a, b) => b.valeur - a.valeur);
+  const aJour = lignes.filter((l) => l.valeur === 0);
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {tuilesDigest.map((t) => {
-        const aTraiter = t.valeur > 0;
-        const Icon = t.icon;
-        return (
-          <Link
-            key={t.id}
-            href={t.href}
-            className={`group flex items-start gap-4 rounded-lg border p-4 shadow-card transition-colors ${
-              aTraiter
-                ? "border-amber-200 bg-amber-50/50 hover:border-amber-300 hover:bg-amber-50"
-                : "border-border bg-card hover:border-slate-300"
-            }`}
-          >
-            <Icon
-              className={`mt-1 size-5 shrink-0 ${aTraiter ? "text-amber-600" : "text-slate-400"}`}
-              strokeWidth={1.75}
-              aria-hidden
-            />
-            <div className="min-w-0 flex-1">
-              <p
-                className={`text-2xl font-semibold tabular-nums tracking-tight ${aTraiter ? "text-amber-700" : "text-slate-400"}`}
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+      {/* Bandeau récap */}
+      <div className="flex items-center gap-2 border-b border-border bg-slate-50/60 px-4 py-2">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 px-2 py-0.5 text-[13px] font-semibold text-amber-800 tabular-nums">
+          {formatCompte(totalATraiter)}
+        </span>
+        <span className="text-[13px] text-muted-foreground">
+          élément{totalATraiter > 1 ? "s" : ""} en attente de validation
+        </span>
+      </div>
+
+      {/* Lignes prioritaires */}
+      <ul>
+        {attention.map((l) => {
+          const Icon = l.icon;
+          return (
+            <li key={l.id}>
+              <Link
+                href={l.href}
+                className="group flex items-center gap-4 border-l-2 border-amber-400 bg-amber-50/40 px-4 py-3 transition-colors hover:bg-amber-50"
               >
-                {formatCompte(t.valeur)}
-              </p>
-              <p className="text-[13px] font-medium text-slate-700">{t.label}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {aTraiter ? (t.detail ?? "À traiter") : "À jour"}
-              </p>
-            </div>
-          </Link>
-        );
-      })}
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                  <Icon className="size-5" strokeWidth={1.75} aria-hidden />
+                </span>
+                <span className="w-12 shrink-0 text-2xl font-semibold tabular-nums tracking-tight text-amber-700">
+                  {formatCompte(l.valeur)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-foreground">{l.label}</span>
+                  <span className="block text-[13px] text-muted-foreground">
+                    {l.detail ?? "À traiter"}
+                  </span>
+                </span>
+                <ArrowRight
+                  className="size-4 shrink-0 text-amber-400 transition-transform group-hover:translate-x-0.5 group-hover:text-amber-600"
+                  aria-hidden
+                />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Ce qui est à jour (compact) */}
+      {aJour.length > 0 && (
+        <ul className="divide-y divide-border/60 border-t border-border">
+          {aJour.map((l) => {
+            const Icon = l.icon;
+            return (
+              <li key={l.id}>
+                <Link
+                  href={l.href}
+                  className="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-slate-50"
+                >
+                  <Icon className="size-4 shrink-0 text-slate-400" strokeWidth={1.75} aria-hidden />
+                  <span className="flex-1 text-[13px] text-slate-500">{l.label}</span>
+                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                    <CheckCircle2 className="size-3.5" aria-hidden />à jour
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
 
 function DigestSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {["documents", "factures", "echeances", "relances", "salaires"].map((id) => (
-        <div
-          key={id}
-          className="flex items-start gap-4 rounded-lg border border-border bg-card p-4 shadow-card"
-        >
-          <Skeleton className="size-8 rounded-full" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-7 w-12" />
-            <Skeleton className="h-4 w-36" />
-            <Skeleton className="h-3 w-24" />
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+      <div className="border-b border-border bg-slate-50/60 px-4 py-2">
+        <Skeleton className="h-5 w-48" />
+      </div>
+      {["a", "b"].map((id) => (
+        <div key={id} className="flex items-center gap-4 px-4 py-3">
+          <Skeleton className="size-10 rounded-lg" />
+          <Skeleton className="h-7 w-10" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-28" />
           </div>
         </div>
       ))}
@@ -190,8 +231,39 @@ function DigestSkeleton() {
   );
 }
 
-// ─── Clients à suivre — top 5 par risque (même source que la liste clients :
-// vue crm.v_client_dashboard, scopée cabinet_id) — section streamée ──────────
+// ─── KPI (cartes métriques) ──────────────────────────────────────────────────
+
+function MetricCard({
+  label,
+  valeur,
+  href,
+  icon: Icon,
+}: {
+  label: string;
+  valeur: number;
+  href: string;
+  icon: LucideIcon;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3.5 shadow-card transition-colors hover:border-slate-300"
+    >
+      <span>
+        <span className="block text-3xl font-semibold tabular-nums tracking-tight text-foreground">
+          {formatCompte(valeur)}
+        </span>
+        <span className="mt-0.5 block text-[13px] text-muted-foreground">{label}</span>
+      </span>
+      <span className="flex size-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors group-hover:bg-blue-50 group-hover:text-primary">
+        <Icon className="size-5" strokeWidth={1.75} aria-hidden />
+      </span>
+    </Link>
+  );
+}
+
+// ─── Clients à suivre — top 5 par risque (vue crm.v_client_dashboard, scopée
+// cabinet_id) — section streamée ─────────────────────────────────────────────
 
 type ClientASuivre = {
   id: string;
@@ -200,6 +272,14 @@ type ClientASuivre = {
   risque_niveau: string | null;
   prochaine_echeance: string | null;
   nb_documents_manquants: number;
+};
+
+// Couleur de la pastille de risque (le badge porte déjà symbole + texte).
+const RISQUE_DOT: Record<string, string> = {
+  faible: "bg-emerald-500",
+  moyen: "bg-amber-500",
+  eleve: "bg-orange-500",
+  critique: "bg-red-500",
 };
 
 function formatDateCourte(value: string | null): string {
@@ -235,51 +315,76 @@ async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
     }));
 
   return (
-    <div className="rounded-lg border border-border bg-card shadow-card">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
       {clients.length === 0 ? (
-        <p className="p-5 text-sm text-muted-foreground">Aucun client actif</p>
+        <p className="p-6 text-center text-[13px] text-muted-foreground">Aucun client actif</p>
       ) : (
-        <ul className="divide-y divide-border/70">
-          {clients.map((c) => {
-            const badge = c.risque_niveau ? badgeRisque(c.risque_niveau) : null;
-            return (
-              <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
-                <Link
-                  href={`/app/clients/${c.id}`}
-                  className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground hover:text-primary"
-                >
-                  {c.raison_sociale}
-                </Link>
-                {badge ? (
-                  <Badge famille={badge.famille}>
-                    <span aria-hidden>{badge.symbole}</span>
-                    {badge.label}
-                    {c.risque_score != null && ` · ${c.risque_score}`}
-                  </Badge>
-                ) : (
-                  <span className="text-xs text-slate-400">Risque —</span>
-                )}
-                <span className="w-28 text-xs text-muted-foreground tabular-nums">
-                  Échéance {formatDateCourte(c.prochaine_echeance)}
-                </span>
-                <span className="w-32 text-xs">
-                  {c.nb_documents_manquants > 0 ? (
-                    <span className="font-medium text-amber-700">
-                      {c.nb_documents_manquants} doc{c.nb_documents_manquants > 1 ? "s" : ""}{" "}
-                      manquant{c.nb_documents_manquants > 1 ? "s" : ""}
-                    </span>
-                  ) : (
-                    <span className="text-slate-400">Docs à jour</span>
-                  )}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <table className="w-full text-[13px]">
+          <thead className="border-b border-border bg-slate-50/60">
+            <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <th className="px-4 py-2 font-semibold">Client</th>
+              <th className="px-4 py-2 font-semibold">Risque</th>
+              <th className="hidden px-4 py-2 font-semibold sm:table-cell">Prochaine échéance</th>
+              <th className="px-4 py-2 font-semibold">Docs manquants</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60">
+            {clients.map((c) => {
+              const badge = c.risque_niveau ? badgeRisque(c.risque_niveau) : null;
+              const dot = c.risque_niveau ? RISQUE_DOT[c.risque_niveau] : undefined;
+              return (
+                <tr key={c.id} className="transition-colors hover:bg-slate-50">
+                  <td className="px-4 py-2.5">
+                    <Link
+                      href={`/app/clients/${c.id}`}
+                      className="font-medium text-foreground hover:text-primary"
+                    >
+                      {c.raison_sociale}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {badge ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className={cn("size-2 rounded-full", dot ?? "bg-slate-300")}
+                          aria-hidden
+                        />
+                        <span className="text-slate-700">{badge.label}</span>
+                        {c.risque_score != null && (
+                          <span className="text-muted-foreground tabular-nums">
+                            · {c.risque_score}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="hidden px-4 py-2.5 tabular-nums text-slate-600 sm:table-cell">
+                    {formatDateCourte(c.prochaine_echeance)}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {c.nb_documents_manquants > 0 ? (
+                      <Badge famille="attention">
+                        {c.nb_documents_manquants} manquant{c.nb_documents_manquants > 1 ? "s" : ""}
+                      </Badge>
+                    ) : (
+                      <span className="text-slate-400">à jour</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
       <div className="border-t border-border px-4 py-2.5">
-        <Link href="/app/clients" className="text-xs font-medium text-primary hover:underline">
-          Tous les clients →
+        <Link
+          href="/app/clients"
+          className="inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"
+        >
+          Tous les clients
+          <ArrowRight className="size-3.5" aria-hidden />
         </Link>
       </div>
     </div>
@@ -288,14 +393,17 @@ async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
 
 function ClientsASuivreSkeleton() {
   return (
-    <div className="rounded-lg border border-border bg-card shadow-card">
-      <ul className="divide-y divide-border/70">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+      <div className="border-b border-border bg-slate-50/60 px-4 py-2">
+        <Skeleton className="h-4 w-full max-w-md" />
+      </div>
+      <ul className="divide-y divide-border/60">
         {["a", "b", "c", "d", "e"].map((id) => (
           <li key={id} className="flex items-center gap-4 px-4 py-2.5">
             <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="hidden h-3 w-24 sm:block" />
             <Skeleton className="h-5 w-20 rounded-md" />
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="h-3 w-32" />
           </li>
         ))}
       </ul>
@@ -321,9 +429,9 @@ export default async function AppHomePage() {
   const debutMois = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
   // Données cabinet + KPIs (membres, clients actifs, documents du mois) en parallèle ;
-  // le digest « à traiter » et les clients à suivre (requêtes les plus lourdes)
-  // sont streamés via <Suspense>. Tout est scopé cabinet_id (frontière de
-  // sécurité réelle sur le chemin service-role — ADR 0005 addendum).
+  // la file de travail et les clients à suivre (requêtes les plus lourdes) sont
+  // streamés via <Suspense>. Tout est scopé cabinet_id (frontière de sécurité
+  // réelle sur le chemin service-role — ADR 0005 addendum).
   const [cabinetResult, membresResult, clientsResult, docsResult] = await Promise.all([
     db
       .select({
@@ -352,8 +460,7 @@ export default async function AppHomePage() {
   ]);
 
   const [cabinetData] = cabinetResult;
-  const [membresData] = membresResult;
-  const nbMembres = membresData?.total ?? 0;
+  const nbMembres = membresResult[0]?.total ?? 0;
   const nbClientsActifs = clientsResult[0]?.total ?? 0;
   const nbDocsMois = docsResult[0]?.total ?? 0;
 
@@ -375,94 +482,96 @@ export default async function AppHomePage() {
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
-      {/* ─── En-tête (titre + date du jour) ──────────────────────────────────── */}
+      {/* ─── En-tête (identité cabinet + salutation + date) ──────────────────── */}
       <PageHeader
         title={
           <>
             Bonjour, <span className="text-muted-foreground">{prenomAffiche}</span>
           </>
         }
-        actions={<p className="text-[13px] text-muted-foreground">{dateDuJour}</p>}
+        description={
+          cabinetData ? (
+            <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+              <span className="font-medium text-slate-700">{cabinetData.raison_sociale}</span>
+              {cabinetData.plan_tarifaire && (
+                <Badge>{planLabel[cabinetData.plan_tarifaire] ?? cabinetData.plan_tarifaire}</Badge>
+              )}
+              {cabinetData.ide && (
+                <span className="font-mono text-slate-500">{cabinetData.ide}</span>
+              )}
+              {(cabinetData.adresse_ville ?? cabinetData.adresse_canton) && (
+                <span className="text-muted-foreground">
+                  {[cabinetData.adresse_ville, cabinetData.adresse_canton]
+                    .filter(Boolean)
+                    .join(", ")}
+                </span>
+              )}
+            </span>
+          ) : undefined
+        }
+        actions={
+          <p className="text-[13px] text-muted-foreground first-letter:uppercase">{dateDuJour}</p>
+        }
       />
 
-      {/* ─── Carte cabinet (compacte : identité + stats sur une ligne) ───────── */}
-      {cabinetData && (
-        <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border bg-card px-4 py-3 shadow-card">
-          <span className="truncate text-sm font-semibold text-foreground">
-            {cabinetData.raison_sociale}
-          </span>
-          {cabinetData.plan_tarifaire && (
-            <Badge>{planLabel[cabinetData.plan_tarifaire] ?? cabinetData.plan_tarifaire}</Badge>
-          )}
-          <span className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-            {cabinetData.ide && (
-              <span className="flex items-center gap-1">
-                <span className="text-slate-400">IDE</span>
-                <span className="font-mono text-slate-700">{cabinetData.ide}</span>
-              </span>
-            )}
-            {(cabinetData.adresse_ville ?? cabinetData.adresse_canton) && (
-              <span>
-                {[cabinetData.adresse_ville, cabinetData.adresse_canton].filter(Boolean).join(", ")}
-              </span>
-            )}
-            {cabinetData.forme_juridique && <span>{cabinetData.forme_juridique}</span>}
-          </span>
-          <span className="ml-auto flex flex-wrap items-center gap-x-4 text-xs text-muted-foreground">
-            <Link href="/app/parametres/equipe" className="transition-colors hover:text-primary">
-              <span className="font-semibold text-foreground tabular-nums">{nbMembres}</span>{" "}
-              {nbMembres <= 1 ? "membre" : "membres"} →
-            </Link>
-            <Link href="/app/clients" className="transition-colors hover:text-primary">
-              <span className="font-semibold text-foreground tabular-nums">{nbClientsActifs}</span>{" "}
-              client
-              {nbClientsActifs > 1 ? "s" : ""} actif{nbClientsActifs > 1 ? "s" : ""} →
-            </Link>
-            <Link href="/app/documents" className="transition-colors hover:text-primary">
-              <span className="font-semibold text-foreground tabular-nums">{nbDocsMois}</span>{" "}
-              document
-              {nbDocsMois > 1 ? "s" : ""} ce mois →
-            </Link>
-          </span>
-        </div>
-      )}
+      {/* ─── KPIs ────────────────────────────────────────────────────────────── */}
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+        <MetricCard
+          label={nbClientsActifs > 1 ? "Clients actifs" : "Client actif"}
+          valeur={nbClientsActifs}
+          href="/app/clients"
+          icon={Users}
+        />
+        <MetricCard
+          label={nbMembres > 1 ? "Membres d'équipe" : "Membre d'équipe"}
+          valeur={nbMembres}
+          href="/app/parametres/equipe"
+          icon={Briefcase}
+        />
+        <MetricCard
+          label="Documents ce mois"
+          valeur={nbDocsMois}
+          href="/app/documents"
+          icon={FileText}
+        />
+      </div>
 
-      {/* ─── À traiter (digest cabinet, C3.1 — streamé) ─────────────────────── */}
-      <section className="mb-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          À traiter
+      {/* ─── File de travail (digest cabinet — streamé) ─────────────────────── */}
+      <section className="mb-6">
+        <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+          File de travail
         </h2>
         <Suspense fallback={<DigestSkeleton />}>
           <DigestSection cabinetId={cabinet_id} />
         </Suspense>
       </section>
 
-      {/* ─── Accès rapides (chips modules, mêmes icônes que la sidebar) ──────── */}
-      <nav aria-label="Modules" className="mb-6 flex flex-wrap gap-2">
-        {MODULES.map((mod) => {
-          const Icon = mod.icon;
-          return (
-            <Link
-              key={mod.id}
-              href={mod.href}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-[13px] font-medium text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:text-foreground"
-            >
-              <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />
-              {mod.label}
-            </Link>
-          );
-        })}
-      </nav>
-
       {/* ─── Clients à suivre (top 5 par risque — streamé) ──────────────────── */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+      <section className="mb-6">
+        <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
           Clients à suivre
         </h2>
         <Suspense fallback={<ClientsASuivreSkeleton />}>
           <ClientsASuivreSection cabinetId={cabinet_id} />
         </Suspense>
       </section>
+
+      {/* ─── Accès rapides (chips modules) ──────────────────────────────────── */}
+      <nav aria-label="Accès rapides" className="flex flex-wrap gap-2">
+        {MODULES.map((mod) => {
+          const Icon = mod.icon;
+          return (
+            <Link
+              key={mod.id}
+              href={mod.href}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[13px] font-medium text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:text-foreground"
+            >
+              <Icon className="size-4 text-slate-400" strokeWidth={1.75} aria-hidden />
+              {mod.label}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }
