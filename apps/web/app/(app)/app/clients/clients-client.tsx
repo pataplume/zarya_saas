@@ -1,8 +1,14 @@
 "use client";
 
+import { Archive } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState } from "react";
-import { libelleStatutClient, libelleTypeClient } from "@/lib/libelles";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { badgeRisque, badgeStatutClient, libelleTypeClient } from "@/lib/libelles";
+import { cn } from "@/lib/utils";
 import { archiverClientAction, type ClientActionState, updateClientAction } from "./actions";
 import { ClientCreateZefix } from "./client-create-zefix";
 import type { ClientRow } from "./page";
@@ -12,28 +18,6 @@ type Props = {
   archives: ClientRow[];
   peutEcrire: boolean;
   isResponsable: boolean;
-};
-
-// C4.1 — les libellés de statut/type client sont centralisés dans `@/lib/libelles`.
-// Le style du badge statut et le badge de risque restent locaux (palette propre à la
-// table : `orange` pour « élevé », libellés courts).
-const STATUT_STYLE: Record<string, string> = {
-  prospect: "bg-blue-50 text-blue-700 ring-blue-600/20",
-  actif: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  inactif: "bg-slate-100 text-slate-600 ring-slate-500/20",
-  archive: "bg-slate-100 text-slate-500 ring-slate-400/20",
-};
-
-// Risque : libellé + style + symbole (jamais couleur seule, cf. UX § « pas de couleur seule »).
-const RISQUE_META: Record<string, { label: string; style: string; symbole: string }> = {
-  faible: {
-    label: "Faible",
-    style: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-    symbole: "●",
-  },
-  moyen: { label: "Moyen", style: "bg-amber-50 text-amber-700 ring-amber-600/20", symbole: "◐" },
-  eleve: { label: "Élevé", style: "bg-orange-50 text-orange-700 ring-orange-600/20", symbole: "▲" },
-  critique: { label: "Critique", style: "bg-red-50 text-red-700 ring-red-600/20", symbole: "■" },
 };
 
 const STATUTS = [
@@ -56,12 +40,6 @@ const FILTRES_STATUT = [
   { value: "prospect", label: "Prospect" },
   { value: "inactif", label: "Inactif" },
 ];
-
-const INPUT_CLASS =
-  "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
-
-const SELECT_FILTRE_CLASS =
-  "rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
 
 // Formate une date ISO (YYYY-MM-DD ou ISO complet) en jj.mm.aaaa, ou "—".
 function formatDate(value: string | null): string {
@@ -112,45 +90,45 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
       {/* Liste des clients actifs */}
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Clients · {actifs.length}
           </h2>
           <div className="flex flex-wrap gap-2">
             <label className="sr-only" htmlFor="filtre-risque">
               Filtrer par risque
             </label>
-            <select
+            <Select
               id="filtre-risque"
               value={filtreRisque}
               onChange={(e) => setFiltreRisque(e.target.value)}
-              className={SELECT_FILTRE_CLASS}
+              className="h-8 w-auto py-1"
             >
               {FILTRES_RISQUE.map((f) => (
                 <option key={f.value} value={f.value}>
                   {f.label}
                 </option>
               ))}
-            </select>
+            </Select>
             <label className="sr-only" htmlFor="filtre-statut">
               Filtrer par statut
             </label>
-            <select
+            <Select
               id="filtre-statut"
               value={filtreStatut}
               onChange={(e) => setFiltreStatut(e.target.value)}
-              className={SELECT_FILTRE_CLASS}
+              className="h-8 w-auto py-1"
             >
               {FILTRES_STATUT.map((f) => (
                 <option key={f.value} value={f.value}>
                   {f.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
         {actifs.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center">
+          <div className="rounded-xl border border-dashed border-slate-300 bg-card py-12 text-center">
             <p className="text-sm font-medium text-slate-600">Aucun client à afficher</p>
             <p className="mt-1 text-xs text-slate-400">
               {peutEcrire
@@ -159,9 +137,9 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             {/* En-tête de colonnes (desktop) */}
-            <div className="hidden grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1fr_auto] gap-3 border-b border-gray-100 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-400 lg:grid">
+            <div className="hidden grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1fr_auto] gap-3 border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
               <span>Raison sociale</span>
               <span>Type</span>
               <span>Statut</span>
@@ -201,25 +179,26 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
       {/* Clients archivés */}
       {archives.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
             Archivés · {archives.length}
           </h2>
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-border bg-slate-50 shadow-sm">
             {archives.map((c, idx) => (
               <Link
                 key={c.id}
                 href={`/app/clients/${c.id}`}
-                className={`flex items-center gap-4 px-4 py-3 hover:bg-gray-100 ${
-                  idx < archives.length - 1 ? "border-b border-gray-100" : ""
-                }`}
+                className={cn(
+                  "flex items-center gap-4 px-4 py-3 hover:bg-slate-100",
+                  idx < archives.length - 1 && "border-b border-slate-100",
+                )}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-500">{c.raison_sociale}</p>
-                  {c.ide && <p className="truncate text-xs text-gray-400">{c.ide}</p>}
+                  <p className="truncate text-sm font-medium text-slate-500">{c.raison_sociale}</p>
+                  {c.ide && <p className="truncate text-xs text-slate-400">{c.ide}</p>}
                 </div>
-                <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-inset ring-slate-400/20">
+                <Badge famille="termine" className="shrink-0">
                   Archivé
-                </span>
+                </Badge>
               </Link>
             ))}
           </div>
@@ -229,24 +208,17 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
   );
 }
 
-// ─── Badge de risque ──────────────────────────────────────────────────────────
+// ─── Badge de risque (symbole + couleur + texte, jamais couleur seule) ─────────
 
 function RisqueBadge({ niveau, score }: { niveau: string | null; score: number | null }) {
-  if (!niveau) return <span className="text-xs text-gray-400">—</span>;
-  const meta = RISQUE_META[niveau] ?? {
-    label: niveau,
-    style: "bg-slate-100 text-slate-600 ring-slate-500/20",
-    symbole: "•",
-  };
+  if (!niveau) return <span className="text-xs text-slate-400">—</span>;
+  const meta = badgeRisque(niveau);
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${meta.style}`}
-      title={score != null ? `Score ${score}` : undefined}
-    >
+    <Badge famille={meta.famille} title={score != null ? `Score ${score}` : undefined}>
       <span aria-hidden="true">{meta.symbole}</span>
       {meta.label}
       {score != null && <span className="font-normal opacity-70">· {score}</span>}
-    </span>
+    </Badge>
   );
 }
 
@@ -265,34 +237,30 @@ function DisplayRow({
   isResponsable: boolean;
   onEdit: () => void;
 }) {
-  const statutStyle =
-    STATUT_STYLE[client.statut] ?? "bg-slate-100 text-slate-600 ring-slate-500/20";
+  const statut = badgeStatutClient(client.statut);
   return (
     <div
-      className={`grid grid-cols-1 items-center gap-3 px-4 py-3 hover:bg-gray-50 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1fr_auto] ${
-        isLast ? "" : "border-b border-gray-100"
-      }`}
+      className={cn(
+        "grid grid-cols-1 items-center gap-3 px-4 py-3 hover:bg-slate-50 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1fr_auto]",
+        !isLast && "border-b border-slate-100",
+      )}
     >
       {/* Raison sociale → lien dossier */}
       <Link href={`/app/clients/${client.id}`} className="min-w-0">
-        <p className="truncate text-sm font-medium text-gray-900 hover:text-blue-700">
+        <p className="truncate text-sm font-medium text-slate-900 hover:text-primary">
           {client.raison_sociale}
         </p>
-        {client.ide && <p className="truncate text-xs text-gray-400 lg:hidden">{client.ide}</p>}
+        {client.ide && <p className="truncate text-xs text-slate-400 lg:hidden">{client.ide}</p>}
       </Link>
 
       {/* Type */}
-      <span className="text-sm text-gray-600">
+      <span className="text-sm text-slate-600">
         {client.type ? libelleTypeClient(client.type) : "—"}
       </span>
 
       {/* Statut */}
       <span>
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${statutStyle}`}
-        >
-          {libelleStatutClient(client.statut)}
-        </span>
+        <Badge famille={statut.famille}>{statut.label}</Badge>
       </span>
 
       {/* Risque */}
@@ -301,56 +269,41 @@ function DisplayRow({
       </span>
 
       {/* Prochaine échéance */}
-      <span className="text-sm text-gray-600">{formatDate(client.prochaine_echeance)}</span>
+      <span className="text-sm text-slate-600 tabular-nums">
+        {formatDate(client.prochaine_echeance)}
+      </span>
 
       {/* Docs manquants */}
       <span className="text-sm">
         {client.nb_documents_manquants > 0 ? (
-          <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
-            {client.nb_documents_manquants}
-          </span>
+          <Badge famille="attention">{client.nb_documents_manquants}</Badge>
         ) : (
-          <span className="text-gray-400">0</span>
+          <span className="text-slate-400">0</span>
         )}
       </span>
 
       {/* Dernière activité */}
-      <span className="text-sm text-gray-500">{formatRelatif(client.derniere_activite)}</span>
+      <span className="text-sm text-slate-500">{formatRelatif(client.derniere_activite)}</span>
 
       {/* Actions (édition / archivage) */}
       <div className="flex shrink-0 items-center gap-2 justify-self-end">
         {peutEcrire && (
-          <button
-            type="button"
-            onClick={onEdit}
-            className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 focus:outline-none"
-          >
+          <Button type="button" variant="secondary" size="sm" onClick={onEdit}>
             Modifier
-          </button>
+          </Button>
         )}
         {isResponsable && (
           <form action={archiverClientAction}>
             <input type="hidden" name="id" value={client.id} />
-            <button
+            <Button
               type="submit"
-              className="rounded p-1 text-gray-300 hover:text-red-500 focus:outline-none"
+              variant="ghost"
+              size="icon"
+              className="text-slate-300 hover:bg-transparent hover:text-destructive"
               aria-label={`Archiver ${client.raison_sociale}`}
             >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-                />
-              </svg>
-            </button>
+              <Archive aria-hidden />
+            </Button>
           </form>
         )}
       </div>
@@ -381,56 +334,41 @@ function EditRow({
   return (
     <form
       action={action}
-      className={`space-y-3 bg-blue-50/40 px-4 py-4 ${isLast ? "" : "border-b border-gray-100"}`}
+      className={cn("space-y-3 bg-blue-50/40 px-4 py-4", !isLast && "border-b border-slate-100")}
     >
       <input type="hidden" name="id" value={client.id} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr_140px]">
-        <input
+        <Input
           name="raison_sociale"
           required
           defaultValue={client.raison_sociale}
           placeholder="Raison sociale"
-          className={INPUT_CLASS}
         />
-        <input
-          name="ide"
-          defaultValue={client.ide ?? ""}
-          placeholder="CHE-123.456.789"
-          className={INPUT_CLASS}
-        />
-        <input
+        <Input name="ide" defaultValue={client.ide ?? ""} placeholder="CHE-123.456.789" />
+        <Input
           name="email_contact"
           type="email"
           defaultValue={client.email_contact ?? ""}
           placeholder="contact@client.ch"
-          className={INPUT_CLASS}
         />
-        <select name="statut" defaultValue={client.statut} className={INPUT_CLASS}>
+        <Select name="statut" defaultValue={client.statut}>
           {STATUTS.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={pending}>
           {pending ? "Enregistrement…" : "Enregistrer"}
-        </button>
-        <button
-          type="button"
-          onClick={onDone}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-        >
+        </Button>
+        <Button type="button" variant="secondary" onClick={onDone}>
           Annuler
-        </button>
+        </Button>
       </div>
     </form>
   );
