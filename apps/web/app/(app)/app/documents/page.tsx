@@ -12,9 +12,13 @@ import {
   vInboxAValider,
 } from "@zarya/db";
 import { and, asc, count, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { FileText, Mail } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
@@ -105,32 +109,16 @@ function sourceUpload(u: UploadRow): string {
 function DocumentsTable({ uploads, peutAgir }: { uploads: UploadRow[]; peutAgir: boolean }) {
   if (uploads.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center">
-        <svg
-          className="mx-auto h-8 w-8 text-slate-300"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-        <p className="mt-3 text-sm font-medium text-slate-600">Aucun document pour l'instant</p>
-        <p className="mt-1 text-xs text-slate-400">
-          Déposez un document ci-dessus, ou connectez votre boîte email : les pièces jointes
-          arrivent ici automatiquement.
-        </p>
-      </div>
+      <EmptyState
+        icon={FileText}
+        title="Aucun document pour l'instant"
+        hint="Déposez un document ci-dessus, ou connectez votre boîte email : les pièces jointes arrivent ici automatiquement."
+      />
     );
   }
 
   return (
-    <Table className="divide-y divide-slate-200">
+    <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
           <TableHead>Fichier</TableHead>
@@ -152,35 +140,35 @@ function DocumentsTable({ uploads, peutAgir }: { uploads: UploadRow[]; peutAgir:
                 {u.document_id ? (
                   <Link
                     href={`/app/documents/${u.document_id}`}
-                    className="block truncate text-sm font-medium text-slate-800 hover:text-blue-700"
+                    className="block truncate text-[13px] font-medium text-foreground hover:text-primary"
                     title={u.nom}
                   >
                     {u.nom}
                   </Link>
                 ) : (
-                  <p className="truncate text-sm font-medium text-slate-800" title={u.nom}>
+                  <p className="truncate text-[13px] font-medium text-foreground" title={u.nom}>
                     {u.nom}
                   </p>
                 )}
                 {/* C2.1 — résumé extrait (facture → fournisseur + montant) si dispo */}
                 {u.resume && (
-                  <p className="truncate text-xs text-slate-500" title={u.resume}>
+                  <p className="truncate text-xs text-muted-foreground" title={u.resume}>
                     {u.resume}
                   </p>
                 )}
-                <p className="truncate text-xs text-slate-400 sm:hidden">
+                <p className="truncate text-xs text-muted-foreground sm:hidden">
                   {sourceUpload(u)} · {formatTaille(u.taille)}
                 </p>
               </TableCell>
-              <TableCell className="hidden max-w-[14rem] text-slate-500 sm:table-cell">
+              <TableCell className="hidden max-w-[14rem] text-muted-foreground sm:table-cell">
                 <span className="block truncate" title={sourceUpload(u)}>
                   {sourceUpload(u)}
                 </span>
               </TableCell>
-              <TableCell className="hidden text-slate-500 md:table-cell">
+              <TableCell className="hidden text-muted-foreground md:table-cell">
                 {formatTaille(u.taille)}
               </TableCell>
-              <TableCell className="hidden text-slate-500 lg:table-cell">
+              <TableCell className="hidden text-muted-foreground lg:table-cell">
                 {formatDate(u.date_upload)}
               </TableCell>
               <TableCell>
@@ -199,22 +187,20 @@ function DocumentsTable({ uploads, peutAgir }: { uploads: UploadRow[]; peutAgir:
                   {reclassable && <ReclasserButton uploadBrutId={u.id} />}
                   {/* C2.2 — lien fiche pour les documents validés (doc.document présent) */}
                   {u.document_id && (
-                    <Link
-                      href={`/app/documents/${u.document_id}`}
-                      className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    >
-                      Fiche
-                    </Link>
+                    <Button asChild variant="secondary" size="sm">
+                      <Link href={`/app/documents/${u.document_id}`}>Fiche</Link>
+                    </Button>
                   )}
                   {u.fichier_physique_id && (
-                    <a
-                      href={`/api/documents/${u.fichier_physique_id}/apercu`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    >
-                      Ouvrir
-                    </a>
+                    <Button asChild variant="secondary" size="sm">
+                      <a
+                        href={`/api/documents/${u.fichier_physique_id}/apercu`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Ouvrir
+                      </a>
+                    </Button>
                   )}
                 </span>
               </TableCell>
@@ -246,32 +232,16 @@ function EmailsTable({
 }) {
   if (emails.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center">
-        <svg
-          className="mx-auto h-8 w-8 text-slate-300"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-          />
-        </svg>
-        <p className="mt-3 text-sm font-medium text-slate-600">Aucun email capté pour l'instant</p>
-        <p className="mt-1 text-xs text-slate-400">
-          Les emails entrants de votre boîte Microsoft connectée apparaîtront ici, et leurs pièces
-          jointes seront classées automatiquement.
-        </p>
-      </div>
+      <EmptyState
+        icon={Mail}
+        title="Aucun email capté pour l'instant"
+        hint="Les emails entrants de votre boîte Microsoft connectée apparaîtront ici, et leurs pièces jointes seront classées automatiquement."
+      />
     );
   }
 
   return (
-    <Table className="divide-y divide-slate-200">
+    <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
           <TableHead>Objet</TableHead>
@@ -288,28 +258,33 @@ function EmailsTable({
           return (
             <TableRow key={e.id}>
               <TableCell className="max-w-xs">
-                <p className="truncate text-sm font-medium text-slate-800" title={e.subject ?? ""}>
+                <p
+                  className="truncate text-[13px] font-medium text-foreground"
+                  title={e.subject ?? ""}
+                >
                   {e.subject ?? "(sans objet)"}
                 </p>
-                <p className="truncate text-xs text-slate-400 sm:hidden">{e.from_address ?? "—"}</p>
+                <p className="truncate text-xs text-muted-foreground sm:hidden">
+                  {e.from_address ?? "—"}
+                </p>
               </TableCell>
-              <TableCell className="hidden max-w-xs text-slate-500 sm:table-cell">
+              <TableCell className="hidden max-w-xs text-muted-foreground sm:table-cell">
                 <span className="block truncate" title={e.from_address ?? ""}>
                   {e.from_address ?? "—"}
                 </span>
               </TableCell>
               <TableCell className="hidden md:table-cell">
                 {n > 0 ? (
-                  <LienOngletDocuments className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
+                  <LienOngletDocuments className="text-[13px] font-medium text-primary hover:text-primary-hover hover:underline">
                     → {n} document{n > 1 ? "s" : ""}
                   </LienOngletDocuments>
                 ) : e.has_attachments && e.statut === "traite" ? (
-                  <span className="text-sm text-slate-500">0 retenu</span>
+                  <span className="text-[13px] text-muted-foreground">0 retenu</span>
                 ) : (
-                  <span className="text-sm text-slate-400">—</span>
+                  <span className="text-[13px] text-muted-foreground">—</span>
                 )}
               </TableCell>
-              <TableCell className="hidden text-slate-500 lg:table-cell">
+              <TableCell className="hidden text-muted-foreground lg:table-cell">
                 {formatDate(e.received_at)}
               </TableCell>
               <TableCell>
@@ -531,28 +506,24 @@ export default async function DocumentsPage({
   const totalEmails = totalEmailsRows[0]?.n ?? 0;
 
   return (
-    <div className="px-4 py-8 sm:px-6 lg:px-8">
-      {/* En-tête */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Documents</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Tout passe par ici : vos dépôts, les emails captés et leur classement. ZARYA propose, vous
-          validez en un clic.
-        </p>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        title="Documents"
+        description="Tout passe par ici : vos dépôts, les emails captés et leur classement. ZARYA propose, vous validez en un clic."
+      />
 
       {/* File de validation intégrée — l'action d'abord (ux-principles § 6) */}
       {peutAgir && propositions.length > 0 && (
         <section id="file-validation" className="mb-8">
-          <h2 className="mb-1 text-sm font-semibold text-slate-700">
+          <h2 className="mb-1 text-sm font-semibold text-foreground">
             À valider ({propositions.length})
           </h2>
-          <p className="mb-3 text-xs text-slate-500">
+          <p className="mb-3 text-[13px] text-muted-foreground">
             ZARYA propose un classement pour chaque document. Vérifiez, corrigez si besoin, puis
             validez.
           </p>
           {clients.length === 0 && (
-            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               Aucun client n'existe encore pour ce cabinet. La validation attribue un document à un
               client :{" "}
               <Link href="/app/clients" className="font-medium underline hover:text-amber-900">
@@ -569,7 +540,7 @@ export default async function DocumentsPage({
       {peutAgir ? (
         <DocumentsUploader />
       ) : (
-        <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+        <div className="mb-6 rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
           Votre rôle (lecteur) ne permet pas d'ajouter des documents.
         </div>
       )}

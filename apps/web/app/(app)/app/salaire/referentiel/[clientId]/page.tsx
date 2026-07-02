@@ -1,11 +1,15 @@
 import { getCurrentUser } from "@zarya/auth";
+import { Users } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   ArchiveForm,
   ModificationForm,
   SortieForm,
 } from "@/components/salaire/employe-lifecycle-actions";
-import { badgeStatutEmploye, styleFamille } from "@/lib/libelles";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { badgeStatutEmploye } from "@/lib/libelles";
 import {
   getClientReferentielContexte,
   getReferentielEmployes,
@@ -32,12 +36,10 @@ export default async function ReferentielEmployePage({
 
   return (
     <section className="mx-auto max-w-5xl">
-      <h1 className="text-2xl font-semibold">Référentiel employés — {contexte.raison_sociale}</h1>
-      <p className="mt-1 text-sm text-gray-500">
-        Cycle de vie en cours d'année : entrées, sorties, modifications de salaire ou de taux,
-        archivage. Les coordonnées bancaires et le numéro AVS sont chiffrés et ne sont jamais
-        affichés.
-      </p>
+      <PageHeader
+        title={`Référentiel employés — ${contexte.raison_sociale}`}
+        description="Cycle de vie en cours d'année : entrées, sorties, modifications de salaire ou de taux, archivage. Les coordonnées bancaires et le numéro AVS sont chiffrés et ne sont jamais affichés."
+      />
       {!periodeId && (
         <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
           Aucune période ouverte pour ce client : lancez la campagne mensuelle pour pouvoir
@@ -46,59 +48,59 @@ export default async function ReferentielEmployePage({
       )}
 
       {employes.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5 text-sm text-gray-500">
-          Aucun employé au référentiel.
+        <div className="mt-6">
+          <EmptyState
+            icon={Users}
+            title="Aucun employé au référentiel"
+            hint="Les employés déclarés par le client (ou importés) apparaîtront ici."
+          />
         </div>
       ) : (
         <div className="mt-6 space-y-3">
           {employes.map((e) => (
-            <div key={e.id} className="rounded-lg border border-gray-200 bg-white p-4">
+            <div key={e.id} className="rounded-lg border border-border bg-card p-4 shadow-card">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium text-foreground">
                     {e.prenom} {e.nom}
                   </span>
-                  <span className="ml-2 text-sm text-gray-500">{e.fonction ?? "—"}</span>
+                  <span className="ml-2 text-sm text-muted-foreground">{e.fonction ?? "—"}</span>
                 </div>
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(
-                    badgeStatutEmploye(e.statut).famille,
-                  )}`}
-                >
+                <Badge famille={badgeStatutEmploye(e.statut).famille}>
                   {badgeStatutEmploye(e.statut).label}
-                </span>
+                </Badge>
               </div>
 
-              <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-600">
+              <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-600">
                 <div>
-                  <dt className="inline text-gray-400">Salaire base : </dt>
+                  <dt className="inline text-slate-400">Salaire base : </dt>
                   <dd className="inline">{e.salaire_base_mensuel ?? "—"}</dd>
                 </div>
                 <div>
-                  <dt className="inline text-gray-400">Taux : </dt>
+                  <dt className="inline text-slate-400">Taux : </dt>
                   <dd className="inline">{e.taux_activite ? `${e.taux_activite}%` : "—"}</dd>
                 </div>
                 <div>
-                  <dt className="inline text-gray-400">Entrée : </dt>
+                  <dt className="inline text-slate-400">Entrée : </dt>
                   <dd className="inline">{e.date_entree ?? "—"}</dd>
                 </div>
                 {e.date_sortie && (
                   <div>
-                    <dt className="inline text-gray-400">Sortie : </dt>
+                    <dt className="inline text-slate-400">Sortie : </dt>
                     <dd className="inline">{e.date_sortie}</dd>
                   </div>
                 )}
                 <div>
-                  <dt className="inline text-gray-400">AVS : </dt>
+                  <dt className="inline text-slate-400">AVS : </dt>
                   <dd className="inline">{e.avs_renseigne ? "✓ renseigné" : "— manquant"}</dd>
                 </div>
                 <div>
-                  <dt className="inline text-gray-400">IBAN : </dt>
+                  <dt className="inline text-slate-400">IBAN : </dt>
                   <dd className="inline">{e.iban_renseigne ? "✓ renseigné" : "— manquant"}</dd>
                 </div>
               </dl>
 
-              <div className="mt-3 flex flex-col gap-2 border-t border-gray-100 pt-3">
+              <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
                 {e.statut === "actif" && (
                   <>
                     <ModificationForm employeId={e.id} periodeId={periodeId} />

@@ -1,5 +1,6 @@
 "use client";
 
+import { UploadCloud } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
@@ -92,30 +93,19 @@ export function DocumentsUploader() {
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         disabled={busy}
-        className={`flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors ${
+        className={`flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-10 text-center transition-colors ${
           dragOver
-            ? "border-blue-400 bg-blue-50"
-            : "border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50"
+            ? "border-ring bg-blue-50"
+            : "border-input bg-card hover:border-ring/50 hover:bg-secondary"
         } ${busy ? "cursor-wait opacity-70" : "cursor-pointer"}`}
       >
-        <svg
-          className="h-8 w-8 text-slate-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.75}
-            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-          />
-        </svg>
-        <span className="text-sm font-medium text-slate-700">
+        <span className="flex size-10 items-center justify-center rounded-full bg-secondary">
+          <UploadCloud className="size-5 text-muted-foreground" strokeWidth={1.75} aria-hidden />
+        </span>
+        <span className="text-sm font-medium text-foreground">
           {busy ? "Envoi en cours…" : "Glissez vos documents ici ou cliquez pour parcourir"}
         </span>
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-muted-foreground">
           PDF, images, Word, Excel — 50 Mo max par fichier
         </span>
       </button>
@@ -137,9 +127,9 @@ export function DocumentsUploader() {
           {results.map((r) => (
             <li
               key={r.name}
-              className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-3 py-1.5 text-sm"
+              className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-1.5 text-[13px] shadow-card"
             >
-              <span className="truncate text-slate-600" title={r.name}>
+              <span className="truncate text-secondary-foreground" title={r.name}>
                 {r.name}
               </span>
               <span
@@ -147,10 +137,10 @@ export function DocumentsUploader() {
                   r.status === "ok"
                     ? "text-emerald-600"
                     : r.status === "doublon"
-                      ? "text-slate-500"
+                      ? "text-muted-foreground"
                       : r.status === "error"
                         ? "text-rose-600"
-                        : "text-slate-400"
+                        : "text-muted-foreground"
                 }`}
               >
                 {r.status === "ok"

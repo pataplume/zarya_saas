@@ -35,30 +35,30 @@ export default async function OnboardingLayout({ children }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* En-tête wizard */}
-      <header className="border-b border-gray-200 bg-white">
+      <header className="border-b border-slate-200 bg-card">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <span className="text-lg font-bold tracking-tight text-gray-900">ZARYA</span>
-          <span className="text-sm text-gray-500">Configuration de votre cabinet</span>
+          <span className="text-lg font-bold tracking-tight text-slate-900">ZARYA</span>
+          <span className="text-sm text-slate-500">Configuration de votre cabinet</span>
         </div>
       </header>
 
       {/* Barre de progression */}
-      <div className="border-b border-gray-200 bg-white">
+      <div className="border-b border-slate-200 bg-card">
         <div className="mx-auto max-w-3xl px-4 py-4">
           <nav aria-label="Étapes d'onboarding">
             <ol className="flex items-center gap-0">
               {ETAPES.map((etape, idx) => (
                 <li key={etape.href} className="flex flex-1 items-center">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-gray-300 text-xs font-semibold text-gray-500">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-300 text-xs font-semibold text-slate-500">
                       {etape.numero}
                     </span>
-                    <span className="text-sm font-medium text-gray-500">{etape.label}</span>
+                    <span className="text-sm font-medium text-slate-500">{etape.label}</span>
                   </div>
                   {idx < ETAPES.length - 1 && (
-                    <div className="mx-3 flex-1 border-t border-gray-200" />
+                    <div className="mx-3 flex-1 border-t border-slate-200" />
                   )}
                 </li>
               ))}

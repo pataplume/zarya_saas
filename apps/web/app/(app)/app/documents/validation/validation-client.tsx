@@ -10,6 +10,11 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useFileKeyboard } from "@/lib/hooks/use-file-keyboard";
 import { libelleAnomalie, libelleTypeDocument } from "@/lib/libelles";
 import { rejeterPropositionAction, validerLotAction, validerPropositionAction } from "./actions";
@@ -203,32 +208,50 @@ export function ValidationInbox({
   return (
     <div>
       {/* Barre d'actions lot + raccourcis */}
-      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-2.5 shadow-card">
+        <label className="flex items-center gap-2 text-[13px] text-secondary-foreground">
           <input
             type="checkbox"
             checked={toutSelectionne}
             onChange={toggleTout}
             disabled={sansClient}
-            className="h-4 w-4 rounded border-slate-300"
+            className="h-4 w-4 rounded border-input"
           />
           Tout sélectionner
         </label>
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={validerSelection}
           disabled={selected.size === 0 || isPending || sansClient}
-          className="inline-flex items-center rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="disabled:cursor-not-allowed"
         >
           {isPending
             ? "Validation…"
             : `Valider la sélection${selected.size ? ` (${selected.size})` : ""}`}
-        </button>
-        <span className="ml-auto hidden text-xs text-slate-400 sm:inline">
-          Raccourcis : <kbd className="font-semibold">J</kbd> début ·{" "}
-          <kbd className="font-semibold">N</kbd> suivant · <kbd className="font-semibold">V</kbd>{" "}
-          valider · <kbd className="font-semibold">C</kbd> corriger ·{" "}
-          <kbd className="font-semibold">R</kbd> rejeter
+        </Button>
+        <span className="ml-auto hidden text-[11px] text-muted-foreground sm:inline">
+          Raccourcis :{" "}
+          <kbd className="rounded border border-border bg-secondary px-1 font-mono text-[10px]">
+            J
+          </kbd>{" "}
+          début ·{" "}
+          <kbd className="rounded border border-border bg-secondary px-1 font-mono text-[10px]">
+            N
+          </kbd>{" "}
+          suivant ·{" "}
+          <kbd className="rounded border border-border bg-secondary px-1 font-mono text-[10px]">
+            V
+          </kbd>{" "}
+          valider ·{" "}
+          <kbd className="rounded border border-border bg-secondary px-1 font-mono text-[10px]">
+            C
+          </kbd>{" "}
+          corriger ·{" "}
+          <kbd className="rounded border border-border bg-secondary px-1 font-mono text-[10px]">
+            R
+          </kbd>{" "}
+          rejeter
         </span>
       </div>
 
@@ -250,8 +273,8 @@ export function ValidationInbox({
                 rowRefs.current[i] = el;
               }}
               onMouseDown={() => setCursor(i)}
-              className={`rounded-xl border bg-white p-3 shadow-sm transition ${
-                actif ? "border-blue-400 ring-1 ring-blue-200" : "border-slate-200"
+              className={`rounded-lg border bg-card p-3 shadow-card transition ${
+                actif ? "border-blue-400 ring-1 ring-blue-200" : "border-border"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -260,17 +283,17 @@ export function ValidationInbox({
                   checked={selected.has(item.proposition_id)}
                   onChange={() => toggleUn(item.proposition_id)}
                   disabled={sansClient}
-                  className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300"
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-input"
                   aria-label="Sélectionner"
                 />
                 <div className="min-w-0 flex-1">
                   <p
-                    className="truncate text-sm font-semibold text-slate-800"
+                    className="truncate text-sm font-semibold text-foreground"
                     title={item.nom_fichier ?? undefined}
                   >
                     {item.nom_fichier ?? "Document sans nom"}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-slate-500">
+                  <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
                     {item.type_propose ? libelleTypeDocument(item.type_propose) : "Type ?"} ·{" "}
                     {item.client_nom ?? (
                       <span className="text-amber-600">client non identifié</span>
@@ -279,53 +302,45 @@ export function ValidationInbox({
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
                     {conf !== null && (
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
-                          conf >= 60
-                            ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20"
-                            : "bg-amber-50 text-amber-700 ring-amber-600/20"
-                        }`}
-                      >
-                        Confiance {conf}%
-                      </span>
+                      <Badge famille={conf >= 60 ? "succes" : "attention"}>Confiance {conf}%</Badge>
                     )}
                     {item.anomalies.map((a) => (
-                      <span
-                        key={a}
-                        className="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-600/20"
-                      >
+                      <Badge key={a} famille="danger">
                         {libelleAnomalie(a)}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
-                  <button
+                  <Button
                     type="button"
+                    size="sm"
                     onClick={() => valider1Clic(item)}
                     disabled={isPending || sansClient || !complet}
                     title={complet ? "Valider (V)" : "Document incomplet — corriger d'abord"}
-                    className="inline-flex items-center rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="disabled:cursor-not-allowed"
                   >
                     Valider
-                  </button>
+                  </Button>
                   <div className="flex gap-1.5">
-                    <button
+                    <Button
                       type="button"
+                      variant="secondary"
+                      size="sm"
                       onClick={() => setCorrecting(item)}
                       disabled={isPending}
-                      className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                     >
                       Corriger
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="secondary"
+                      size="sm"
                       onClick={() => setRejecting(item)}
                       disabled={isPending}
-                      className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
                     >
                       Rejeter
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -379,27 +394,18 @@ export function ValidationInbox({
 
       {confirmLot && (
         <Overlay onClose={() => setConfirmLot(null)}>
-          <h2 className="text-base font-semibold text-slate-900">Valider en lot ?</h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <h2 className="text-base font-semibold text-foreground">Valider en lot ?</h2>
+          <p className="mt-2 text-sm text-secondary-foreground">
             Vous êtes sur le point de valider <strong>{confirmLot.length} documents</strong> avec le
             classement proposé par ZARYA. Cette action est appliquée immédiatement.
           </p>
           <div className="mt-5 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setConfirmLot(null)}
-              className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            >
+            <Button type="button" variant="secondary" onClick={() => setConfirmLot(null)}>
               Annuler
-            </button>
-            <button
-              type="button"
-              onClick={() => lancerLot(confirmLot)}
-              disabled={isPending}
-              className="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="button" onClick={() => lancerLot(confirmLot)} disabled={isPending}>
               {isPending ? "Validation…" : `Valider ${confirmLot.length} documents`}
-            </button>
+            </Button>
           </div>
         </Overlay>
       )}
@@ -415,7 +421,7 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose: ()
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-xl"
+        className="relative w-full max-w-lg rounded-lg border border-border bg-card p-5 shadow-pop"
       >
         {children}
       </div>
@@ -438,8 +444,11 @@ function CorrectionModal({
 }) {
   return (
     <Overlay onClose={onClose}>
-      <h2 className="text-base font-semibold text-slate-900">Corriger le classement</h2>
-      <p className="mt-1 truncate text-xs text-slate-500" title={item.nom_fichier ?? undefined}>
+      <h2 className="text-base font-semibold text-foreground">Corriger le classement</h2>
+      <p
+        className="mt-1 truncate text-xs text-muted-foreground"
+        title={item.nom_fichier ?? undefined}
+      >
         {item.nom_fichier ?? "Document sans nom"}
       </p>
       <form
@@ -451,13 +460,18 @@ function CorrectionModal({
       >
         <input type="hidden" name="proposition_id" value={item.proposition_id} />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-xs font-medium text-slate-500">Client</span>
-            <select
+          <div className="block sm:col-span-2">
+            <label
+              htmlFor="correction-client"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
+              Client
+            </label>
+            <Select
+              id="correction-client"
               name="client_id"
               defaultValue={item.client_id_propose ?? ""}
               required
-              className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
             >
               <option value="" disabled>
                 Sélectionnez un client
@@ -467,77 +481,92 @@ function CorrectionModal({
                   {c.raison_sociale}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-500">Catégorie</span>
-            <select
+            </Select>
+          </div>
+          <div className="block">
+            <label
+              htmlFor="correction-categorie"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
+              Catégorie
+            </label>
+            <Select
+              id="correction-categorie"
               name="categorie"
               defaultValue={item.categorie_proposee ?? "autre"}
-              className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
             >
               {CATEGORIES.map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-500">Type</span>
-            <input
+            </Select>
+          </div>
+          <div className="block">
+            <label
+              htmlFor="correction-type"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
+              Type
+            </label>
+            <Input
+              id="correction-type"
               name="type"
               defaultValue={item.type_propose ?? ""}
               required
-              className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-500">Période</span>
-            <input
+          </div>
+          <div className="block">
+            <label
+              htmlFor="correction-periode"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
+              Période
+            </label>
+            <Input
+              id="correction-periode"
               name="periode"
               defaultValue={item.periode_proposee ?? ""}
               placeholder="2026-04, 2026-Q1…"
-              className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-500">Libellé</span>
-            <input
+          </div>
+          <div className="block">
+            <label
+              htmlFor="correction-libelle"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
+              Libellé
+            </label>
+            <Input
+              id="correction-libelle"
               name="libelle"
               defaultValue={item.libelle_propose ?? ""}
               required
-              className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
             />
-          </label>
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-xs font-medium text-slate-500">
+          </div>
+          <div className="block sm:col-span-2">
+            <label
+              htmlFor="correction-note"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
               Note interne (feedback, optionnel)
-            </span>
-            <textarea
+            </label>
+            <Textarea
+              id="correction-note"
               name="note"
               rows={2}
               maxLength={2000}
               placeholder="Pourquoi cette correction ? (sert à améliorer le classement)"
-              className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
             />
-          </label>
+          </div>
         </div>
         <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             Annuler
-          </button>
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-          >
+          </Button>
+          <Button type="submit" disabled={pending}>
             {pending ? "Validation…" : "Corriger et valider"}
-          </button>
+          </Button>
         </div>
       </form>
     </Overlay>
@@ -557,8 +586,11 @@ function RejetModal({
 }) {
   return (
     <Overlay onClose={onClose}>
-      <h2 className="text-base font-semibold text-slate-900">Rejeter le document</h2>
-      <p className="mt-1 truncate text-xs text-slate-500" title={item.nom_fichier ?? undefined}>
+      <h2 className="text-base font-semibold text-foreground">Rejeter le document</h2>
+      <p
+        className="mt-1 truncate text-xs text-muted-foreground"
+        title={item.nom_fichier ?? undefined}
+      >
         {item.nom_fichier ?? "Document sans nom"}
       </p>
       <form
@@ -569,30 +601,27 @@ function RejetModal({
         className="mt-4"
       >
         <input type="hidden" name="proposition_id" value={item.proposition_id} />
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-slate-500">Motif (optionnel)</span>
-          <input
+        <div className="block">
+          <label
+            htmlFor="rejet-motif"
+            className="mb-1 block text-xs font-medium text-muted-foreground"
+          >
+            Motif (optionnel)
+          </label>
+          <Input
+            id="rejet-motif"
             name="motif"
             maxLength={500}
             placeholder="Document illisible, hors périmètre…"
-            className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-rose-400 focus:outline-none"
           />
-        </label>
+        </div>
         <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             Annuler
-          </button>
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-lg bg-rose-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
-          >
+          </Button>
+          <Button type="submit" variant="destructive" disabled={pending}>
             {pending ? "Rejet…" : "Confirmer le rejet"}
-          </button>
+          </Button>
         </div>
       </form>
     </Overlay>

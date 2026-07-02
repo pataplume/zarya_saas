@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
 import { reclasserDocumentAction } from "./actions";
 
 // Hub Documents — interactivité client minimale : onglets pilotés par ?tab=
@@ -50,10 +51,10 @@ export function HubTabs({
     param === "emails" ? "emails" : param === "documents" ? "documents" : initialTab;
 
   const classeOnglet = (actif: boolean) =>
-    `-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+    `-mb-px border-b-2 px-3 py-2 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
       actif
-        ? "border-blue-600 text-blue-700"
-        : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
+        ? "border-primary text-foreground"
+        : "border-transparent text-muted-foreground hover:text-foreground"
     }`;
 
   return (
@@ -61,7 +62,7 @@ export function HubTabs({
       <div
         role="tablist"
         aria-label="Documents et emails reçus"
-        className="flex gap-1 border-b border-slate-200"
+        className="flex items-center gap-1 border-b border-border"
       >
         <button
           type="button"
@@ -147,14 +148,16 @@ export function ReclasserButton({ uploadBrutId }: { uploadBrutId: string }) {
 
   return (
     <span className="inline-flex flex-col items-end gap-0.5">
-      <button
+      <Button
         type="button"
+        variant="secondary"
+        size="sm"
         onClick={onClick}
         disabled={isPending}
-        className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-50"
+        className="disabled:cursor-wait"
       >
         {isPending ? "Reclassement…" : "Reclasser"}
-      </button>
+      </Button>
       {retour && (
         <span className={`text-xs ${retour.ok ? "text-emerald-600" : "text-rose-600"}`}>
           {retour.message}

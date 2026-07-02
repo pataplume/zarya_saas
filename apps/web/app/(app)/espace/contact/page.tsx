@@ -60,26 +60,26 @@ export default async function EspaceContactPage() {
 
   return (
     <section className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-semibold">Contact</h1>
-      <p className="mt-1 text-sm text-gray-500">
+      <h1 className="text-lg font-semibold tracking-tight text-foreground">Contact</h1>
+      <p className="mt-0.5 text-[13px] text-muted-foreground">
         Votre fiduciaire est votre interlocuteur pour toute question.
       </p>
 
-      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5">
-        <p className="text-sm text-gray-500">Fiduciaire</p>
-        <p className="text-lg font-medium text-gray-900">{cab?.raison_sociale ?? "—"}</p>
+      <div className="mt-6 rounded-lg border border-border bg-card p-5 shadow-card">
+        <p className="text-sm text-muted-foreground">Fiduciaire</p>
+        <p className="text-base font-medium text-foreground">{cab?.raison_sociale ?? "—"}</p>
 
         <dl className="mt-4 space-y-2 text-sm">
           {cab?.email_contact && (
             <Ligne label="Email">
-              <a className="text-blue-600 hover:underline" href={`mailto:${cab.email_contact}`}>
+              <a className="text-primary hover:underline" href={`mailto:${cab.email_contact}`}>
                 {cab.email_contact}
               </a>
             </Ligne>
           )}
           {cab?.telephone && (
             <Ligne label="Téléphone">
-              <a className="text-blue-600 hover:underline" href={`tel:${cab.telephone}`}>
+              <a className="text-primary hover:underline" href={`tel:${cab.telephone}`}>
                 {cab.telephone}
               </a>
             </Ligne>
@@ -88,7 +88,7 @@ export default async function EspaceContactPage() {
           {cab?.site_web && (
             <Ligne label="Site web">
               <a
-                className="text-blue-600 hover:underline"
+                className="text-primary hover:underline"
                 href={cab.site_web}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -101,12 +101,12 @@ export default async function EspaceContactPage() {
       </div>
 
       {gestionnaireNom && (
-        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Votre gestionnaire</p>
-          <p className="text-base font-medium text-gray-900">{gestionnaireNom}</p>
+        <div className="mt-4 rounded-lg border border-border bg-card p-5 shadow-card">
+          <p className="text-sm text-muted-foreground">Votre gestionnaire</p>
+          <p className="text-base font-medium text-foreground">{gestionnaireNom}</p>
           {gestionnaire?.telephone && (
             <p className="mt-1 text-sm">
-              <a className="text-blue-600 hover:underline" href={`tel:${gestionnaire.telephone}`}>
+              <a className="text-primary hover:underline" href={`tel:${gestionnaire.telephone}`}>
                 {gestionnaire.telephone}
               </a>
             </p>
@@ -114,7 +114,7 @@ export default async function EspaceContactPage() {
         </div>
       )}
 
-      <p className="mt-4 text-xs text-gray-400">
+      <p className="mt-4 text-xs text-muted-foreground">
         La messagerie intégrée arrivera dans une prochaine version. En attendant, contactez votre
         fiduciaire par les moyens ci-dessus.
       </p>
@@ -125,8 +125,8 @@ export default async function EspaceContactPage() {
 function Ligne({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex gap-2">
-      <dt className="w-24 shrink-0 text-gray-500">{label}</dt>
-      <dd className="text-gray-900">{children}</dd>
+      <dt className="w-24 shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="text-foreground">{children}</dd>
     </div>
   );
 }

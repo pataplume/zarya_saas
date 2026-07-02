@@ -40,22 +40,22 @@ export default async function PeriodeDetailPage({
 
   return (
     <section className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-semibold">
+      <h1 className="text-lg font-semibold tracking-tight text-foreground">
         Salaires {MOIS_FR[periode.mois - 1]} {periode.annee}
       </h1>
-      <p className="mt-1 text-sm text-gray-500">
+      <p className="mt-0.5 text-[13px] text-muted-foreground">
         À valider avant le {periode.date_limite_validation}.
         {periode.pre_remplie ? " Les valeurs reprises du mois précédent sont pré-remplies." : ""}
       </p>
 
       {employes.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5 text-sm text-gray-500">
+        <div className="mt-6 rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground shadow-card">
           Aucun employé actif.
         </div>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-card shadow-card">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-gray-500">
+            <thead className="border-b border-border bg-slate-50 text-muted-foreground">
               <tr>
                 <th className="px-4 py-2 font-medium">Employé</th>
                 {types.map((t) => (
@@ -65,14 +65,14 @@ export default async function PeriodeDetailPage({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {employes.map((e) => (
                 <tr key={e.id}>
-                  <td className="px-4 py-2 font-medium text-gray-900">
+                  <td className="px-4 py-2 font-medium text-foreground">
                     {e.prenom} {e.nom}
                   </td>
                   {types.map((t) => (
-                    <td key={t.id} className="px-4 py-2 text-gray-600">
+                    <td key={t.id} className="px-4 py-2 text-muted-foreground">
                       {valeur(e.id, t.id)}
                     </td>
                   ))}
@@ -99,7 +99,7 @@ export default async function PeriodeDetailPage({
           )}
         </div>
       ) : (
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-500">
+        <div className="mt-6 rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground shadow-card">
           Cette période est {periode.statut === "validee" ? "validée" : "clôturée"} : elle n'est
           plus modifiable.
         </div>

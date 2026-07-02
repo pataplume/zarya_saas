@@ -19,10 +19,10 @@ export function CompletudeSection({ completude }: { completude: CompletudeResult
 
   return (
     <section id="completude" className="mt-10 scroll-mt-20">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         Complétude du dossier
       </h2>
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="rounded-lg border border-border bg-card p-5 shadow-card">
         {/* Score + barre de progression */}
         <div className="mb-4">
           <div className="flex items-baseline justify-between gap-3">

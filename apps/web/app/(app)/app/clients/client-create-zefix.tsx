@@ -1,6 +1,10 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { type CreateClientZefixState, createClientDepuisZefixAction } from "./actions";
 
 // Lot 3 (ADR 0025) — Formulaire de création de client avec PRÉREMPLISSAGE ZEFIX (identité +
@@ -56,9 +60,7 @@ const TYPES_CLIENT = [
   { value: "association", label: "Association" },
 ];
 
-const INPUT =
-  "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
-const LABEL = "mb-1 block text-xs font-medium text-gray-600";
+const LABEL = "mb-1 block text-xs font-medium text-slate-600";
 
 export function ClientCreateZefix() {
   const [state, action, pending] = useActionState<CreateClientZefixState, FormData>(
@@ -141,10 +143,10 @@ export function ClientCreateZefix() {
 
   return (
     <section className="mt-8">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         Ajouter un client
       </h2>
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="rounded-lg border border-border bg-card p-4 shadow-card">
         {/* ── Recherche Zefix (facultative) ───────────────────────────────────── */}
         <div className="mb-5 rounded-lg border border-blue-100 bg-blue-50/40 p-4">
           <p className="mb-2 text-xs font-medium text-slate-600">
@@ -152,7 +154,7 @@ export function ClientCreateZefix() {
             — facultatif.
           </p>
           <div className="flex flex-wrap gap-2">
-            <input
+            <Input
               type="text"
               value={requete}
               onChange={(e) => setRequete(e.target.value)}
@@ -163,16 +165,11 @@ export function ClientCreateZefix() {
                 }
               }}
               placeholder="Nom de l'entreprise ou IDE (CHE-123.456.789)"
-              className={`${INPUT} flex-1`}
+              className="w-auto flex-1"
             />
-            <button
-              type="button"
-              onClick={() => void lancerRecherche()}
-              disabled={recherche}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
+            <Button type="button" onClick={() => void lancerRecherche()} disabled={recherche}>
               {recherche ? "Recherche…" : "Rechercher"}
-            </button>
+            </Button>
           </div>
           <label className="mt-2 flex items-start gap-2 text-xs text-slate-600">
             <input
@@ -189,7 +186,7 @@ export function ClientCreateZefix() {
           {erreurZefix && <p className="mt-2 text-sm text-amber-700">{erreurZefix}</p>}
 
           {resultats.length > 0 && (
-            <ul className="mt-3 divide-y divide-blue-100 overflow-hidden rounded-lg border border-blue-100 bg-white">
+            <ul className="mt-3 divide-y divide-blue-100 overflow-hidden rounded-md border border-blue-100 bg-card">
               {resultats.map((r) => (
                 <li key={r.ide}>
                   <button
@@ -197,7 +194,9 @@ export function ClientCreateZefix() {
                     onClick={() => choisir(r)}
                     className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-blue-50"
                   >
-                    <span className="text-sm font-medium text-slate-800">{r.raison_sociale}</span>
+                    <span className="text-[13px] font-medium text-foreground">
+                      {r.raison_sociale}
+                    </span>
                     <span className="text-xs text-slate-500">
                       {[r.ide, r.adresse_ville, r.adresse_canton].filter(Boolean).join(" · ")}
                     </span>
@@ -215,80 +214,71 @@ export function ClientCreateZefix() {
               <label htmlFor="raison_sociale" className={LABEL}>
                 Raison sociale
               </label>
-              <input
+              <Input
                 id="raison_sociale"
                 name="raison_sociale"
                 required
                 defaultValue={prefill.raison_sociale}
                 placeholder="Acme Sàrl"
-                className={INPUT}
               />
             </div>
             <div>
               <label htmlFor="ide" className={LABEL}>
                 IDE (optionnel)
               </label>
-              <input
-                id="ide"
-                name="ide"
-                defaultValue={prefill.ide}
-                placeholder="CHE-123.456.789"
-                className={INPUT}
-              />
+              <Input id="ide" name="ide" defaultValue={prefill.ide} placeholder="CHE-123.456.789" />
             </div>
             <div>
               <label htmlFor="forme_juridique" className={LABEL}>
                 Forme juridique (optionnel)
               </label>
-              <input
+              <Input
                 id="forme_juridique"
                 name="forme_juridique"
                 defaultValue={prefill.forme_juridique}
                 placeholder="SA, Sàrl…"
-                className={INPUT}
               />
             </div>
             <div>
               <label htmlFor="type" className={LABEL}>
                 Type
               </label>
-              <select id="type" name="type" defaultValue="" className={INPUT}>
+              <Select id="type" name="type" defaultValue="">
                 {TYPES_CLIENT.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label htmlFor="statut" className={LABEL}>
                 Statut
               </label>
-              <select id="statut" name="statut" defaultValue="actif" className={INPUT}>
+              <Select id="statut" name="statut" defaultValue="actif">
                 {STATUTS.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="sm:col-span-2">
               <label htmlFor="email_contact" className={LABEL}>
                 Email (optionnel)
               </label>
-              <input
+              <Input
                 id="email_contact"
                 name="email_contact"
                 type="email"
                 placeholder="contact@acme.ch"
-                className={INPUT}
               />
             </div>
           </div>
 
           {/* Adresse du siège (préremplie par Zefix) */}
-          <fieldset className="rounded-lg border border-gray-200 p-3">
-            <legend className="px-1 text-xs font-medium text-gray-500">
+          <fieldset className="rounded-lg border border-border p-3">
+            <legend className="px-1 text-xs font-medium text-muted-foreground">
               Adresse du siège (préremplie depuis Zefix — optionnel)
             </legend>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -296,73 +286,60 @@ export function ClientCreateZefix() {
                 <label htmlFor="adresse_rue" className={LABEL}>
                   Rue
                 </label>
-                <input
-                  id="adresse_rue"
-                  name="adresse_rue"
-                  defaultValue={prefill.adresse_rue}
-                  className={INPUT}
-                />
+                <Input id="adresse_rue" name="adresse_rue" defaultValue={prefill.adresse_rue} />
               </div>
               <div>
                 <label htmlFor="adresse_code_postal" className={LABEL}>
                   NPA
                 </label>
-                <input
+                <Input
                   id="adresse_code_postal"
                   name="adresse_code_postal"
                   defaultValue={prefill.adresse_code_postal}
-                  className={INPUT}
                 />
               </div>
               <div>
                 <label htmlFor="adresse_ville" className={LABEL}>
                   Ville
                 </label>
-                <input
+                <Input
                   id="adresse_ville"
                   name="adresse_ville"
                   defaultValue={prefill.adresse_ville}
-                  className={INPUT}
                 />
               </div>
               <div>
                 <label htmlFor="adresse_canton" className={LABEL}>
                   Canton
                 </label>
-                <input
+                <Input
                   id="adresse_canton"
                   name="adresse_canton"
                   defaultValue={prefill.adresse_canton}
                   maxLength={2}
                   placeholder="VD"
-                  className={INPUT}
                 />
               </div>
               <div>
                 <label htmlFor="adresse_pays" className={LABEL}>
                   Pays
                 </label>
-                <input
-                  id="adresse_pays"
-                  name="adresse_pays"
-                  defaultValue="CH"
-                  maxLength={2}
-                  className={INPUT}
-                />
+                <Input id="adresse_pays" name="adresse_pays" defaultValue="CH" maxLength={2} />
               </div>
             </div>
           </fieldset>
 
-          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-          {state.success && <p className="text-sm text-green-600">Client ajouté avec succès ✓</p>}
+          {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+          {state.success && (
+            <p className="inline-flex items-center gap-1.5 text-sm text-emerald-600">
+              <Check className="size-4" aria-hidden />
+              Client ajouté avec succès
+            </p>
+          )}
 
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
+          <Button type="submit" disabled={pending}>
             {pending ? "Ajout…" : "Ajouter le client →"}
-          </button>
+          </Button>
         </form>
       </div>
     </section>

@@ -4,6 +4,9 @@
 // Trois formulaires indépendants (un état par action) pour des retours ciblés. Aucun mot de
 // passe n'est conservé côté client au-delà de la soumission.
 import { useActionState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   modifierEmailAction,
   modifierMotDePasseAction,
@@ -16,13 +19,13 @@ const INITIAL: ProfilClientState = {};
 function Feedback({ state }: { state: ProfilClientState }) {
   if (state.success) {
     return (
-      <p className="rounded-md bg-green-50 px-3 py-2 text-sm font-medium text-green-700">
+      <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
         {state.success}
       </p>
     );
   }
   if (state.error) {
-    return <p className="text-sm text-red-600">{state.error}</p>;
+    return <p className="text-sm text-rose-600">{state.error}</p>;
   }
   return null;
 }
@@ -38,92 +41,93 @@ export function ProfilForm({
   const [mdpState, mdpAction, mdpPending] = useActionState(modifierMotDePasseAction, INITIAL);
   const [emailState, emailAction, emailPending] = useActionState(modifierEmailAction, INITIAL);
 
-  const inputClass =
-    "mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none";
-  const buttonClass =
-    "rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50";
-
   return (
     <div className="space-y-4">
       {/* Nom affiché */}
-      <form action={nomAction} className="space-y-3 rounded-lg border border-gray-200 bg-white p-5">
-        <p className="text-sm font-medium text-gray-900">Nom affiché</p>
+      <form
+        action={nomAction}
+        className="space-y-3 rounded-lg border border-border bg-card p-5 shadow-card"
+      >
+        <p className="text-sm font-medium text-foreground">Nom affiché</p>
         <div>
-          <label htmlFor="display_name" className="block text-sm text-gray-600">
+          <Label htmlFor="display_name" className="font-normal text-muted-foreground">
             Nom
-          </label>
-          <input
+          </Label>
+          <Input
             id="display_name"
             name="display_name"
             type="text"
             defaultValue={nomActuel}
-            className={inputClass}
+            className="mt-1"
           />
         </div>
         <Feedback state={nomState} />
-        <button type="submit" disabled={nomPending} className={buttonClass}>
+        <Button type="submit" variant="secondary" disabled={nomPending}>
           {nomPending ? "Enregistrement…" : "Enregistrer le nom"}
-        </button>
+        </Button>
       </form>
 
       {/* Mot de passe */}
-      <form action={mdpAction} className="space-y-3 rounded-lg border border-gray-200 bg-white p-5">
-        <p className="text-sm font-medium text-gray-900">Mot de passe</p>
+      <form
+        action={mdpAction}
+        className="space-y-3 rounded-lg border border-border bg-card p-5 shadow-card"
+      >
+        <p className="text-sm font-medium text-foreground">Mot de passe</p>
         <div>
-          <label htmlFor="nouveau" className="block text-sm text-gray-600">
+          <Label htmlFor="nouveau" className="font-normal text-muted-foreground">
             Nouveau mot de passe (8 caractères minimum)
-          </label>
-          <input
+          </Label>
+          <Input
             id="nouveau"
             name="nouveau"
             type="password"
             autoComplete="new-password"
-            className={inputClass}
+            className="mt-1"
           />
         </div>
         <div>
-          <label htmlFor="confirmation" className="block text-sm text-gray-600">
+          <Label htmlFor="confirmation" className="font-normal text-muted-foreground">
             Confirmer le mot de passe
-          </label>
-          <input
+          </Label>
+          <Input
             id="confirmation"
             name="confirmation"
             type="password"
             autoComplete="new-password"
-            className={inputClass}
+            className="mt-1"
           />
         </div>
         <Feedback state={mdpState} />
-        <button type="submit" disabled={mdpPending} className={buttonClass}>
+        <Button type="submit" variant="secondary" disabled={mdpPending}>
           {mdpPending ? "Modification…" : "Changer le mot de passe"}
-        </button>
+        </Button>
       </form>
 
       {/* Adresse e-mail */}
       <form
         action={emailAction}
-        className="space-y-3 rounded-lg border border-gray-200 bg-white p-5"
+        className="space-y-3 rounded-lg border border-border bg-card p-5 shadow-card"
       >
-        <p className="text-sm font-medium text-gray-900">Adresse de connexion</p>
+        <p className="text-sm font-medium text-foreground">Adresse de connexion</p>
         <div>
-          <label htmlFor="email" className="block text-sm text-gray-600">
+          <Label htmlFor="email" className="font-normal text-muted-foreground">
             Nouvelle adresse e-mail
-          </label>
-          <input
+          </Label>
+          <Input
             id="email"
             name="email"
             type="email"
             defaultValue={emailActuel ?? ""}
-            className={inputClass}
+            className="mt-1"
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             Un e-mail de confirmation sera envoyé à la nouvelle adresse.
           </p>
         </div>
         <Feedback state={emailState} />
-        <button type="submit" disabled={emailPending} className={buttonClass}>
+        <Button type="submit" variant="secondary" disabled={emailPending}>
           {emailPending ? "Envoi…" : "Changer l'adresse e-mail"}
-        </button>
+        </Button>
       </form>
     </div>
   );

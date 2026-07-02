@@ -2,6 +2,8 @@ import { getCurrentUser } from "@zarya/auth";
 import { client, db, document, facture, fichierPhysique, propositionFacture } from "@zarya/db";
 import { and, count, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { normaliserConfianceParChamp } from "./confiance-provenance";
 import { type FactureItem, FacturesValidation } from "./factures-client";
@@ -134,11 +136,11 @@ export default async function FacturesValidationPage({
 
   return (
     // lg:max-w-7xl : donne au split-screen aperçu/formulaire la largeur nécessaire (lg+).
-    <main className="mx-auto max-w-4xl p-6 lg:max-w-7xl">
-      <h1 className="mb-1 text-2xl font-semibold">Factures à valider</h1>
-      <p className="mb-6 text-sm text-gray-500">
-        {total} facture{total > 1 ? "s" : ""} en attente
-      </p>
+    <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:max-w-7xl lg:px-8">
+      <PageHeader
+        title="Factures à valider"
+        description={`${total} facture${total > 1 ? "s" : ""} en attente`}
+      />
 
       {/* Export comptable des factures validées (route /api/factures/export). */}
       {peutValider && nbExportables > 0 && (
@@ -147,12 +149,9 @@ export default async function FacturesValidationPage({
             {nbExportables} facture{nbExportables > 1 ? "s" : ""} validée
             {nbExportables > 1 ? "s" : ""} prête{nbExportables > 1 ? "s" : ""} à exporter
           </span>
-          <a
-            href="/api/factures/export"
-            className="shrink-0 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
-          >
-            Exporter (CSV)
-          </a>
+          <Button asChild size="sm">
+            <a href="/api/factures/export">Exporter (CSV)</a>
+          </Button>
         </div>
       )}
 

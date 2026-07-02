@@ -3,6 +3,8 @@ import { CalendarClock, Cpu, FileText, MapPin, Receipt, ShieldCheck, Wallet } fr
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "ZARYA — Co-pilote des fiduciaires suisses",
@@ -67,27 +69,33 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-background">
       {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
-          <span className="text-lg font-bold tracking-tight text-slate-900">ZARYA</span>
-          <Link
-            href="/login"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-          >
-            Se connecter
-          </Link>
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5 sm:px-6">
+          {/* Wordmark — identique à la sidebar */}
+          <span className="flex items-center gap-2">
+            <span
+              className="flex size-6 items-center justify-center rounded bg-blue-600 text-[11px] font-bold text-white"
+              aria-hidden
+            >
+              Z
+            </span>
+            <span className="text-sm font-semibold tracking-[0.14em] text-foreground">ZARYA</span>
+          </span>
+          <Button asChild variant="ghost">
+            <Link href="/login">Se connecter</Link>
+          </Button>
         </div>
       </header>
 
       <main className="flex-1">
         {/* Hero */}
         <section className="mx-auto max-w-5xl px-4 pt-16 pb-20 text-center sm:px-6 sm:pt-24">
-          <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+          <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
             Bêta sur invitation
           </span>
-          <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+          <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
             Le co-pilote opérationnel des fiduciaires suisses
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-slate-600 sm:text-lg">
@@ -96,59 +104,57 @@ export default async function HomePage() {
             mandat.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              href="/demande-acces"
-              className="w-full rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 sm:w-auto"
-            >
-              Demander un accès
-            </Link>
-            <Link
-              href="/login"
-              className="w-full rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-medium text-slate-700 hover:border-blue-300 hover:text-blue-700 sm:w-auto"
-            >
-              Se connecter
-            </Link>
+            <Button asChild size="lg" className="h-11 w-full px-6 sm:w-auto">
+              <Link href="/demande-acces">Demander un accès</Link>
+            </Button>
+            <Button asChild variant="secondary" size="lg" className="h-11 w-full px-6 sm:w-auto">
+              <Link href="/login">Se connecter</Link>
+            </Button>
           </div>
         </section>
 
         {/* Bénéfices */}
-        <section className="border-t border-slate-200 bg-white">
+        <section className="border-t border-border bg-card">
           <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20">
-            <h2 className="text-center text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+            <h2 className="text-center text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               Ce que ZARYA fait pour vous
             </h2>
-            <p className="mx-auto mt-3 max-w-xl text-center text-sm text-slate-500">
+            <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground">
               Un fil rouge : l'IA propose, vous validez. Rien n'est classé, envoyé ou exporté sans
               contrôle humain.
             </p>
             <div className="mt-10 grid gap-6 sm:grid-cols-2">
               {BENEFICES.map((b) => (
-                <div key={b.titre} className="rounded-xl border border-slate-200 bg-slate-50 p-6">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                    <b.icon className="h-5 w-5" aria-hidden="true" />
+                <Card key={b.titre} className="p-6">
+                  <div className="flex size-8 items-center justify-center rounded-md bg-blue-50 text-blue-700">
+                    <b.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
                   </div>
-                  <h3 className="mt-4 text-base font-semibold text-slate-900">{b.titre}</h3>
+                  <h3 className="mt-4 text-base font-semibold tracking-tight text-foreground">
+                    {b.titre}
+                  </h3>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">{b.description}</p>
-                </div>
+                </Card>
               ))}
             </div>
           </div>
         </section>
 
         {/* Confiance */}
-        <section className="border-t border-slate-200">
+        <section className="border-t border-border">
           <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20">
-            <h2 className="text-center text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+            <h2 className="text-center text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               Pensé pour la Suisse
             </h2>
             <div className="mt-10 grid gap-8 sm:grid-cols-3">
               {CONFIANCE.map((c) => (
                 <div key={c.titre} className="text-center">
-                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-                    <c.icon className="h-5 w-5" aria-hidden="true" />
+                  <div className="mx-auto flex size-8 items-center justify-center rounded-md bg-blue-50 text-blue-700">
+                    <c.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
                   </div>
-                  <h3 className="mt-4 text-sm font-semibold text-slate-900">{c.titre}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-500">{c.description}</p>
+                  <h3 className="mt-4 text-sm font-semibold text-foreground">{c.titre}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    {c.description}
+                  </p>
                 </div>
               ))}
             </div>
@@ -156,37 +162,34 @@ export default async function HomePage() {
         </section>
 
         {/* CTA final */}
-        <section className="border-t border-slate-200 bg-white">
+        <section className="border-t border-border bg-card">
           <div className="mx-auto max-w-5xl px-4 py-14 text-center sm:px-6">
-            <h2 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
+            <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               Envie de voir ZARYA sur vos mandats ?
             </h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
               L'accès à la bêta se fait sur invitation. Laissez-nous vos coordonnées, notre équipe
               vous recontacte.
             </p>
-            <Link
-              href="/demande-acces"
-              className="mt-6 inline-block rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Demander un accès
-            </Link>
+            <Button asChild size="lg" className="mt-6 h-11 px-6">
+              <Link href="/demande-acces">Demander un accès</Link>
+            </Button>
           </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-slate-50">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-slate-500 sm:flex-row sm:px-6">
+      <footer className="border-t border-border bg-background">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:px-6">
           <span>© ZARYA 2026</span>
           <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            <Link href="/cgu" className="hover:text-slate-900">
+            <Link href="/cgu" className="transition-colors hover:text-foreground">
               CGU
             </Link>
-            <Link href="/confidentialite" className="hover:text-slate-900">
+            <Link href="/confidentialite" className="transition-colors hover:text-foreground">
               Confidentialité
             </Link>
-            <Link href="/login" className="hover:text-slate-900">
+            <Link href="/login" className="transition-colors hover:text-foreground">
               Se connecter
             </Link>
           </nav>

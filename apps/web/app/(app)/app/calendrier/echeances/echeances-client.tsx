@@ -1,5 +1,6 @@
 "use client";
 
+import { CalendarCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -14,6 +15,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { badgeStatutEcheance, libelleTypeEcheance } from "@/lib/libelles";
 import {
   annulerEcheanceAction,
@@ -110,50 +122,79 @@ export function EcheancesListe({
   return (
     <div>
       <form action={appliquerFiltres} className="mb-4 flex flex-wrap items-end gap-3">
-        <label className="text-sm">
-          <span className="mr-1 text-gray-500">Statut</span>
-          <select name="statut" defaultValue={filtres.statut} className="rounded border px-2 py-1">
+        <div className="text-sm">
+          <label
+            htmlFor="filtre-statut"
+            className="mb-1 block text-xs font-medium text-muted-foreground"
+          >
+            Statut
+          </label>
+          <Select
+            id="filtre-statut"
+            name="statut"
+            defaultValue={filtres.statut}
+            className="w-auto min-w-36"
+          >
             <option value="">Tous</option>
             {statuts.map((s) => (
               <option key={s} value={s}>
                 {badgeStatutEcheance(s).label}
               </option>
             ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="mr-1 text-gray-500">Type</span>
-          <select name="type" defaultValue={filtres.type} className="rounded border px-2 py-1">
+          </Select>
+        </div>
+        <div className="text-sm">
+          <label
+            htmlFor="filtre-type"
+            className="mb-1 block text-xs font-medium text-muted-foreground"
+          >
+            Type
+          </label>
+          <Select
+            id="filtre-type"
+            name="type"
+            defaultValue={filtres.type}
+            className="w-auto min-w-36"
+          >
             <option value="">Tous</option>
             {types.map((t) => (
               <option key={t} value={t}>
                 {libelleTypeEcheance(t)}
               </option>
             ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="mr-1 text-gray-500">Client</span>
-          <input
+          </Select>
+        </div>
+        <div className="text-sm">
+          <label
+            htmlFor="filtre-client"
+            className="mb-1 block text-xs font-medium text-muted-foreground"
+          >
+            Client
+          </label>
+          <Input
+            id="filtre-client"
             name="q"
             defaultValue={filtres.q}
             placeholder="Raison sociale…"
-            className="rounded border px-2 py-1"
+            className="w-auto"
           />
-        </label>
-        <Button type="submit" size="sm">
+        </div>
+        <Button type="submit" size="sm" variant="secondary">
           Filtrer
         </Button>
       </form>
 
       {message && (
-        <div className="mb-4 rounded bg-gray-100 px-3 py-2 text-sm" role="status">
+        <div
+          className="mb-4 rounded-md border border-border bg-secondary px-3 py-2 text-sm text-secondary-foreground"
+          role="status"
+        >
           {message}
         </div>
       )}
 
       {peutAgir && actionnables.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-2.5 shadow-card">
           <Button
             type="button"
             size="sm"
@@ -175,13 +216,17 @@ export function EcheancesListe({
       )}
 
       {echeances.length === 0 ? (
-        <p className="text-gray-500">Aucune échéance.</p>
+        <EmptyState
+          icon={CalendarCheck}
+          title="Aucune échéance"
+          hint="Modifiez les filtres, ou laissez ZARYA générer les échéances de vos clients."
+        />
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-gray-500">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
               {peutAgir && (
-                <th className="w-8 py-2">
+                <TableHead className="w-8">
                   <input
                     type="checkbox"
                     checked={toutSelectionne}
@@ -189,21 +234,21 @@ export function EcheancesListe({
                     onChange={basculerTout}
                     aria-label="Tout sélectionner"
                   />
-                </th>
+                </TableHead>
               )}
-              <th className="py-2">Date</th>
-              <th>Client</th>
-              <th>Type</th>
-              <th>Libellé</th>
-              <th>Statut</th>
-              {peutAgir && <th>Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
+              <TableHead>Date</TableHead>
+              <TableHead>Client</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Libellé</TableHead>
+              <TableHead>Statut</TableHead>
+              {peutAgir && <TableHead>Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {echeances.map((e) => (
-              <tr key={e.id} className="border-b">
+              <TableRow key={e.id}>
                 {peutAgir && (
-                  <td className="py-2">
+                  <TableCell>
                     {STATUTS_ACTIONNABLES.has(e.statut) && (
                       <input
                         type="checkbox"
@@ -212,34 +257,34 @@ export function EcheancesListe({
                         aria-label={`Sélectionner l'échéance ${e.libelle}`}
                       />
                     )}
-                  </td>
+                  </TableCell>
                 )}
-                <td className="py-2">{e.date_echeance ?? "—"}</td>
-                <td>
+                <TableCell>{e.date_echeance ?? "—"}</TableCell>
+                <TableCell>
                   <Link
                     href={`/app/clients/${e.client_id}`}
-                    className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                    className="font-medium text-primary hover:text-primary-hover hover:underline"
                   >
                     {e.client_nom ?? "—"}
                   </Link>
-                </td>
-                <td>{libelleTypeEcheance(e.type)}</td>
-                <td>
+                </TableCell>
+                <TableCell>{libelleTypeEcheance(e.type)}</TableCell>
+                <TableCell>
                   {e.libelle}
                   {e.statut === "reportee" && e.reporte_a && (
                     <span className="ml-1 text-xs text-blue-700">→ {e.reporte_a}</span>
                   )}
-                </td>
-                <td>
+                </TableCell>
+                <TableCell>
                   <Badge
                     famille={badgeStatutEcheance(e.statut).famille}
                     className={e.statut === "annulee" ? "line-through" : undefined}
                   >
                     {badgeStatutEcheance(e.statut).label}
                   </Badge>
-                </td>
+                </TableCell>
                 {peutAgir && (
-                  <td className="whitespace-nowrap">
+                  <TableCell className="whitespace-nowrap">
                     {STATUTS_ACTIONNABLES.has(e.statut) ? (
                       <>
                         <Button
@@ -276,14 +321,14 @@ export function EcheancesListe({
                         </Button>
                       </>
                     ) : (
-                      <span className="text-gray-300">—</span>
+                      <span className="text-muted-foreground/50">—</span>
                     )}
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
 
       <Dialog open={confirmerAnnulation} onOpenChange={setConfirmerAnnulation}>

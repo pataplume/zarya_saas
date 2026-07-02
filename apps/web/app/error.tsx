@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
+import { AlertTriangle, RotateCcw } from "lucide-react";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -23,10 +23,10 @@ export default function ErrorPage({
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-sm">
-        <p className="text-4xl" aria-hidden>
-          ⚠️
-        </p>
+      <div className="w-full max-w-md rounded-lg border border-border bg-card p-8 text-center shadow-card">
+        <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-amber-50">
+          <AlertTriangle className="size-5 text-amber-600" strokeWidth={1.75} aria-hidden />
+        </div>
         <h1 className="mt-4 text-lg font-semibold text-foreground">Une erreur est survenue</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           L'action n'a pas pu aboutir. Réessayez — si le problème persiste, contactez le support

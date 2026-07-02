@@ -13,8 +13,8 @@ export default async function ActiverPage({
 
   return (
     <div className="w-full max-w-sm">
-      <h1 className="text-xl font-semibold text-gray-900">Bienvenue sur ZARYA</h1>
-      <p className="mt-1 text-sm text-gray-500">
+      <h1 className="text-lg font-semibold tracking-tight text-foreground">Bienvenue sur ZARYA</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
         Pour activer votre compte, choisissez votre mot de passe.
       </p>
       <div className="mt-6">

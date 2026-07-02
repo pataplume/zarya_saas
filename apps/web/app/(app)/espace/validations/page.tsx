@@ -1,4 +1,6 @@
+import { ClipboardCheck } from "lucide-react";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getEspaceClientContext } from "@/lib/espace-context";
 import { listerPeriodesClient } from "@/lib/periode-client-data";
 
@@ -34,27 +36,30 @@ export default async function EspaceValidationsPage() {
 
   return (
     <section className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-semibold">Validations</h1>
-      <p className="mt-1 text-sm text-gray-500">
+      <h1 className="text-lg font-semibold tracking-tight text-foreground">Validations</h1>
+      <p className="mt-0.5 text-[13px] text-muted-foreground">
         Vérifiez et validez les éléments de salaire de chaque mois.
       </p>
 
       {periodes.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5 text-sm text-gray-500">
-          Aucune période à valider pour le moment.
-        </div>
+        <EmptyState
+          className="mt-6"
+          icon={ClipboardCheck}
+          title="Aucune période à valider pour le moment"
+          hint="Les périodes de salaire préparées par votre fiduciaire apparaîtront ici."
+        />
       ) : (
-        <ul className="mt-6 divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
+        <ul className="mt-6 divide-y divide-border rounded-lg border border-border bg-card shadow-card">
           {periodes.map((p) => (
             <li key={p.id}>
               <Link
                 href={`/espace/validations/${p.id}`}
-                className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-gray-50"
+                className="flex items-center justify-between gap-4 px-5 py-3 transition-colors hover:bg-slate-50"
               >
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-foreground">
                   {MOIS_FR[p.mois - 1]} {p.annee}
                 </span>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-muted-foreground">
                   {LIBELLE_STATUT[p.statut] ?? p.statut}
                 </span>
               </Link>

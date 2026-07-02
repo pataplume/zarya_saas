@@ -1,7 +1,9 @@
 import { getCurrentUser } from "@zarya/auth";
+import { Briefcase, CalendarClock, FileText, type LucideIcon, Receipt } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { type ReactNode, Suspense } from "react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   badgeStatutClassement,
@@ -170,7 +172,7 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
   ].filter(Boolean);
 
   return (
-    <div className="px-4 py-8 sm:px-6 lg:px-8">
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
       {/* Scroll fluide sur les ancres : le conteneur de scroll est le document (le layout
           (app)/app ne crée pas de conteneur overflow) → `scroll-behavior: smooth` sur <html>,
           limité au montage de cette page. Les `scroll-mt-20` des sections restent inchangés.
@@ -178,8 +180,8 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
       <style>{`html{scroll-behavior:smooth}@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}`}</style>
 
       {/* Fil d'Ariane + retour vers la liste des clients */}
-      <nav className="mb-4 text-sm text-slate-500">
-        <Link href="/app/clients" className="font-medium text-blue-600 hover:text-blue-700">
+      <nav className="mb-4 text-[13px] text-muted-foreground">
+        <Link href="/app/clients" className="font-medium text-primary hover:underline">
           ← Clients
         </Link>
         <span className="mx-1.5">/</span>
@@ -187,21 +189,25 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
       </nav>
 
       {/* En-tête */}
-      <header className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <header className="mb-6 rounded-lg border border-border bg-card p-4 shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-slate-900">{identite.raison_sociale}</h1>
-            {meta.length > 0 && <p className="mt-1 text-sm text-slate-500">{meta.join(" · ")}</p>}
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+              {identite.raison_sociale}
+            </h1>
+            {meta.length > 0 && (
+              <p className="mt-0.5 text-[13px] text-muted-foreground">{meta.join(" · ")}</p>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${statutStyle}`}
+              className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${statutStyle}`}
             >
               {libelleStatutClient(identite.statut)}
             </span>
             {risque && (
               <span
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${risque.style}`}
+                className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${risque.style}`}
               >
                 <span aria-hidden="true">{risque.symbole}</span>
                 {risque.label}
@@ -219,7 +225,7 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
             {services_actifs.map((s) => (
               <span
                 key={s.id}
-                className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
+                className="inline-flex items-center rounded-md border border-border bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground"
               >
                 {libelleService(s.type)}
               </span>
@@ -231,13 +237,13 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
       {/* Barre de navigation par ancres — chaque cible existe (pas d'ancre morte). */}
       <nav
         aria-label="Sections du dossier"
-        className="sticky top-0 z-10 mb-6 flex flex-wrap gap-1 rounded-xl border border-gray-200 bg-white/90 p-1.5 shadow-sm backdrop-blur"
+        className="sticky top-0 z-10 mb-6 flex flex-wrap gap-0.5 border-b border-border bg-background/80 py-1.5 backdrop-blur"
       >
         {ANCRES.map((a) => (
           <a
             key={a.id}
             href={`#${a.id}`}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            className="rounded-md px-2.5 py-1 text-[13px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             {a.label}
           </a>
@@ -246,7 +252,7 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
 
       {/* Vue d'ensemble « à traiter » */}
       <section id="vue-ensemble" className="scroll-mt-20">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           À traiter
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -297,16 +303,16 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
         </div>
 
         {/* Score de risque (rappel) */}
-        <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+        <div className="mt-4 rounded-lg border border-border bg-card p-4 shadow-card">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Score de risque
           </p>
           {agregats.risque_niveau ? (
             <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">
+              <span className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
                 {agregats.risque_score ?? "—"}
               </span>
-              <span className="text-sm text-slate-500">
+              <span className="text-sm text-muted-foreground">
                 {RISQUE_META[agregats.risque_niveau]?.label ?? agregats.risque_niveau}
               </span>
             </div>
@@ -378,8 +384,10 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
 function SectionSkeleton({ id, titre }: { id: string; titre: string }) {
   return (
     <section id={id} className="mt-10 scroll-mt-20" aria-busy="true">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">{titre}</h2>
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        {titre}
+      </h2>
+      <div className="rounded-lg border border-border bg-card p-4 shadow-card">
         <Skeleton className="h-4 w-2/3 max-w-full bg-slate-100" />
         <Skeleton className="mt-3 h-4 w-1/2 max-w-full bg-slate-100" />
         <Skeleton className="mt-3 h-24 w-full bg-slate-100" />
@@ -521,9 +529,11 @@ function SectionShell({
   return (
     <section id={id} className="mt-10 scroll-mt-20">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{titre}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          {titre}
+        </h2>
         {lien && (
-          <Link href={lien.href} className="text-sm font-medium text-blue-600 hover:text-blue-700">
+          <Link href={lien.href} className="text-[13px] font-medium text-primary hover:underline">
             {lien.label} →
           </Link>
         )}
@@ -533,15 +543,13 @@ function SectionShell({
   );
 }
 
-function EtatVide({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white py-10 text-center">
-      <p className="text-sm text-slate-500">{children}</p>
-    </div>
-  );
+// État vide de section : icône + titre + piste d'action (composant partagé EmptyState).
+function EtatVide({ icon, titre, hint }: { icon: LucideIcon; titre: string; hint?: string }) {
+  return <EmptyState icon={icon} title={titre} {...(hint ? { hint } : {})} className="py-10" />;
 }
 
-const TH = "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500";
+const TH =
+  "px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground";
 
 // ─── C1.3 — Section Documents ────────────────────────────────────────────────────
 
@@ -558,17 +566,21 @@ function DocumentsSection({ documents }: { documents: DossierDocument[] }) {
   return (
     <SectionShell id="documents" titre="Documents">
       {documents.length === 0 ? (
-        <EtatVide>Aucun document classé pour ce client pour l'instant.</EtatVide>
+        <EtatVide
+          icon={FileText}
+          titre="Aucun document classé"
+          hint="Les documents déposés puis classés pour ce client apparaîtront ici."
+        />
       ) : (
         <div className="space-y-6">
           {[...groupes.entries()].map(([periode, docs]) => (
             <div key={periode}>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {periode}
               </h3>
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <table className="min-w-full divide-y divide-slate-200">
-                  <thead className="bg-slate-50">
+              <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
+                <table className="min-w-full divide-y divide-border">
+                  <thead className="bg-slate-50/60">
                     <tr>
                       <th className={TH}>Document</th>
                       <th className={`hidden sm:table-cell ${TH}`}>Catégorie</th>
@@ -577,7 +589,7 @@ function DocumentsSection({ documents }: { documents: DossierDocument[] }) {
                       <th className={`${TH} text-right`}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-border/70">
                     {docs.map((d) => {
                       const statut = badgeStatutClassement(d.statut_classement);
                       return (
@@ -602,7 +614,7 @@ function DocumentsSection({ documents }: { documents: DossierDocument[] }) {
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(statut.famille)}`}
+                              className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${styleFamille(statut.famille)}`}
                             >
                               {statut.label}
                             </span>
@@ -611,7 +623,7 @@ function DocumentsSection({ documents }: { documents: DossierDocument[] }) {
                             <span className="inline-flex items-center justify-end gap-2">
                               <Link
                                 href={`/app/documents/${d.id}`}
-                                className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                                className="inline-flex items-center rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm hover:bg-secondary"
                               >
                                 Fiche
                               </Link>
@@ -619,7 +631,7 @@ function DocumentsSection({ documents }: { documents: DossierDocument[] }) {
                                 href={`/api/documents/${d.fichier_physique_id}/apercu`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                                className="inline-flex items-center rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm hover:bg-secondary"
                               >
                                 Ouvrir
                               </a>
@@ -660,11 +672,15 @@ function EcheancesSection({
       lien={{ href: "/app/calendrier/echeances", label: "Voir le calendrier" }}
     >
       {echeances.length === 0 ? (
-        <EtatVide>Aucune échéance ouverte pour ce client.</EtatVide>
+        <EtatVide
+          icon={CalendarClock}
+          titre="Aucune échéance ouverte"
+          hint="Activez des services dans « Services & régime » pour générer les échéances."
+        />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-slate-50/60">
               <tr>
                 <th className={TH}>Échéance</th>
                 <th className={`hidden sm:table-cell ${TH}`}>Type</th>
@@ -672,7 +688,7 @@ function EcheancesSection({
                 <th className={TH}>Statut</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border/70">
               {echeances.map((e) => (
                 <tr key={e.id} className="hover:bg-slate-50">
                   <td className="max-w-xs px-4 py-3">
@@ -691,7 +707,7 @@ function EcheancesSection({
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
+                      className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
                         e.en_retard
                           ? "bg-rose-50 text-rose-700 ring-rose-600/20"
                           : "bg-blue-50 text-blue-700 ring-blue-600/20"
@@ -723,11 +739,15 @@ function FacturesSection({ factures }: { factures: DossierFactures }) {
       lien={{ href: "/app/factures/validation", label: "File de validation" }}
     >
       {vide ? (
-        <EtatVide>Aucune facture enregistrée pour ce client.</EtatVide>
+        <EtatVide
+          icon={Receipt}
+          titre="Aucune facture enregistrée"
+          hint="Les factures extraites des documents de ce client apparaîtront ici."
+        />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-slate-50/60">
               <tr>
                 <th className={TH}>Fournisseur</th>
                 <th className={`hidden sm:table-cell ${TH}`}>N°</th>
@@ -736,7 +756,7 @@ function FacturesSection({ factures }: { factures: DossierFactures }) {
                 <th className={TH}>Statut</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border/70">
               {a_valider.map((p) => (
                 <tr key={p.id} className="bg-amber-50/40 hover:bg-amber-50">
                   <td className="max-w-xs px-4 py-3 text-sm font-medium text-slate-800">
@@ -752,7 +772,7 @@ function FacturesSection({ factures }: { factures: DossierFactures }) {
                     {formatMontant(p.total_ttc, p.devise)}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                    <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
                       À valider
                     </span>
                   </td>
@@ -776,7 +796,7 @@ function FacturesSection({ factures }: { factures: DossierFactures }) {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(statut.famille)}`}
+                        className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${styleFamille(statut.famille)}`}
                       >
                         {statut.label}
                       </span>
@@ -808,18 +828,22 @@ function SalairesSection({
       lien={{ href: `/app/salaire/referentiel/${clientId}`, label: "Référentiel employés" }}
     >
       {periodes.length === 0 ? (
-        <EtatVide>Aucune période salaire pour ce client.</EtatVide>
+        <EtatVide
+          icon={Briefcase}
+          titre="Aucune période salaire"
+          hint="Activez le service Salaires pour suivre les périodes mensuelles."
+        />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-slate-50/60">
               <tr>
                 <th className={TH}>Période</th>
                 <th className={`hidden sm:table-cell ${TH}`}>Employés</th>
                 <th className={TH}>Statut</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border/70">
               {periodes.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 text-sm font-medium text-slate-800">
@@ -829,7 +853,7 @@ function SalairesSection({
                     {p.nb_employes}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-500/20">
+                    <span className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600 ring-1 ring-inset ring-slate-500/20">
                       {libelleStatutPeriode(p.statut)}
                     </span>
                   </td>
@@ -883,7 +907,7 @@ function CoordonneesSection({
 
   return (
     <SectionShell id="coordonnees" titre="Paramètres comptables">
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="rounded-lg border border-border bg-card p-4 shadow-card">
         {params.length === 0 ? (
           <p className="text-sm text-slate-400">Aucun paramètre comptable renseigné.</p>
         ) : (
@@ -919,13 +943,17 @@ function MetriqueCard({
   return (
     <Link
       href={href}
-      className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow"
+      className="block rounded-lg border border-border bg-card p-4 shadow-card transition-colors hover:border-slate-300"
     >
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{titre}</p>
-      <p className={`mt-1 text-2xl font-bold ${alerte ? "text-amber-700" : "text-slate-900"}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {titre}
+      </p>
+      <p
+        className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${alerte ? "text-amber-700" : "text-foreground"}`}
+      >
         {valeur}
       </p>
-      <p className="mt-0.5 text-xs text-slate-500">{sousTitre}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{sousTitre}</p>
     </Link>
   );
 }

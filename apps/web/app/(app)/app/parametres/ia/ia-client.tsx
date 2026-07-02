@@ -28,8 +28,8 @@ export function IaClient({
   return (
     <div className="max-w-2xl space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-gray-900">Intelligence artificielle</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-xl font-semibold text-slate-900">Intelligence artificielle</h1>
+        <p className="mt-1 text-sm text-slate-500">
           Active l'extraction et la classification automatiques par IA pour ce cabinet (classement
           des documents, lecture des factures, recherche). Désactivée, l'application fonctionne en
           validation manuelle complète.
@@ -44,11 +44,11 @@ export function IaClient({
         </p>
       )}
 
-      <section className="rounded-lg border border-gray-200 bg-white p-5">
+      <section className="rounded-lg border border-border bg-card p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-medium text-gray-900">IA du cabinet</h2>
-            <p className="mt-1 text-sm text-gray-600">
+            <h2 className="font-medium text-slate-900">IA du cabinet</h2>
+            <p className="mt-1 text-sm text-slate-600">
               {cabinetActive
                 ? globalLive
                   ? "Active — les nouveaux documents sont traités par l'IA."
@@ -63,14 +63,14 @@ export function IaClient({
           <ToggleButton isResponsable={isResponsable} cabinetActive={cabinetActive} />
         </div>
         {!isResponsable && (
-          <p className="mt-3 text-xs text-gray-400">
+          <p className="mt-3 text-xs text-slate-400">
             Seul un responsable du cabinet peut activer ou désactiver l'IA.
           </p>
         )}
       </section>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="font-medium text-gray-900">Consommation IA</h2>
+      <section className="rounded-lg border border-border bg-card p-5">
+        <h2 className="font-medium text-slate-900">Consommation IA</h2>
         {cout ? (
           <dl className="mt-3 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
             <Stat label="Appels IA" value={cout.nb_invocations.toLocaleString("fr-CH")} />
@@ -82,9 +82,9 @@ export function IaClient({
             <Stat label="Dernier appel" value={formatDate(cout.derniere_invocation_at)} />
           </dl>
         ) : (
-          <p className="mt-2 text-sm text-gray-500">Aucun appel IA enregistré pour ce cabinet.</p>
+          <p className="mt-2 text-sm text-slate-500">Aucun appel IA enregistré pour ce cabinet.</p>
         )}
-        <p className="mt-3 text-xs text-gray-400">
+        <p className="mt-3 text-xs text-slate-400">
           Coûts agrégés depuis la traçabilité des invocations (extraction.invocation). Mis à jour à
           chaque appel.
         </p>
@@ -142,7 +142,7 @@ function StatusBadge({
     );
   }
   return (
-    <span className="whitespace-nowrap rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+    <span className="whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
       Désactivée
     </span>
   );
@@ -151,8 +151,8 @@ function StatusBadge({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs text-gray-500">{label}</dt>
-      <dd className="mt-0.5 font-medium text-gray-900">{value}</dd>
+      <dt className="text-xs text-slate-500">{label}</dt>
+      <dd className="mt-0.5 font-medium text-slate-900">{value}</dd>
     </div>
   );
 }

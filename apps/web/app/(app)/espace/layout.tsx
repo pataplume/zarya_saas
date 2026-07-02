@@ -48,8 +48,8 @@ export default async function EspaceClientLayout({ children }: { children: React
   } as CSSProperties;
 
   return (
-    <div style={cssVars} className="min-h-screen bg-slate-50">
-      <header className="fixed inset-x-0 top-0 z-20 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4">
+    <div style={cssVars} className="min-h-screen bg-background">
+      <header className="fixed inset-x-0 top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-card px-4">
         <div className="flex items-center gap-3">
           {branding.logoUrl ? (
             // biome-ignore lint/performance/noImgElement: logo cabinet externe, pas d'optimisation Next requise (MVP).
@@ -64,7 +64,7 @@ export default async function EspaceClientLayout({ children }: { children: React
             </span>
           )}
           {cli?.raison_sociale ? (
-            <span className="text-sm text-gray-500">· {cli.raison_sociale}</span>
+            <span className="text-sm text-muted-foreground">· {cli.raison_sociale}</span>
           ) : null}
         </div>
         <UserMenu email={user?.email ?? ""} />
@@ -74,7 +74,7 @@ export default async function EspaceClientLayout({ children }: { children: React
 
       <main className="px-4 pb-20 pt-20 lg:pl-60">{children}</main>
 
-      <footer className="px-4 pb-24 pt-4 text-center text-xs text-gray-400 lg:pb-4 lg:pl-60">
+      <footer className="px-4 pb-24 pt-4 text-center text-xs text-muted-foreground lg:pb-4 lg:pl-60">
         Propulsé par{" "}
         <a href="https://zarya.ch" className="underline">
           ZARYA

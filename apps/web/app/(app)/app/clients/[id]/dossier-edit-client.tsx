@@ -1,6 +1,8 @@
 "use client";
 
+import { Lock } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
+import { EmptyState } from "@/components/ui/empty-state";
 import type {
   ClientEditAdresse,
   ClientEditContact,
@@ -58,14 +60,15 @@ const LABEL_TYPE_ADRESSE: Record<string, string> = {
   postale: "Postale",
 };
 
+// Styles alignés sur les composants ui/ (Input h-8 13px, Button h-8) — tokens hairline/radius.
 const FIELD =
-  "mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-blue-500";
+  "mt-1 block w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
 const LABEL = "block text-xs font-medium text-slate-600";
 const BTN_PRIMARY =
-  "inline-flex items-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-60";
+  "inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-60";
 const BTN_SECONDARY =
-  "inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50";
-const CARD = "rounded-xl border border-gray-200 bg-white p-5 shadow-sm";
+  "inline-flex h-8 items-center rounded-md border border-input bg-card px-3 text-[13px] font-medium text-secondary-foreground shadow-sm hover:bg-secondary";
+const CARD = "rounded-lg border border-border bg-card p-4 shadow-card";
 
 function Erreur({ message }: { message?: string | undefined }) {
   if (!message) return null;
@@ -132,7 +135,9 @@ function IdentiteSection({
 
   return (
     <section id="identite" className="scroll-mt-20">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Identité</h2>
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        Identité
+      </h2>
       <form action={formAction} className={CARD}>
         <input type="hidden" name="id" value={identite.id} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -368,14 +373,14 @@ function ContactLigne({ contact, clientId }: { contact: ClientEditContact; clien
 
   if (edition) {
     return (
-      <li className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <li className="rounded-md border border-border bg-slate-50 p-4">
         <ContactForm contact={contact} clientId={clientId} onDone={() => setEdition(false)} />
       </li>
     );
   }
 
   return (
-    <li className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-slate-200 p-4">
+    <li className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-border p-4">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-slate-800">
@@ -384,7 +389,7 @@ function ContactLigne({ contact, clientId }: { contact: ClientEditContact; clien
           {badges.map((b) => (
             <span
               key={b}
-              className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20"
+              className="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20"
             >
               {b}
             </span>
@@ -403,7 +408,7 @@ function ContactLigne({ contact, clientId }: { contact: ClientEditContact; clien
           <input type="hidden" name="id" value={contact.id} />
           <button
             type="submit"
-            className="inline-flex items-center rounded-lg border border-rose-300 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+            className="inline-flex h-8 items-center rounded-md border border-rose-300 px-3 text-[13px] font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
             disabled={pendingSuppr}
           >
             Supprimer
@@ -425,7 +430,9 @@ function ContactsSection({
   return (
     <section id="contacts" className="mt-10 scroll-mt-20">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Contacts</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Contacts
+        </h2>
         {!ajout && (
           <button type="button" className={BTN_SECONDARY} onClick={() => setAjout(true)}>
             + Ajouter un contact
@@ -434,12 +441,12 @@ function ContactsSection({
       </div>
       <div className={CARD}>
         {ajout && (
-          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="mb-4 rounded-md border border-border bg-slate-50 p-4">
             <ContactCreateInline clientId={clientId} onDone={() => setAjout(false)} />
           </div>
         )}
         {contacts.length === 0 && !ajout ? (
-          <p className="text-sm text-slate-400">Aucun contact enregistré.</p>
+          <p className="text-sm text-muted-foreground">Aucun contact enregistré.</p>
         ) : (
           <ul className="space-y-3">
             {contacts.map((c) => (
@@ -593,7 +600,7 @@ function AdresseLigne({ adresse }: { adresse: ClientEditAdresse }) {
 
   if (edition) {
     return (
-      <li className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <li className="rounded-md border border-border bg-slate-50 p-4">
         <form action={editAction} className="space-y-3">
           <input type="hidden" name="id" value={adresse.id} />
           <AdresseFields adresse={adresse} />
@@ -612,14 +619,14 @@ function AdresseLigne({ adresse }: { adresse: ClientEditAdresse }) {
   }
 
   return (
-    <li className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-slate-200 p-4">
+    <li className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-border p-4">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-slate-800">
             {LABEL_TYPE_ADRESSE[adresse.type] ?? adresse.type}
           </span>
           {adresse.est_principale && (
-            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
+            <span className="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
               Principale
             </span>
           )}
@@ -634,7 +641,7 @@ function AdresseLigne({ adresse }: { adresse: ClientEditAdresse }) {
           <input type="hidden" name="id" value={adresse.id} />
           <button
             type="submit"
-            className="inline-flex items-center rounded-lg border border-rose-300 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+            className="inline-flex h-8 items-center rounded-md border border-rose-300 px-3 text-[13px] font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60"
             disabled={pendingSuppr}
           >
             Supprimer
@@ -656,7 +663,9 @@ function AdressesSection({
   return (
     <section id="adresses" className="mt-10 scroll-mt-20">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Adresses</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Adresses
+        </h2>
         {!ajout && (
           <button type="button" className={BTN_SECONDARY} onClick={() => setAjout(true)}>
             + Ajouter une adresse
@@ -665,12 +674,12 @@ function AdressesSection({
       </div>
       <div className={CARD}>
         {ajout && (
-          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="mb-4 rounded-md border border-border bg-slate-50 p-4">
             <AdresseCreateInline clientId={clientId} onDone={() => setAjout(false)} />
           </div>
         )}
         {adresses.length === 0 && !ajout ? (
-          <p className="text-sm text-slate-400">Aucune adresse enregistrée.</p>
+          <p className="text-sm text-muted-foreground">Aucune adresse enregistrée.</p>
         ) : (
           <ul className="space-y-3">
             {adresses.map((a) => (
@@ -697,9 +706,12 @@ export function DossierEditClient({
     // on signale juste que l'édition n'est pas permise pour ce rôle.
     return (
       <section id="identite" className="mt-10 scroll-mt-20">
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
-          Votre rôle est en lecture seule : l'édition du dossier client n'est pas disponible.
-        </div>
+        <EmptyState
+          icon={Lock}
+          title="Édition non disponible"
+          hint="Votre rôle est en lecture seule : l'édition du dossier client n'est pas disponible."
+          className="py-8"
+        />
       </section>
     );
   }

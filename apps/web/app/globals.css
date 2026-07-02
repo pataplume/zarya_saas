@@ -2,34 +2,39 @@
 @import "tw-animate-css";
 
 /*
- * Tokens du design system ZARYA (Lot UX 1).
- * Les valeurs reprennent la palette historique (slate + bleu) : les classes
- * Tailwind brutes existantes restent valides ; les composants `components/ui/`
- * consomment les alias sémantiques ci-dessous. Le jour où un dark mode est
- * introduit, seul ce bloc :root change.
+ * Tokens du design system ZARYA — identité « précision suisse » (Lot UX 7).
+ * Fond légèrement profond pour faire ressortir des surfaces blanches aux
+ * bordures capillaires ; bleu profond ; rayons resserrés ; chiffres tabulaires.
+ * Les composants `components/ui/` consomment ces alias : changer ce bloc
+ * re-skinne l'app (le dark mode ne demandera que ce :root).
  */
 :root {
-  --background: #f8fafc; /* slate-50 — fond de page */
-  --foreground: #0f172a; /* slate-900 — texte principal */
+  --background: #f2f4f7; /* fond de page — les cartes blanches ressortent */
+  --foreground: #101828;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #101828;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #2563eb; /* blue-600 — actions principales */
-  --primary-hover: #1d4ed8; /* blue-700 */
+  --popover-foreground: #101828;
+  --primary: #1d4ed8; /* bleu profond — actions principales */
+  --primary-hover: #1e40af;
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9; /* slate-100 */
-  --secondary-foreground: #334155; /* slate-700 */
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b; /* slate-500 */
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
-  --destructive: #e11d48; /* rose-600 */
+  --secondary: #eef1f5;
+  --secondary-foreground: #344054;
+  --muted: #eef1f5;
+  --muted-foreground: #667085;
+  --accent: #eef1f5;
+  --accent-foreground: #101828;
+  --destructive: #e11d48;
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0; /* slate-200 */
-  --input: #cbd5e1; /* slate-300 — bordures de champs */
-  --ring: #3b82f6; /* blue-500 — focus */
-  --radius: 0.5rem;
+  --border: #e4e7ec; /* hairline */
+  --input: #d0d5dd;
+  --ring: #2563eb;
+  --radius: 0.375rem; /* 6px — boutons/champs nets, moins « bootstrap » */
+  /* Sidebar (surface sombre dédiée) */
+  --sidebar: #0d1220;
+  --sidebar-foreground: #98a2b3;
+  --sidebar-active: rgba(255, 255, 255, 0.06);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
 }
 
 @theme inline {
@@ -54,10 +59,17 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 0.25rem);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-border: var(--sidebar-border);
+  --radius-sm: calc(var(--radius) - 0.125rem);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 0.25rem);
   --radius-xl: calc(var(--radius) + 0.5rem);
+  /* Ombres douces à deux couches (cartes, popovers) */
+  --shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04), 0 1px 3px 0 rgb(16 24 40 / 0.06);
+  --shadow-pop: 0 4px 6px -2px rgb(16 24 40 / 0.05), 0 12px 16px -4px rgb(16 24 40 / 0.1);
 }
 
 @layer base {
@@ -66,5 +78,21 @@
     background-color: var(--background);
     color: var(--foreground);
     -webkit-font-smoothing: antialiased;
+    font-size: 0.875rem;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+  }
+
+  /* Alignement vertical des chiffres dans toutes les tables (montants, dates). */
+  td {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background-color: #bfdbfe;
   }
 }

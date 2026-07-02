@@ -1,3 +1,5 @@
+import { Users } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getEmployesClient } from "@/lib/dashboard-client-data";
 import { getEspaceClientContext } from "@/lib/espace-context";
 
@@ -10,20 +12,23 @@ export default async function EspaceEmployesPage() {
 
   return (
     <section className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-semibold">Mes employés</h1>
-      <p className="mt-1 text-sm text-gray-500">
+      <h1 className="text-lg font-semibold tracking-tight text-foreground">Mes employés</h1>
+      <p className="mt-0.5 text-[13px] text-muted-foreground">
         Référentiel tenu avec votre fiduciaire. Les coordonnées bancaires et le numéro AVS sont
         conservés de façon chiffrée et ne sont pas affichés ici.
       </p>
 
       {employes.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5 text-sm text-gray-500">
-          Aucun employé enregistré pour le moment.
-        </div>
+        <EmptyState
+          className="mt-6"
+          icon={Users}
+          title="Aucun employé enregistré pour le moment"
+          hint="Votre fiduciaire ajoute les employés de votre entreprise ; ils apparaîtront ici."
+        />
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card shadow-card">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-gray-500">
+            <thead className="border-b border-border bg-slate-50 text-muted-foreground">
               <tr>
                 <th className="px-4 py-2 font-medium">Nom</th>
                 <th className="px-4 py-2 font-medium">Fonction</th>
@@ -32,20 +37,20 @@ export default async function EspaceEmployesPage() {
                 <th className="px-4 py-2 font-medium">IBAN</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {employes.map((e) => (
                 <tr key={e.id}>
-                  <td className="px-4 py-2 font-medium text-gray-900">
+                  <td className="px-4 py-2 font-medium text-foreground">
                     {e.prenom} {e.nom}
                   </td>
-                  <td className="px-4 py-2 text-gray-600">{e.fonction ?? "—"}</td>
-                  <td className="px-4 py-2 text-gray-600">
+                  <td className="px-4 py-2 text-muted-foreground">{e.fonction ?? "—"}</td>
+                  <td className="px-4 py-2 text-muted-foreground">
                     {e.taux_activite ? `${e.taux_activite}%` : "—"}
                   </td>
-                  <td className="px-4 py-2 text-gray-600">
+                  <td className="px-4 py-2 text-muted-foreground">
                     {e.avs_renseigne ? "✓ renseigné" : "— manquant"}
                   </td>
-                  <td className="px-4 py-2 text-gray-600">
+                  <td className="px-4 py-2 text-muted-foreground">
                     {e.iban_renseigne ? "✓ renseigné" : "— manquant"}
                   </td>
                 </tr>

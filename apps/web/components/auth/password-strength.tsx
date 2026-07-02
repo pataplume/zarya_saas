@@ -68,7 +68,7 @@ export function PasswordStrength({ password }: { password: string }) {
               <div
                 key={i}
                 className={`h-1 flex-1 rounded-full ${
-                  i < niveau.segments ? niveau.barClass : "bg-gray-200"
+                  i < niveau.segments ? niveau.barClass : "bg-border"
                 }`}
               />
             ))}

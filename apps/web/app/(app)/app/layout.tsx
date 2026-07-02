@@ -54,7 +54,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <Sidebar cabinetName={cabinetName} userEmail={userEmail} userRole={userRole} />
 
       {/* Main content — offset de la sidebar sur desktop */}
-      <main className="lg:pl-64">
+      <main className="lg:pl-60">
         {/* Espace pour la topbar mobile */}
         <div className="h-14 lg:hidden" />
         {children}

@@ -15,7 +15,7 @@ export default function Loading() {
       </div>
 
       {/* Zone de réponse */}
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5">
+      <div className="mt-6 rounded-lg border border-slate-200 bg-white p-5">
         <Skeleton className="h-4 w-full bg-slate-100" />
         <Skeleton className="mt-2 h-4 w-5/6 max-w-full bg-slate-100" />
         <Skeleton className="mt-2 h-4 w-2/3 max-w-full bg-slate-100" />
