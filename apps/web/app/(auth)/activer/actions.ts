@@ -21,7 +21,9 @@ const Schema = z
     path: ["confirm"],
   });
 
-export type ActiverState = { error?: string };
+export type ActiverFieldErrors = Partial<Record<"password" | "confirm", string>>;
+
+export type ActiverState = { error?: string; fieldErrors?: ActiverFieldErrors };
 
 export async function definirMotDePasseAction(
   _prev: ActiverState,
@@ -33,7 +35,18 @@ export async function definirMotDePasseAction(
     next: formData.get("next"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.errors[0]?.message ?? "Données invalides" };
+    // Erreurs par champ (1re erreur de chaque champ) pour affichage sous les inputs.
+    const fieldErrors: ActiverFieldErrors = {};
+    for (const issue of parsed.error.issues) {
+      const field = issue.path[0];
+      if ((field === "password" || field === "confirm") && fieldErrors[field] === undefined) {
+        fieldErrors[field] = issue.message;
+      }
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      return { fieldErrors };
+    }
+    return { error: "Données invalides" };
   }
 
   const supabase = await createSupabaseServerClient();

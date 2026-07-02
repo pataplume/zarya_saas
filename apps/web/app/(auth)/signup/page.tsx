@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { PasswordStrength } from "@/components/auth/password-strength";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { signupAction } from "./actions";
 
 export default function SignupPage() {
   const [state, action, isPending] = useActionState(signupAction, {});
+  const [password, setPassword] = useState("");
+  const fieldErrors = state.fieldErrors;
 
   if (state.success) {
     return (
@@ -44,48 +50,65 @@ export default function SignupPage() {
 
       <form action={action} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email professionnel
-          </label>
-          <input
+          <Label htmlFor="email">Email professionnel</Label>
+          <Input
             id="email"
             name="email"
             type="email"
             autoComplete="email"
             required
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+            className="mt-1"
             placeholder="sophie@cabinet-example.ch"
+            aria-invalid={fieldErrors?.email ? true : undefined}
+            aria-describedby={fieldErrors?.email ? "email-error" : undefined}
           />
+          {fieldErrors?.email && (
+            <p id="email-error" className="mt-1 text-xs text-rose-600">
+              {fieldErrors.email}
+            </p>
+          )}
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-            Mot de passe
-          </label>
-          <input
+          <Label htmlFor="password">Mot de passe</Label>
+          <Input
             id="password"
             name="password"
             type="password"
             autoComplete="new-password"
             required
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+            className="mt-1"
             placeholder="12 caractères minimum"
+            onChange={(e) => setPassword(e.target.value)}
+            aria-invalid={fieldErrors?.password ? true : undefined}
+            aria-describedby={fieldErrors?.password ? "password-error" : undefined}
           />
+          <PasswordStrength password={password} />
+          {fieldErrors?.password && (
+            <p id="password-error" className="mt-1 text-xs text-rose-600">
+              {fieldErrors.password}
+            </p>
+          )}
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-            Confirmer le mot de passe
-          </label>
-          <input
+          <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+          <Input
             id="confirmPassword"
             name="confirmPassword"
             type="password"
             autoComplete="new-password"
             required
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+            className="mt-1"
             placeholder="••••••••••••"
+            aria-invalid={fieldErrors?.confirmPassword ? true : undefined}
+            aria-describedby={fieldErrors?.confirmPassword ? "confirm-password-error" : undefined}
           />
+          {fieldErrors?.confirmPassword && (
+            <p id="confirm-password-error" className="mt-1 text-xs text-rose-600">
+              {fieldErrors.confirmPassword}
+            </p>
+          )}
         </div>
 
         <div>
@@ -96,31 +119,46 @@ export default function SignupPage() {
               value="on"
               required
               className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+              aria-invalid={fieldErrors?.acceptCgu ? true : undefined}
+              aria-describedby={fieldErrors?.acceptCgu ? "accept-cgu-error" : undefined}
             />
             <span className="text-sm text-gray-600">
               J&apos;accepte les{" "}
-              <a href="/cgu" className="font-medium text-gray-900 hover:underline">
+              <a
+                href="/cgu"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-gray-900 hover:underline"
+              >
                 Conditions générales d&apos;utilisation
               </a>{" "}
               et la{" "}
-              <a href="/confidentialite" className="font-medium text-gray-900 hover:underline">
+              <a
+                href="/confidentialite"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-gray-900 hover:underline"
+              >
                 politique de confidentialité
               </a>
             </span>
           </label>
+          {fieldErrors?.acceptCgu && (
+            <p id="accept-cgu-error" className="mt-1 text-xs text-rose-600">
+              {fieldErrors.acceptCgu}
+            </p>
+          )}
         </div>
 
-        {state.error && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
-        )}
+        <div aria-live="polite">
+          {state.error && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
+          )}
+        </div>
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-full rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={isPending} className="w-full">
           {isPending ? "Création du compte…" : "Créer mon compte"}
-        </button>
+        </Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-500">
