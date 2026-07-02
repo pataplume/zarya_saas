@@ -12,7 +12,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <h2 className="mb-6 text-xl font-semibold text-gray-900">Connexion</h2>
+      <h2 className="mb-6 text-lg font-semibold tracking-tight text-foreground">Connexion</h2>
 
       <form action={action} className="space-y-4">
         <div>
@@ -44,7 +44,9 @@ export default function LoginPage() {
         {/* Erreur volontairement générique (ne pas révéler quel champ est faux). */}
         <div aria-live="polite">
           {state.error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
+            <p className="rounded-md bg-rose-50 px-3 py-2 text-[13px] text-rose-700">
+              {state.error}
+            </p>
           )}
         </div>
 
@@ -53,9 +55,9 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         Pas encore de compte ?{" "}
-        <Link href="/signup" className="font-medium text-gray-900 hover:underline">
+        <Link href="/signup" className="font-medium text-foreground hover:underline">
           Créer un compte
         </Link>
       </p>

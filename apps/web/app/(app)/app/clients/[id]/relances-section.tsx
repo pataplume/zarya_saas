@@ -1,6 +1,7 @@
 "use client";
 
 import type { CibleRelance } from "@zarya/calendar";
+import { Pause } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type {
@@ -69,13 +70,14 @@ function formatDate(value: string | null): string {
   return d.toLocaleDateString("fr-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-const CARD = "rounded-xl border border-gray-200 bg-white p-4 shadow-sm";
+// Styles alignés sur les composants ui/ (Input h-8 13px, Button h-8/h-7) — tokens hairline/radius.
+const CARD = "rounded-lg border border-border bg-card p-4 shadow-card";
 const INPUT =
-  "w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
+  "w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
 const BTN_PRIMARY =
-  "inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50";
+  "inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-50";
 const BTN_GHOST =
-  "inline-flex items-center rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50";
+  "inline-flex h-7 items-center gap-1.5 rounded-md border border-input bg-card px-2.5 text-xs font-medium text-slate-600 shadow-sm hover:bg-secondary disabled:opacity-50";
 
 export function RelancesSection({
   data,
@@ -155,7 +157,7 @@ export function RelancesSection({
   return (
     <section id="relances" className="mt-10 scroll-mt-20">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Documents attendus & relances
         </h2>
       </div>
@@ -172,8 +174,9 @@ export function RelancesSection({
       {/* Pause active */}
       {data.pause ? (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          <span>
-            ⏸ Relances en pause du {formatDate(data.pause.date_debut)} au{" "}
+          <span className="inline-flex items-center gap-1.5">
+            <Pause className="size-3.5 shrink-0" aria-hidden />
+            Relances en pause du {formatDate(data.pause.date_debut)} au{" "}
             {formatDate(data.pause.date_fin)}
             {data.pause.motif ? ` — ${data.pause.motif}` : ""}
           </span>
@@ -196,7 +199,7 @@ export function RelancesSection({
         {/* Documents attendus */}
         <div className={CARD}>
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Documents attendus
             </h3>
             {peutEcrire && (
@@ -214,7 +217,7 @@ export function RelancesSection({
           {showDocForm && peutEcrire && (
             <form
               action={creerDocument}
-              className="mb-4 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3"
+              className="mb-4 space-y-2 rounded-md border border-border bg-slate-50 p-3"
             >
               <input
                 name="type_document"
@@ -268,16 +271,16 @@ export function RelancesSection({
           )}
 
           {data.documents.length === 0 ? (
-            <p className="text-sm text-slate-400">Aucun document attendu configuré.</p>
+            <p className="text-sm text-muted-foreground">Aucun document attendu configuré.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-border/70">
               {data.documents.map((d) => (
                 <li key={d.id} className="flex items-start justify-between gap-2 py-2.5">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-sm font-medium text-slate-800">{d.type_document}</span>
                       {d.obligatoire && (
-                        <span className="inline-flex items-center rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 ring-1 ring-inset ring-rose-600/20">
+                        <span className="inline-flex items-center rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 ring-1 ring-inset ring-rose-600/20">
                           Obligatoire
                         </span>
                       )}
@@ -309,16 +312,16 @@ export function RelancesSection({
 
         {/* Relances à venir */}
         <div className={CARD}>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Relances à venir
           </h3>
           {!peutEcrire && (
             <p className="mb-2 text-xs text-slate-400">Lecture seule — actions réservées.</p>
           )}
           {data.aVenir.length === 0 ? (
-            <p className="text-sm text-slate-400">Aucune échéance imminente ou en retard.</p>
+            <p className="text-sm text-muted-foreground">Aucune échéance imminente ou en retard.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-border/70">
               {data.aVenir.map((a) => (
                 <li key={a.echeance_id} className="py-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -386,7 +389,7 @@ export function RelancesSection({
           )}
 
           {peutEcrire && (
-            <div className="mt-3 border-t border-slate-100 pt-3">
+            <div className="mt-3 border-t border-border pt-3">
               <button
                 type="button"
                 className={BTN_GHOST}
@@ -402,11 +405,11 @@ export function RelancesSection({
 
       {/* Journal des relances */}
       <div className={`mt-6 ${CARD}`}>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+        <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           Journal des relances
         </h3>
         {data.timeline.length === 0 ? (
-          <p className="text-sm text-slate-400">Aucune relance pour ce client.</p>
+          <p className="text-sm text-muted-foreground">Aucune relance pour ce client.</p>
         ) : (
           <ol className="space-y-2.5">
             {data.timeline.map((r) => (
@@ -453,7 +456,8 @@ function PauseForm({ onSubmit, pending }: { onSubmit: (fd: FormData) => void; pe
     return (
       <div className="mb-4">
         <button type="button" className={BTN_GHOST} onClick={() => setOpen(true)}>
-          ⏸ Mettre les relances en pause
+          <Pause className="size-3.5" aria-hidden />
+          Mettre les relances en pause
         </button>
       </div>
     );
@@ -461,7 +465,7 @@ function PauseForm({ onSubmit, pending }: { onSubmit: (fd: FormData) => void; pe
   return (
     <form
       action={onSubmit}
-      className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3"
+      className="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-border bg-slate-50 p-3"
     >
       <label className="text-xs text-slate-600">
         Du

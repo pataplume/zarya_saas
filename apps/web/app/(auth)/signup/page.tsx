@@ -1,5 +1,6 @@
 "use client";
 
+import { Check } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { PasswordStrength } from "@/components/auth/password-strength";
@@ -16,27 +17,27 @@ export default function SignupPage() {
   if (state.success) {
     return (
       <div className="text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-          <svg
-            className="h-6 w-6 text-green-600"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+          <Check
+            className="h-6 w-6 text-emerald-600"
+            strokeWidth={2}
             role="img"
             aria-label="Succès"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+          />
         </div>
-        <h2 className="text-xl font-semibold text-gray-900">Vérifiez votre email</h2>
-        <p className="mt-2 text-sm text-gray-500">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
+          Vérifiez votre email
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
           Un lien de confirmation a été envoyé à{" "}
-          <span className="font-medium text-gray-900">{state.email}</span>.
+          <span className="font-medium text-foreground">{state.email}</span>.
         </p>
-        <p className="mt-1 text-sm text-gray-500">Cliquez sur le lien pour activer votre compte.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Cliquez sur le lien pour activer votre compte.
+        </p>
         <Link
           href="/login"
-          className="mt-4 inline-block text-sm font-medium text-gray-900 hover:underline"
+          className="mt-4 inline-block text-sm font-medium text-foreground hover:underline"
         >
           Retour à la connexion
         </Link>
@@ -46,7 +47,7 @@ export default function SignupPage() {
 
   return (
     <>
-      <h2 className="mb-6 text-xl font-semibold text-gray-900">Créer un compte</h2>
+      <h2 className="mb-6 text-lg font-semibold tracking-tight text-foreground">Créer un compte</h2>
 
       <form action={action} className="space-y-4">
         <div>
@@ -118,17 +119,17 @@ export default function SignupPage() {
               name="acceptCgu"
               value="on"
               required
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+              className="mt-0.5 h-4 w-4 rounded border-input text-primary focus:ring-ring"
               aria-invalid={fieldErrors?.acceptCgu ? true : undefined}
               aria-describedby={fieldErrors?.acceptCgu ? "accept-cgu-error" : undefined}
             />
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-muted-foreground">
               J&apos;accepte les{" "}
               <a
                 href="/cgu"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-gray-900 hover:underline"
+                className="font-medium text-foreground hover:underline"
               >
                 Conditions générales d&apos;utilisation
               </a>{" "}
@@ -137,7 +138,7 @@ export default function SignupPage() {
                 href="/confidentialite"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-gray-900 hover:underline"
+                className="font-medium text-foreground hover:underline"
               >
                 politique de confidentialité
               </a>
@@ -152,7 +153,9 @@ export default function SignupPage() {
 
         <div aria-live="polite">
           {state.error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
+            <p className="rounded-md bg-rose-50 px-3 py-2 text-[13px] text-rose-700">
+              {state.error}
+            </p>
           )}
         </div>
 
@@ -161,9 +164,9 @@ export default function SignupPage() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         Déjà un compte ?{" "}
-        <Link href="/login" className="font-medium text-gray-900 hover:underline">
+        <Link href="/login" className="font-medium text-foreground hover:underline">
           Se connecter
         </Link>
       </p>

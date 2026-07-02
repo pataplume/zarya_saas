@@ -10,7 +10,7 @@ export default function Loading() {
       {/* Cartes relances en attente */}
       <div className="space-y-4">
         {["rel1", "rel2", "rel3"].map((id) => (
-          <div key={id} className="rounded-lg border border-gray-200 bg-white p-5">
+          <div key={id} className="rounded-lg border border-slate-200 bg-white p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Skeleton className="h-5 w-1/3 max-w-full" />
               <Skeleton className="h-5 w-24 rounded-full bg-slate-100" />

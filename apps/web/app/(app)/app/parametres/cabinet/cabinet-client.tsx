@@ -46,7 +46,7 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={name} className="mb-1 block text-sm font-medium text-gray-700">
+      <label htmlFor={name} className="mb-1 block text-sm font-medium text-slate-700">
         {label}
       </label>
       <input
@@ -59,11 +59,11 @@ function Field({
         maxLength={maxLength}
         className={`w-full rounded-lg border px-3 py-2 text-sm ${
           readOnly
-            ? "border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed"
-            : "border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            ? "border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed"
+            : "border-slate-300 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         }`}
       />
-      {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
     </div>
   );
 }
@@ -83,7 +83,7 @@ function SelectField({
 }) {
   return (
     <div>
-      <label htmlFor={name} className="mb-1 block text-sm font-medium text-gray-700">
+      <label htmlFor={name} className="mb-1 block text-sm font-medium text-slate-700">
         {label}
       </label>
       <select
@@ -93,8 +93,8 @@ function SelectField({
         disabled={readOnly}
         className={`w-full rounded-lg border px-3 py-2 text-sm ${
           readOnly
-            ? "border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed"
-            : "border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            ? "border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed"
+            : "border-slate-300 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         }`}
       >
         {options.map((o) => (
@@ -109,8 +109,8 @@ function SelectField({
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-gray-500">{title}</h2>
+    <div className="rounded-lg border border-border bg-card p-6 shadow-card">
+      <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>
     </div>
   );
@@ -269,7 +269,7 @@ export function CabinetClient({ cabinet: cab, isResponsable }: Props) {
           <button
             type="submit"
             disabled={isPending}
-            className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-50"
           >
             {isPending ? "Enregistrement…" : "Enregistrer les modifications"}
           </button>

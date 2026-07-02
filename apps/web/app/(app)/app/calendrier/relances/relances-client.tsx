@@ -1,9 +1,11 @@
 "use client";
 
+import { Check, Clock, Mail, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useFileKeyboard } from "@/lib/hooks/use-file-keyboard";
 import { envoyerLotAction, envoyerRelanceAction, modifierRelanceAction } from "./actions";
 
@@ -117,13 +119,19 @@ export function RelancesFile({
   }, [cursor, visibles.length]);
 
   if (visibles.length === 0) {
-    return <p className="text-gray-500">Aucune relance en attente. 🎉</p>;
+    return (
+      <EmptyState
+        icon={Mail}
+        title="Aucune relance en attente"
+        hint="Les brouillons de relance générés par ZARYA apparaîtront ici pour validation avant envoi."
+      />
+    );
   }
 
   return (
     <div>
       {message && (
-        <div className="mb-4 rounded bg-gray-100 px-3 py-2 text-sm" role="status">
+        <div className="mb-4 rounded bg-slate-100 px-3 py-2 text-sm" role="status">
           {message}
         </div>
       )}
@@ -138,7 +146,7 @@ export function RelancesFile({
           >
             Envoyer la sélection ({selected.size})
           </button>
-          <span className="ml-auto hidden text-xs text-gray-400 sm:flex">
+          <span className="ml-auto hidden text-xs text-slate-400 sm:flex">
             <span>
               Raccourcis : <kbd className="font-semibold">J</kbd> début ·{" "}
               <kbd className="font-semibold">N</kbd> suivant ·{" "}
@@ -157,7 +165,7 @@ export function RelancesFile({
               rowRefs.current[i] = el;
             }}
             onMouseDown={() => setCursor(i)}
-            className={`rounded border border-gray-200 p-3 transition ${
+            className={`rounded border border-slate-200 p-3 transition ${
               i === cursor ? "ring-2 ring-blue-500" : ""
             }`}
           >
@@ -181,15 +189,15 @@ export function RelancesFile({
                   </Link>{" "}
                   — {r.echeance_libelle ?? "Échéance"}
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-slate-500">
                   À : {r.destinataire_email ?? "— aucun destinataire —"}
                   {r.date_echeance ? ` · échéance ${r.date_echeance}` : ""}
                 </p>
                 <p className="mt-1 text-sm">
-                  <span className="text-gray-400">Sujet :</span> {r.sujet ?? "—"}
+                  <span className="text-slate-400">Sujet :</span> {r.sujet ?? "—"}
                 </p>
                 {expanded.has(r.relance_id) && (
-                  <pre className="mt-2 whitespace-pre-wrap rounded bg-gray-50 p-2 text-sm">
+                  <pre className="mt-2 whitespace-pre-wrap rounded bg-slate-50 p-2 text-sm">
                     {r.corps ?? ""}
                   </pre>
                 )}
@@ -207,25 +215,28 @@ export function RelancesFile({
                         type="button"
                         disabled={pending}
                         onClick={() => envoyer(r.relance_id)}
-                        className="text-sm font-medium text-green-700 disabled:opacity-40"
+                        className="inline-flex items-center gap-1 text-sm font-medium text-green-700 disabled:opacity-40"
                       >
-                        ✓ Envoyer
+                        <Check className="size-3.5" aria-hidden />
+                        Envoyer
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditing(r)}
-                        className="text-sm text-gray-700"
+                        className="inline-flex items-center gap-1 text-sm text-slate-700"
                       >
-                        ✏️ Modifier
+                        <Pencil className="size-3.5" aria-hidden />
+                        Modifier
                       </button>
                     </>
                   )}
                   <button
                     type="button"
                     onClick={() => setDismissed((s) => toggle(s, r.relance_id))}
-                    className="text-sm text-gray-500"
+                    className="inline-flex items-center gap-1 text-sm text-slate-500"
                   >
-                    ⏭ Plus tard
+                    <Clock className="size-3.5" aria-hidden />
+                    Plus tard
                   </button>
                 </div>
               </div>
@@ -288,7 +299,7 @@ function ModifierModal({
             id="sujet"
             name="sujet"
             defaultValue={relance.sujet ?? ""}
-            className="mb-3 w-full rounded border border-gray-300 px-2 py-1 text-sm"
+            className="mb-3 w-full rounded border border-slate-300 px-2 py-1 text-sm"
           />
           <label className="block text-sm font-medium" htmlFor="corps">
             Corps
@@ -298,7 +309,7 @@ function ModifierModal({
             name="corps"
             defaultValue={relance.corps ?? ""}
             rows={8}
-            className="mb-4 w-full rounded border border-gray-300 px-2 py-1 text-sm"
+            className="mb-4 w-full rounded border border-slate-300 px-2 py-1 text-sm"
           />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onClose} className="rounded px-3 py-1.5 text-sm">

@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type DigestCabinet, getDigestCabinet } from "@/lib/dashboard-data";
@@ -119,7 +120,7 @@ async function DigestSection({ cabinetId }: { cabinetId: string }) {
 
   if (totalATraiter === 0) {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+      <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-5">
         <CheckCircle2 className="size-6 shrink-0 text-emerald-600" aria-hidden />
         <div>
           <p className="text-sm font-medium text-emerald-800">Rien à traiter, tout est à jour</p>
@@ -140,10 +141,10 @@ async function DigestSection({ cabinetId }: { cabinetId: string }) {
           <Link
             key={t.id}
             href={t.href}
-            className={`group flex items-start gap-4 rounded-xl border p-4 transition-colors ${
+            className={`group flex items-start gap-4 rounded-lg border p-4 shadow-card transition-colors ${
               aTraiter
                 ? "border-amber-200 bg-amber-50/50 hover:border-amber-300 hover:bg-amber-50"
-                : "border-slate-200 bg-white hover:border-slate-300"
+                : "border-border bg-card hover:border-slate-300"
             }`}
           >
             <Icon
@@ -152,11 +153,13 @@ async function DigestSection({ cabinetId }: { cabinetId: string }) {
               aria-hidden
             />
             <div className="min-w-0 flex-1">
-              <p className={`text-2xl font-bold ${aTraiter ? "text-amber-700" : "text-slate-400"}`}>
+              <p
+                className={`text-2xl font-semibold tabular-nums tracking-tight ${aTraiter ? "text-amber-700" : "text-slate-400"}`}
+              >
                 {formatCompte(t.valeur)}
               </p>
-              <p className="text-sm font-medium text-slate-700">{t.label}</p>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="text-[13px] font-medium text-slate-700">{t.label}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {aTraiter ? (t.detail ?? "À traiter") : "À jour"}
               </p>
             </div>
@@ -173,7 +176,7 @@ function DigestSkeleton() {
       {["documents", "factures", "echeances", "relances", "salaires"].map((id) => (
         <div
           key={id}
-          className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4"
+          className="flex items-start gap-4 rounded-lg border border-border bg-card p-4 shadow-card"
         >
           <Skeleton className="size-8 rounded-full" />
           <div className="flex-1 space-y-2">
@@ -232,18 +235,18 @@ async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
     }));
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="rounded-lg border border-border bg-card shadow-card">
       {clients.length === 0 ? (
-        <p className="p-5 text-sm text-slate-500">Aucun client actif</p>
+        <p className="p-5 text-sm text-muted-foreground">Aucun client actif</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-border/70">
           {clients.map((c) => {
             const badge = c.risque_niveau ? badgeRisque(c.risque_niveau) : null;
             return (
-              <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3">
+              <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
                 <Link
                   href={`/app/clients/${c.id}`}
-                  className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800 hover:text-blue-600"
+                  className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground hover:text-primary"
                 >
                   {c.raison_sociale}
                 </Link>
@@ -256,7 +259,7 @@ async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
                 ) : (
                   <span className="text-xs text-slate-400">Risque —</span>
                 )}
-                <span className="w-28 text-xs text-slate-500">
+                <span className="w-28 text-xs text-muted-foreground tabular-nums">
                   Échéance {formatDateCourte(c.prochaine_echeance)}
                 </span>
                 <span className="w-32 text-xs">
@@ -274,8 +277,8 @@ async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
           })}
         </ul>
       )}
-      <div className="border-t border-slate-100 px-5 py-2.5">
-        <Link href="/app/clients" className="text-xs font-medium text-blue-600 hover:text-blue-700">
+      <div className="border-t border-border px-4 py-2.5">
+        <Link href="/app/clients" className="text-xs font-medium text-primary hover:underline">
           Tous les clients →
         </Link>
       </div>
@@ -285,18 +288,18 @@ async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
 
 function ClientsASuivreSkeleton() {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <ul className="divide-y divide-slate-100">
+    <div className="rounded-lg border border-border bg-card shadow-card">
+      <ul className="divide-y divide-border/70">
         {["a", "b", "c", "d", "e"].map((id) => (
-          <li key={id} className="flex items-center gap-4 px-5 py-3">
+          <li key={id} className="flex items-center gap-4 px-4 py-2.5">
             <Skeleton className="h-4 flex-1" />
-            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-md" />
             <Skeleton className="h-3 w-28" />
             <Skeleton className="h-3 w-32" />
           </li>
         ))}
       </ul>
-      <div className="border-t border-slate-100 px-5 py-2.5">
+      <div className="border-t border-border px-4 py-2.5">
         <Skeleton className="h-3 w-28" />
       </div>
     </div>
@@ -372,26 +375,26 @@ export default async function AppHomePage() {
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
-      {/* ─── En-tête (une ligne : titre + date du jour) ──────────────────────── */}
-      <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h1 className="text-2xl font-bold text-slate-900">
-          Bonjour, <span className="text-slate-600">{prenomAffiche}</span>
-        </h1>
-        <p className="text-sm text-slate-500">{dateDuJour}</p>
-      </div>
+      {/* ─── En-tête (titre + date du jour) ──────────────────────────────────── */}
+      <PageHeader
+        title={
+          <>
+            Bonjour, <span className="text-muted-foreground">{prenomAffiche}</span>
+          </>
+        }
+        actions={<p className="text-[13px] text-muted-foreground">{dateDuJour}</p>}
+      />
 
       {/* ─── Carte cabinet (compacte : identité + stats sur une ligne) ───────── */}
       {cabinetData && (
-        <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-white px-5 py-3 shadow-sm">
-          <span className="truncate text-sm font-semibold text-slate-900">
+        <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border bg-card px-4 py-3 shadow-card">
+          <span className="truncate text-sm font-semibold text-foreground">
             {cabinetData.raison_sociale}
           </span>
           {cabinetData.plan_tarifaire && (
-            <span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-              {planLabel[cabinetData.plan_tarifaire] ?? cabinetData.plan_tarifaire}
-            </span>
+            <Badge>{planLabel[cabinetData.plan_tarifaire] ?? cabinetData.plan_tarifaire}</Badge>
           )}
-          <span className="flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
+          <span className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
             {cabinetData.ide && (
               <span className="flex items-center gap-1">
                 <span className="text-slate-400">IDE</span>
@@ -405,17 +408,19 @@ export default async function AppHomePage() {
             )}
             {cabinetData.forme_juridique && <span>{cabinetData.forme_juridique}</span>}
           </span>
-          <span className="ml-auto flex flex-wrap items-center gap-x-4 text-xs text-slate-500">
-            <Link href="/app/parametres/equipe" className="transition-colors hover:text-blue-600">
-              <span className="font-bold text-slate-900">{nbMembres}</span>{" "}
+          <span className="ml-auto flex flex-wrap items-center gap-x-4 text-xs text-muted-foreground">
+            <Link href="/app/parametres/equipe" className="transition-colors hover:text-primary">
+              <span className="font-semibold text-foreground tabular-nums">{nbMembres}</span>{" "}
               {nbMembres <= 1 ? "membre" : "membres"} →
             </Link>
-            <Link href="/app/clients" className="transition-colors hover:text-blue-600">
-              <span className="font-bold text-slate-900">{nbClientsActifs}</span> client
+            <Link href="/app/clients" className="transition-colors hover:text-primary">
+              <span className="font-semibold text-foreground tabular-nums">{nbClientsActifs}</span>{" "}
+              client
               {nbClientsActifs > 1 ? "s" : ""} actif{nbClientsActifs > 1 ? "s" : ""} →
             </Link>
-            <Link href="/app/documents" className="transition-colors hover:text-blue-600">
-              <span className="font-bold text-slate-900">{nbDocsMois}</span> document
+            <Link href="/app/documents" className="transition-colors hover:text-primary">
+              <span className="font-semibold text-foreground tabular-nums">{nbDocsMois}</span>{" "}
+              document
               {nbDocsMois > 1 ? "s" : ""} ce mois →
             </Link>
           </span>
@@ -424,7 +429,9 @@ export default async function AppHomePage() {
 
       {/* ─── À traiter (digest cabinet, C3.1 — streamé) ─────────────────────── */}
       <section className="mb-4">
-        <h2 className="mb-3 text-base font-semibold text-slate-700">À traiter</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          À traiter
+        </h2>
         <Suspense fallback={<DigestSkeleton />}>
           <DigestSection cabinetId={cabinet_id} />
         </Suspense>
@@ -438,7 +445,7 @@ export default async function AppHomePage() {
             <Link
               key={mod.id}
               href={mod.href}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-[13px] font-medium text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:text-foreground"
             >
               <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />
               {mod.label}
@@ -449,7 +456,9 @@ export default async function AppHomePage() {
 
       {/* ─── Clients à suivre (top 5 par risque — streamé) ──────────────────── */}
       <section>
-        <h2 className="mb-3 text-base font-semibold text-slate-700">Clients à suivre</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Clients à suivre
+        </h2>
         <Suspense fallback={<ClientsASuivreSkeleton />}>
           <ClientsASuivreSection cabinetId={cabinet_id} />
         </Suspense>

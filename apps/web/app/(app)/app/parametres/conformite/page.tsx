@@ -27,11 +27,11 @@ export default async function ConformitePage() {
   if (!isResponsable) {
     return (
       <section className="max-w-3xl">
-        <h1 className="text-xl font-semibold text-gray-900">Demandes RGPD</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-xl font-semibold text-slate-900">Demandes RGPD</h1>
+        <p className="mt-1 text-sm text-slate-500">
           Demandes de suppression de données émises par vos clients.
         </p>
-        <p className="mt-6 rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        <p className="mt-6 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           Seul un responsable du cabinet peut consulter les demandes de suppression des clients.
         </p>
       </section>
@@ -56,52 +56,52 @@ export default async function ConformitePage() {
 
   return (
     <section className="max-w-4xl">
-      <h1 className="text-xl font-semibold text-gray-900">Demandes RGPD</h1>
-      <p className="mt-1 text-sm text-gray-500">
+      <h1 className="text-xl font-semibold text-slate-900">Demandes RGPD</h1>
+      <p className="mt-1 text-sm text-slate-500">
         Demandes de suppression de données émises par vos clients (droit à l'effacement). Le
         traitement définitif relève de votre responsabilité de fiduciaire.
       </p>
 
       {demandes.length === 0 ? (
-        <p className="mt-6 rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        <p className="mt-6 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           Aucune demande de suppression pour le moment.
         </p>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="mt-6 overflow-hidden rounded-lg border border-slate-200">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   Client
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   Demandeur
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   Date
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   Motif
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   Statut
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
+            <tbody className="divide-y divide-slate-100 bg-white">
               {demandes.map((demande) => (
                 <tr key={demande.id}>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                  <td className="px-4 py-3 text-sm font-medium text-slate-900">
                     {demande.client_raison_sociale ?? "Client supprimé"}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
+                  <td className="px-4 py-3 text-sm text-slate-700">
                     {demande.demandeur_email ?? "—"}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-700">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-700">
                     {formatDate(demande.created_at)}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
-                    {demande.motif ? demande.motif : <span className="text-gray-400">—</span>}
+                  <td className="px-4 py-3 text-sm text-slate-700">
+                    {demande.motif ? demande.motif : <span className="text-slate-400">—</span>}
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <span

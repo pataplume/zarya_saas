@@ -48,24 +48,26 @@ export default function EquipePage() {
         <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
           Étape 2 / 3
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Votre équipe</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-slate-900">Votre équipe</h1>
+        <p className="mt-1 text-sm text-slate-500">
           Invitez les membres de votre cabinet. Ils recevront un email pour créer leur compte.
         </p>
       </div>
 
       <form id="form-invitations" action={inviterAction} className="space-y-4">
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="rounded-lg border border-border bg-card shadow-card">
           {/* En-tête tableau */}
-          <div className="grid grid-cols-[1fr_1fr_1fr_140px_40px] gap-3 border-b border-gray-200 px-4 py-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <div className="grid grid-cols-[1fr_1fr_1fr_140px_40px] gap-3 border-b border-slate-200 px-4 py-3">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Email
             </span>
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Prénom
             </span>
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Nom</span>
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Nom
+            </span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Rôle
             </span>
             <span />
@@ -75,7 +77,7 @@ export default function EquipePage() {
           {membres.map((membre, idx) => (
             <div
               key={membre.id}
-              className="grid grid-cols-[1fr_1fr_1fr_140px_40px] gap-3 border-b border-gray-100 px-4 py-3 last:border-0"
+              className="grid grid-cols-[1fr_1fr_1fr_140px_40px] gap-3 border-b border-slate-100 px-4 py-3 last:border-0"
             >
               <div>
                 <input
@@ -86,7 +88,7 @@ export default function EquipePage() {
                     mettreAJour(idx, "email", e.target.value);
                   }}
                   placeholder="jane@cabinet.ch"
-                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
                 {erreurPourLigne(idx) && (
                   <p className="mt-0.5 text-xs text-red-600">{erreurPourLigne(idx)}</p>
@@ -100,7 +102,7 @@ export default function EquipePage() {
                   mettreAJour(idx, "prenom", e.target.value);
                 }}
                 placeholder="Jane"
-                className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <input
                 type="text"
@@ -110,7 +112,7 @@ export default function EquipePage() {
                   mettreAJour(idx, "nom", e.target.value);
                 }}
                 placeholder="Dupont"
-                className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <select
                 name={`membre_${idx}_role`}
@@ -118,7 +120,7 @@ export default function EquipePage() {
                 onChange={(e) => {
                   mettreAJour(idx, "role", e.target.value);
                 }}
-                className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 {ROLES.map((r) => (
                   <option key={r.value} value={r.value}>
@@ -132,7 +134,7 @@ export default function EquipePage() {
                   supprimerMembre(idx);
                 }}
                 aria-label="Supprimer ce membre"
-                className="flex items-center justify-center rounded text-gray-400 hover:text-red-500 focus:outline-none"
+                className="flex items-center justify-center rounded text-slate-400 hover:text-red-500 focus:outline-none"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -174,7 +176,7 @@ export default function EquipePage() {
           <button
             type="submit"
             disabled={isPassing}
-            className="text-sm text-gray-500 underline hover:text-gray-700 focus:outline-none disabled:opacity-50"
+            className="text-sm text-slate-500 underline hover:text-slate-700 focus:outline-none disabled:opacity-50"
           >
             Je suis seul·e, continuer sans inviter
           </button>
@@ -184,7 +186,7 @@ export default function EquipePage() {
           type="submit"
           form="form-invitations"
           disabled={isInviting}
-          className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-50"
         >
           {isInviting ? "Envoi des invitations…" : "Envoyer les invitations →"}
         </button>

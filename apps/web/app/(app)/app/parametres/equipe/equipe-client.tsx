@@ -71,14 +71,14 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
     <div className="space-y-8">
       {/* ── Section membres actifs ─────────────────────────────────────────── */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
           Membres actifs · {membres.length}
         </h2>
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
           {membres.map((membre, idx) => (
             <div
               key={membre.id}
-              className={`flex items-center gap-4 px-4 py-3 ${idx < membres.length - 1 ? "border-b border-gray-100" : ""}`}
+              className={`flex items-center gap-4 px-4 py-3 ${idx < membres.length - 1 ? "border-b border-slate-100" : ""}`}
             >
               {/* Avatar initiales */}
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
@@ -87,15 +87,15 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
 
               {/* Nom + email */}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-gray-900">
+                <p className="truncate text-sm font-medium text-slate-900">
                   {nomAffiche(membre)}
                   {membre.isSelf && (
-                    <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-500">
+                    <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-500">
                       moi
                     </span>
                   )}
                 </p>
-                {membre.email && <p className="truncate text-xs text-gray-400">{membre.email}</p>}
+                {membre.email && <p className="truncate text-xs text-slate-400">{membre.email}</p>}
               </div>
 
               {/* Rôle — select si responsable, texte sinon */}
@@ -110,7 +110,7 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                         const form = e.currentTarget.form;
                         if (form) form.requestSubmit();
                       }}
-                      className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                     >
                       {ROLES.map((r) => (
                         <option key={r.value} value={r.value}>
@@ -120,7 +120,7 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                     </select>
                   </form>
                 ) : (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                     {ROLE_LABELS[membre.role] ?? membre.role}
                   </span>
                 )}
@@ -132,7 +132,7 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                   <input type="hidden" name="membre_id" value={membre.id} />
                   <button
                     type="submit"
-                    className="shrink-0 rounded p-1 text-gray-300 hover:text-red-500 focus:outline-none"
+                    className="shrink-0 rounded p-1 text-slate-300 hover:text-red-500 focus:outline-none"
                     aria-label={`Révoquer ${nomAffiche(membre)}`}
                   >
                     <svg
@@ -160,10 +160,10 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
       {/* ── Invitations en attente ─────────────────────────────────────────── */}
       {invitations.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
             Invitations en attente · {invitations.length}
           </h2>
-          <div className="overflow-hidden rounded-xl border border-amber-200 bg-amber-50 shadow-sm">
+          <div className="overflow-hidden rounded-lg border border-amber-200 bg-amber-50 shadow-sm">
             {invitations.map((inv, idx) => (
               <div
                 key={inv.id}
@@ -176,8 +176,8 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
 
                 {/* Email + nom */}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900">{inv.email}</p>
-                  <p className="truncate text-xs text-gray-500">
+                  <p className="truncate text-sm font-medium text-slate-900">{inv.email}</p>
+                  <p className="truncate text-xs text-slate-500">
                     {[inv.prenom, inv.nom].filter(Boolean).join(" ")} ·{" "}
                     {ROLE_LABELS[inv.role_propose] ?? inv.role_propose}
                   </p>
@@ -186,7 +186,7 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                 {/* Expire */}
                 <div className="shrink-0 text-right">
                   <p className="text-xs text-amber-700">En attente</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-slate-400">
                     Expire le{" "}
                     {inv.token_expire_at.toLocaleDateString("fr-CH", {
                       day: "numeric",
@@ -230,14 +230,14 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
       {/* ── Formulaire d'invitation ────────────────────────────────────────── */}
       {isResponsable && (
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
             Inviter un membre
           </h2>
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="rounded-lg border border-border bg-card p-5 shadow-card">
             <form action={inviterAction} className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr_160px]">
                 <div>
-                  <label htmlFor="email" className="mb-1 block text-xs font-medium text-gray-600">
+                  <label htmlFor="email" className="mb-1 block text-xs font-medium text-slate-600">
                     Email
                   </label>
                   <input
@@ -246,11 +246,11 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                     name="email"
                     required
                     placeholder="jane@cabinet.ch"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
                 <div>
-                  <label htmlFor="prenom" className="mb-1 block text-xs font-medium text-gray-600">
+                  <label htmlFor="prenom" className="mb-1 block text-xs font-medium text-slate-600">
                     Prénom
                   </label>
                   <input
@@ -259,11 +259,11 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                     name="prenom"
                     required
                     placeholder="Jane"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
                 <div>
-                  <label htmlFor="nom" className="mb-1 block text-xs font-medium text-gray-600">
+                  <label htmlFor="nom" className="mb-1 block text-xs font-medium text-slate-600">
                     Nom
                   </label>
                   <input
@@ -272,18 +272,18 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                     name="nom"
                     required
                     placeholder="Dupont"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
                 <div>
-                  <label htmlFor="role" className="mb-1 block text-xs font-medium text-gray-600">
+                  <label htmlFor="role" className="mb-1 block text-xs font-medium text-slate-600">
                     Rôle
                   </label>
                   <select
                     id="role"
                     name="role"
                     defaultValue="collaborateur"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                   >
                     {ROLES.map((r) => (
                       <option key={r.value} value={r.value}>
@@ -302,7 +302,7 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
               <button
                 type="submit"
                 disabled={isInviting}
-                className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-50"
               >
                 {isInviting ? "Envoi…" : "Envoyer l'invitation →"}
               </button>

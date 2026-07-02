@@ -39,14 +39,15 @@ const LABEL_USAGE: Record<string, string> = {
   tva: "TVA",
 };
 
+// Styles alignés sur les composants ui/ (Input h-8 13px, Button h-8) — tokens hairline/radius.
 const FIELD =
-  "mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-blue-500";
+  "mt-1 block w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
 const LABEL = "block text-xs font-medium text-slate-600";
 const BTN_PRIMARY =
-  "inline-flex items-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-60";
+  "inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-60";
 const BTN_DANGER =
-  "inline-flex items-center rounded-lg border border-rose-300 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60";
-const CARD = "rounded-xl border border-gray-200 bg-white p-5 shadow-sm";
+  "inline-flex h-8 items-center rounded-md border border-rose-300 px-3 text-[13px] font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60";
+const CARD = "rounded-lg border border-border bg-card p-4 shadow-card";
 
 function Erreur({ message }: { message?: string | undefined }) {
   if (!message) return null;
@@ -123,7 +124,7 @@ function CompteRow({ compte }: { compte: BancaireDossierData["comptes"][number] 
     {},
   );
   return (
-    <div className="rounded-lg border border-slate-200 p-4">
+    <div className="rounded-md border border-border p-4">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-slate-800">
@@ -335,11 +336,15 @@ export function BancaireSection({
   peutEcrire: boolean;
 }) {
   return (
-    <section id="bancaire" className="space-y-4">
-      <h2 className="text-lg font-semibold text-slate-900">Bancaire & facturation</h2>
-      <p className="text-xs text-slate-500">
-        Les IBAN et identifiants sont chiffrés au repos (Vault) ; seuls des masques sont affichés.
-      </p>
+    <section id="bancaire" className="mt-10 space-y-4 scroll-mt-20">
+      <div>
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Bancaire & facturation
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Les IBAN et identifiants sont chiffrés au repos (Vault) ; seuls des masques sont affichés.
+        </p>
+      </div>
 
       <div className={CARD}>
         <h3 className="text-sm font-semibold text-slate-800">Comptes bancaires</h3>

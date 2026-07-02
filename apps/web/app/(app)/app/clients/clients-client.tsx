@@ -1,11 +1,13 @@
 "use client";
 
-import { Archive, ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
+import { Archive, ChevronDown, ChevronsUpDown, ChevronUp, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useActionState, useCallback, useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { badgeRisque, badgeStatutClient, libelleTypeClient } from "@/lib/libelles";
@@ -167,19 +169,17 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
   }, [clients, filtreRisque, filtreStatut, recherche, tri, dir]);
 
   return (
-    <div className="px-4 py-8 sm:px-6 lg:px-8">
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
       {/* En-tête */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Clients</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Les PME que votre cabinet gère. Cliquez un client pour ouvrir son dossier.
-        </p>
-      </div>
+      <PageHeader
+        title="Clients"
+        description="Les PME que votre cabinet gère. Cliquez un client pour ouvrir son dossier."
+      />
 
       {/* Liste des clients actifs */}
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Clients · {actifs.length}
           </h2>
           <div className="flex flex-wrap gap-2">
@@ -232,18 +232,19 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
         </div>
 
         {actifs.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-card py-12 text-center">
-            <p className="text-sm font-medium text-slate-600">Aucun client à afficher</p>
-            <p className="mt-1 text-xs text-slate-400">
-              {peutEcrire
+          <EmptyState
+            icon={Users}
+            title="Aucun client à afficher"
+            hint={
+              peutEcrire
                 ? "Ajustez les filtres ou ajoutez un client ci-dessous."
-                : "Ajustez les filtres pour voir vos clients."}
-            </p>
-          </div>
+                : "Ajustez les filtres pour voir vos clients."
+            }
+          />
         ) : (
-          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
             {/* En-tête de colonnes (desktop) — cliquables pour trier */}
-            <div className="hidden grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1fr_auto] gap-3 border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
+            <div className="hidden grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1fr_auto] gap-3 border-b border-border bg-slate-50/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:grid">
               <EnteteTriable colonne="raison_sociale" tri={tri} dir={dir} onTri={basculerTri}>
                 Raison sociale
               </EnteteTriable>
@@ -297,17 +298,17 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
       {/* Clients archivés */}
       {archives.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Archivés · {archives.length}
           </h2>
-          <div className="overflow-hidden rounded-xl border border-border bg-slate-50 shadow-sm">
+          <div className="overflow-hidden rounded-lg border border-border bg-slate-50 shadow-card">
             {archives.map((c, idx) => (
               <Link
                 key={c.id}
                 href={`/app/clients/${c.id}`}
                 className={cn(
                   "flex items-center gap-4 px-4 py-3 hover:bg-slate-100",
-                  idx < archives.length - 1 && "border-b border-slate-100",
+                  idx < archives.length - 1 && "border-b border-border/70",
                 )}
               >
                 <div className="min-w-0 flex-1">
@@ -349,7 +350,7 @@ function EnteteTriable({
       onClick={() => onTri(colonne)}
       aria-pressed={actif}
       className={cn(
-        "flex items-center gap-1 text-left font-semibold uppercase tracking-wide hover:text-foreground",
+        "flex items-center gap-1 text-left font-semibold uppercase tracking-wider hover:text-foreground",
         actif && "text-foreground",
       )}
     >
@@ -392,20 +393,20 @@ function DisplayRow({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 items-center gap-3 px-4 py-3 hover:bg-slate-50 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1fr_auto]",
-        !isLast && "border-b border-slate-100",
+        "grid grid-cols-1 items-center gap-3 px-4 py-2.5 hover:bg-slate-50/80 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_0.8fr_1fr_auto]",
+        !isLast && "border-b border-border/70",
       )}
     >
       {/* Raison sociale → lien dossier */}
       <Link href={`/app/clients/${client.id}`} className="min-w-0">
-        <p className="truncate text-sm font-medium text-slate-900 hover:text-primary">
+        <p className="truncate text-[13px] font-medium text-foreground hover:text-primary">
           {client.raison_sociale}
         </p>
         {client.ide && <p className="truncate text-xs text-slate-400 lg:hidden">{client.ide}</p>}
       </Link>
 
       {/* Type */}
-      <span className="text-sm text-slate-600">
+      <span className="text-[13px] text-slate-600">
         {client.type ? libelleTypeClient(client.type) : "—"}
       </span>
 
@@ -420,12 +421,12 @@ function DisplayRow({
       </span>
 
       {/* Prochaine échéance */}
-      <span className="text-sm text-slate-600 tabular-nums">
+      <span className="text-[13px] text-slate-600 tabular-nums">
         {formatDate(client.prochaine_echeance)}
       </span>
 
       {/* Docs manquants */}
-      <span className="text-sm">
+      <span className="text-[13px]">
         {client.nb_documents_manquants > 0 ? (
           <Badge famille="attention">{client.nb_documents_manquants}</Badge>
         ) : (
@@ -434,7 +435,9 @@ function DisplayRow({
       </span>
 
       {/* Dernière activité */}
-      <span className="text-sm text-slate-500">{formatRelatif(client.derniere_activite)}</span>
+      <span className="text-[13px] text-muted-foreground">
+        {formatRelatif(client.derniere_activite)}
+      </span>
 
       {/* Actions (édition / archivage) */}
       <div className="flex shrink-0 items-center gap-2 justify-self-end">
@@ -485,7 +488,7 @@ function EditRow({
   return (
     <form
       action={action}
-      className={cn("space-y-3 bg-blue-50/40 px-4 py-4", !isLast && "border-b border-slate-100")}
+      className={cn("space-y-3 bg-blue-50/40 px-4 py-4", !isLast && "border-b border-border/70")}
     >
       <input type="hidden" name="id" value={client.id} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr_140px]">

@@ -1,7 +1,18 @@
 import { getCurrentUser } from "@zarya/auth";
+import { Banknote } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import { LancerCampagneForm } from "@/components/salaire/campagne-form";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { libelleStatutPeriode } from "@/lib/libelles";
 import { getKpisFiduciaire, getPeriodesFiduciaire } from "@/lib/salaire-fiduciaire-data";
 
@@ -52,18 +63,16 @@ export default async function SalaireFiduciairePage({
 
   return (
     <section className="mx-auto max-w-4xl">
-      <h1 className="text-2xl font-semibold">
-        Salaires — {MOIS_FR[mois - 1]} {annee}
-      </h1>
-      <p className="mt-1 text-sm text-gray-500">
-        Suivi du cycle mensuel de validation des salaires.
-      </p>
+      <PageHeader
+        title={`Salaires — ${MOIS_FR[mois - 1]} ${annee}`}
+        description="Suivi du cycle mensuel de validation des salaires."
+      />
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <LancerCampagneForm annee={annee} mois={mois} />
         <Link
           href="/app/salaire/relances"
-          className="text-sm font-medium text-blue-600 hover:underline"
+          className="text-sm font-medium text-primary hover:text-primary-hover hover:underline"
         >
           Relances à valider →
         </Link>
@@ -71,51 +80,55 @@ export default async function SalaireFiduciairePage({
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
         {cartes.map((c) => (
-          <div key={c.label} className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-2xl font-semibold text-gray-900">{c.valeur}</p>
-            <p className="text-xs text-gray-500">{c.label}</p>
+          <div key={c.label} className="rounded-lg border border-border bg-card p-4 shadow-card">
+            <p className="text-2xl font-semibold text-foreground">{c.valeur}</p>
+            <p className="text-xs text-muted-foreground">{c.label}</p>
           </div>
         ))}
       </div>
 
-      {periodes.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-5 text-sm text-gray-500">
-          Aucune période pour ce mois.
-        </div>
-      ) : (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-gray-200 bg-white">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-gray-500">
-              <tr>
-                <th className="px-4 py-2 font-medium">Client</th>
-                <th className="px-4 py-2 font-medium">Statut</th>
-                <th className="px-4 py-2 font-medium">Employés</th>
-                <th className="px-4 py-2 font-medium">Changements</th>
-                <th className="px-4 py-2 font-medium">Pièces</th>
-                <th className="px-4 py-2 font-medium">Limite</th>
-                <th className="px-4 py-2 text-right font-medium">Export</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
+      <div className="mt-6">
+        {periodes.length === 0 ? (
+          <EmptyState
+            icon={Banknote}
+            title="Aucune période pour ce mois"
+            hint="Lancez la campagne pour générer les périodes de salaire des clients concernés."
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Client</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead>Employés</TableHead>
+                <TableHead>Changements</TableHead>
+                <TableHead>Pièces</TableHead>
+                <TableHead>Limite</TableHead>
+                <TableHead className="text-right">Export</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {periodes.map((p) => {
                 // Exportable dès que validée (ou déjà exportée → ré-export possible).
                 const exportable = p.statut === "validee" || p.statut === "exportee";
                 return (
-                  <tr key={p.id}>
-                    <td className="px-4 py-2 font-medium">
+                  <TableRow key={p.id}>
+                    <TableCell className="font-medium">
                       <Link
                         href={`/app/clients/${p.client_id}`}
-                        className="text-blue-600 hover:text-blue-700 hover:underline"
+                        className="text-primary hover:text-primary-hover hover:underline"
                       >
                         {p.raison_sociale}
                       </Link>
-                    </td>
-                    <td className="px-4 py-2 text-gray-600">{libelleStatutPeriode(p.statut)}</td>
-                    <td className="px-4 py-2 text-gray-600">{p.nb_employes_concernes}</td>
-                    <td className="px-4 py-2 text-gray-600">{p.nb_changements_declares}</td>
-                    <td className="px-4 py-2 text-gray-600">{p.nb_pieces}</td>
-                    <td className="px-4 py-2 text-gray-500">{p.date_limite_validation}</td>
-                    <td className="px-4 py-2 text-right">
+                    </TableCell>
+                    <TableCell>{libelleStatutPeriode(p.statut)}</TableCell>
+                    <TableCell>{p.nb_employes_concernes}</TableCell>
+                    <TableCell>{p.nb_changements_declares}</TableCell>
+                    <TableCell>{p.nb_pieces}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {p.date_limite_validation}
+                    </TableCell>
+                    <TableCell className="text-right">
                       {peutExporter && exportable ? (
                         <a
                           href={`/app/salaire/export/${p.id}?format=xlsx`}
@@ -124,16 +137,16 @@ export default async function SalaireFiduciairePage({
                           Exporter (Excel)
                         </a>
                       ) : (
-                        <span className="text-xs text-gray-300">—</span>
+                        <span className="text-xs text-muted-foreground/50">—</span>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </TableBody>
+          </Table>
+        )}
+      </div>
     </section>
   );
 }

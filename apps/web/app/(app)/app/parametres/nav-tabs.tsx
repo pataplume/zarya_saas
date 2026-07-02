@@ -17,7 +17,7 @@ export function ParametresTabs() {
   const pathname = usePathname();
 
   return (
-    <div className="border-b border-gray-200">
+    <div className="border-b border-slate-200">
       <nav className="-mb-px flex gap-6">
         {TABS.map((tab) => {
           const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
@@ -27,8 +27,8 @@ export function ParametresTabs() {
               href={tab.href}
               className={`whitespace-nowrap border-b-2 pb-3 text-sm font-medium transition-colors ${
                 active
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
               }`}
             >
               {tab.label}

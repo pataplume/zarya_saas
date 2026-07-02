@@ -66,7 +66,7 @@ function ChampCouleur({
           className="w-32 font-mono"
         />
       </div>
-      <p className="mt-1 text-xs text-gray-400">Vide = couleur ZARYA par défaut ({defaut})</p>
+      <p className="mt-1 text-xs text-slate-400">Vide = couleur ZARYA par défaut ({defaut})</p>
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
@@ -109,7 +109,7 @@ export function BrandingClient({ raisonSociale, branding, isResponsable }: Props
     <Card>
       <form action={formAction}>
         <CardHeader>
-          <CardTitle className="uppercase tracking-wide text-gray-500">
+          <CardTitle className="uppercase tracking-wide text-slate-500">
             Personnalisation du portail client
           </CardTitle>
           <CardDescription>
@@ -148,7 +148,7 @@ export function BrandingClient({ raisonSociale, branding, isResponsable }: Props
                 disabled={!isResponsable}
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-slate-400">
                 https:// uniquement. Vide = nom du cabinet affiché à la place du logo.
               </p>
               {state.fieldErrors?.logo_url && (
@@ -161,7 +161,7 @@ export function BrandingClient({ raisonSociale, branding, isResponsable }: Props
           <div>
             <p className="mb-1 text-sm font-medium text-secondary-foreground">Aperçu</p>
             <div className="overflow-hidden rounded-lg border border-border">
-              <div className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-4">
+              <div className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4">
                 <div className="flex items-center gap-3">
                   {logoValide && apercuLogo ? (
                     // biome-ignore lint/performance/noImgElement: aperçu d'un logo externe, pas d'optimisation Next requise.
@@ -171,9 +171,9 @@ export function BrandingClient({ raisonSociale, branding, isResponsable }: Props
                       {raisonSociale}
                     </span>
                   )}
-                  <span className="text-sm text-gray-500">· Votre client PME</span>
+                  <span className="text-sm text-slate-500">· Votre client PME</span>
                 </div>
-                <span className="text-sm text-gray-400">contact@client.ch</span>
+                <span className="text-sm text-slate-400">contact@client.ch</span>
               </div>
               <div className="flex gap-4 bg-white px-4 py-2 text-sm">
                 <span className="font-medium" style={{ color: apercuPrimaire }}>

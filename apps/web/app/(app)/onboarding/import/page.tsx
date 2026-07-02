@@ -60,15 +60,15 @@ export default async function ImportPage() {
         <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
           Étape 3 / 3
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Import de votre portefeuille</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-slate-900">Import de votre portefeuille</h1>
+        <p className="mt-1 text-sm text-slate-500">
           Importez vos clients existants depuis vos logiciels actuels. Cette étape nécessite une
           session d&apos;accompagnement avec l&apos;équipe ZARYA.
         </p>
       </div>
 
       {/* Card principale */}
-      <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm text-center">
+      <div className="rounded-lg border border-border bg-card p-8 shadow-card text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -87,10 +87,10 @@ export default async function ImportPage() {
           </svg>
         </div>
 
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 className="text-lg font-semibold text-slate-900">
           Réservez une session d&apos;import avec notre équipe
         </h2>
-        <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
+        <p className="mt-2 text-sm text-slate-500 max-w-md mx-auto">
           Un consultant ZARYA vous accompagnera pendant 1h pour importer votre portefeuille existant
           (50–200 clients) et configurer votre espace de travail.
         </p>
@@ -101,7 +101,7 @@ export default async function ImportPage() {
             href={bookingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+            className="inline-flex items-center gap-2 inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover"
           >
             Réserver une session
           </a>
@@ -110,27 +110,27 @@ export default async function ImportPage() {
           <form action={activerCabinetAction}>
             <button
               type="submit"
-              className="text-sm text-gray-500 underline hover:text-gray-700 focus:outline-none"
+              className="text-sm text-slate-500 underline hover:text-slate-700 focus:outline-none"
             >
               Accéder à ZARYA maintenant
             </button>
           </form>
         </div>
 
-        <p className="mt-4 text-xs text-gray-400">
+        <p className="mt-4 text-xs text-slate-400">
           Vous pourrez toujours importer votre portefeuille plus tard depuis les paramètres de votre
           cabinet.
         </p>
       </div>
 
       {/* Run E1 — Connecter la messagerie Microsoft 365 (optionnel, depuis l'onboarding) */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-lg border border-border bg-card p-6 shadow-card">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">
+            <h2 className="text-base font-semibold text-slate-900">
               Connectez votre messagerie Microsoft 365
             </h2>
-            <p className="mt-1 text-sm text-gray-500 max-w-md">
+            <p className="mt-1 text-sm text-slate-500 max-w-md">
               Pour que ZARYA ingère les emails de vos clients et envoie les relances depuis votre
               boîte. Optionnel — vous pourrez aussi le faire plus tard depuis les paramètres.
             </p>

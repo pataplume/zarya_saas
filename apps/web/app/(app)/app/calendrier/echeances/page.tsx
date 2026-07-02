@@ -2,6 +2,7 @@ import { getCurrentUser } from "@zarya/auth";
 import { client, db, echeance } from "@zarya/db";
 import { and, asc, count, eq, ilike, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { type EcheanceRow, EcheancesListe } from "./echeances-client";
 
@@ -100,9 +101,8 @@ export default async function EcheancesPage({
   }
 
   return (
-    <main className="mx-auto max-w-5xl p-6">
-      <h1 className="mb-1 text-2xl font-semibold">Échéances</h1>
-      <p className="mb-6 text-sm text-gray-500">{total} échéance(s)</p>
+    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader title="Échéances" description={`${total} échéance(s)`} />
       <EcheancesListe
         echeances={echeances}
         statuts={[...STATUTS]}

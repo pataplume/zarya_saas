@@ -21,11 +21,11 @@ export function UserMenu({ email }: { email: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Menu utilisateur"
-        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-1 text-sm text-gray-500 outline-none transition-colors hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-blue-500 sm:pr-2"
+        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-1 text-sm text-muted-foreground outline-none transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring sm:pr-2"
       >
         <span
           aria-hidden
-          className="flex size-8 items-center justify-center rounded-full bg-gray-200 text-sm font-semibold text-gray-700"
+          className="flex size-8 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground"
         >
           {initiale}
         </span>

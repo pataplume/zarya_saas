@@ -51,7 +51,7 @@ export default async function RelancesPage() {
   return (
     <main className="mx-auto max-w-4xl p-6">
       <h1 className="mb-1 text-2xl font-semibold">Relances à valider</h1>
-      <p className="mb-6 text-sm text-gray-500">
+      <p className="mb-6 text-sm text-slate-500">
         {relances.length} relance{relances.length > 1 ? "s" : ""} en attente
       </p>
       <RelancesFile relances={relances} peutEnvoyer={peutEnvoyer} />

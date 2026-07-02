@@ -82,7 +82,7 @@ export default async function RelancesSalairePage() {
   return (
     <main className="mx-auto max-w-4xl p-6">
       <h1 className="mb-1 text-2xl font-semibold">Relances salaire à valider</h1>
-      <p className="mb-6 text-sm text-gray-500">
+      <p className="mb-6 text-sm text-slate-500">
         {relances.length} relance{relances.length > 1 ? "s" : ""} en attente de validation
       </p>
       <RelancesSalaireFile relances={relances} peutEnvoyer={peutEnvoyer} />

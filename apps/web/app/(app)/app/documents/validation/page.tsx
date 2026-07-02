@@ -1,8 +1,12 @@
 import { getCurrentUser } from "@zarya/auth";
 import { client, db, vInboxAValider } from "@zarya/db";
 import { and, asc, eq, isNull } from "drizzle-orm";
+import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { type InboxItem, ValidationInbox } from "./validation-client";
 
 // File de validation — module Doc (doc.md § 5 & § 7, Bloc B7). L'IA propose,
@@ -58,38 +62,31 @@ export default async function ValidationPage() {
   }));
 
   return (
-    <div className="px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">À valider</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            ZARYA propose un classement pour chaque document. Vérifiez, corrigez si besoin, puis
-            validez.
-          </p>
-        </div>
-        <Link
-          href="/app/documents"
-          className="shrink-0 text-sm font-medium text-slate-500 hover:text-slate-700"
-        >
-          ← Documents
-        </Link>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        title={`À valider${propositions.length > 0 ? ` (${propositions.length})` : ""}`}
+        description="ZARYA propose un classement pour chaque document. Vérifiez, corrigez si besoin, puis validez."
+        actions={
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/app/documents">← Documents</Link>
+          </Button>
+        }
+      />
 
       {!peutValider ? (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+        <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
           Votre rôle (lecteur) ne permet pas de valider des documents.
         </div>
       ) : propositions.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center">
-          <p className="text-sm font-medium text-slate-600">Rien à valider</p>
-          <p className="mt-1 text-xs text-slate-400">
-            Les documents déposés apparaîtront ici une fois classés.
-          </p>
-        </div>
+        <EmptyState
+          icon={CheckCircle2}
+          title="Rien à valider"
+          hint="Les documents déposés apparaîtront ici une fois classés."
+        />
       ) : (
         <>
           {clients.length === 0 && (
-            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               Aucun client n'existe encore pour ce cabinet. La validation attribue un document à un
               client :{" "}
               <Link href="/app/clients" className="font-medium underline hover:text-amber-900">

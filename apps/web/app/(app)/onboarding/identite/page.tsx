@@ -105,18 +105,18 @@ export default function IdentitePage() {
         <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
           Étape 1 / 3
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Identité de votre cabinet</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-slate-900">Identité de votre cabinet</h1>
+        <p className="mt-1 text-sm text-slate-500">
           Nous récupérons les informations publiques depuis le registre du commerce suisse (Zefix).
         </p>
       </div>
 
       {/* Bloc recherche Zefix */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-gray-900">
+      <div className="rounded-lg border border-border bg-card p-6 shadow-card">
+        <h2 className="text-base font-semibold text-slate-900">
           Rechercher votre cabinet dans Zefix
         </h2>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-slate-500">
           Saisissez votre IDE (CHE-XXX.XXX.XXX) ou votre raison sociale.
         </p>
 
@@ -130,9 +130,9 @@ export default function IdentitePage() {
               onChange={(e) => {
                 setConsentement(e.target.checked);
               }}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="mt-0.5 h-4 w-4 rounded border-input text-primary focus:ring-ring"
             />
-            <span className="text-xs text-gray-600">
+            <span className="text-xs text-slate-600">
               J&apos;autorise ZARYA à récupérer les informations publiques de mon cabinet depuis le
               registre du commerce suisse (Zefix).
             </span>
@@ -146,13 +146,13 @@ export default function IdentitePage() {
                 setQuery(e.target.value);
               }}
               placeholder="Ex. : CHE-123.456.789 ou Cabinet Dupont SA"
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="flex-1 rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               required
             />
             <button
               type="submit"
               disabled={isSearching}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-50"
             >
               {isSearching ? "Recherche…" : "Rechercher"}
             </button>
@@ -163,7 +163,7 @@ export default function IdentitePage() {
 
         {/* Résultats */}
         {resultats && resultats.length > 0 && (
-          <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-200">
+          <div className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-200">
             {resultats.map((r) => (
               <button
                 key={r.ehraid}
@@ -172,22 +172,22 @@ export default function IdentitePage() {
                 onClick={() => {
                   void selectionnerResultat(r);
                 }}
-                className={`w-full px-4 py-3 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 ${isLoadingDetail ? "cursor-wait opacity-60" : "hover:bg-blue-50"}`}
+                className={`w-full px-4 py-3 text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring ${isLoadingDetail ? "cursor-wait opacity-60" : "hover:bg-blue-50"}`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{r.raison_sociale}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-sm font-medium text-slate-900">{r.raison_sociale}</p>
+                    <p className="text-xs text-slate-500">
                       {r.forme_juridique}
                       {r.adresse_ville ? ` · ${r.adresse_ville}` : ""}
                       {r.adresse_canton ? ` (${r.adresse_canton})` : ""}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-mono text-xs text-gray-600">{r.ide}</p>
+                    <p className="font-mono text-xs text-slate-600">{r.ide}</p>
                     {r.statut !== "actif" && (
                       <p className="text-xs text-amber-600">
-                        {r.statut === "en_liquidation" ? "⚠ En liquidation" : "❌ Radié"}
+                        {r.statut === "en_liquidation" ? "En liquidation" : "Radié"}
                       </p>
                     )}
                   </div>
@@ -198,7 +198,7 @@ export default function IdentitePage() {
         )}
 
         {resultats?.length === 0 && (
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="mt-4 text-sm text-slate-500">
             Aucun résultat. Saisissez les informations manuellement ci-dessous.
           </p>
         )}
@@ -216,15 +216,15 @@ export default function IdentitePage() {
         <input type="hidden" name="zefix_ehraid" value={selectionne?.ehraid ?? ""} />
         <input type="hidden" name="adresse_canton" value={selectionne?.adresse_canton ?? ""} />
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900">Informations du cabinet</h2>
+        <div className="rounded-lg border border-border bg-card p-6 shadow-card">
+          <h2 className="text-base font-semibold text-slate-900">Informations du cabinet</h2>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {/* Raison sociale */}
             <div className="sm:col-span-2">
               <label
                 htmlFor="raison_sociale"
-                className="mb-1 block text-sm font-medium text-gray-700"
+                className="mb-1 block text-sm font-medium text-slate-700"
               >
                 Raison sociale <span className="text-red-500">*</span>
               </label>
@@ -234,7 +234,7 @@ export default function IdentitePage() {
                 name="raison_sociale"
                 defaultValue={selectionne?.raison_sociale ?? ""}
                 required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
               {identiteState.fieldErrors?.raison_sociale && (
                 <p className="mt-1 text-xs text-red-600">
@@ -245,7 +245,7 @@ export default function IdentitePage() {
 
             {/* IDE */}
             <div>
-              <label htmlFor="ide" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="ide" className="mb-1 block text-sm font-medium text-slate-700">
                 IDE (CHE-XXX.XXX.XXX)
               </label>
               <input
@@ -254,7 +254,7 @@ export default function IdentitePage() {
                 name="ide"
                 defaultValue={selectionne?.ide ?? ""}
                 placeholder="CHE-123.456.789"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
               {identiteState.fieldErrors?.ide && (
                 <p className="mt-1 text-xs text-red-600">{identiteState.fieldErrors.ide}</p>
@@ -265,7 +265,7 @@ export default function IdentitePage() {
             <div>
               <label
                 htmlFor="forme_juridique"
-                className="mb-1 block text-sm font-medium text-gray-700"
+                className="mb-1 block text-sm font-medium text-slate-700"
               >
                 Forme juridique
               </label>
@@ -275,13 +275,16 @@ export default function IdentitePage() {
                 name="forme_juridique"
                 defaultValue={selectionne?.forme_juridique ?? ""}
                 placeholder="SA, Sàrl, Raison individuelle…"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
             {/* Adresse */}
             <div className="sm:col-span-2">
-              <label htmlFor="adresse_rue" className="mb-1 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="adresse_rue"
+                className="mb-1 block text-sm font-medium text-slate-700"
+              >
                 Rue
               </label>
               <input
@@ -289,12 +292,15 @@ export default function IdentitePage() {
                 type="text"
                 name="adresse_rue"
                 defaultValue={selectionne?.adresse_rue ?? ""}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
             <div>
-              <label htmlFor="adresse_npa" className="mb-1 block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="adresse_npa"
+                className="mb-1 block text-sm font-medium text-slate-700"
+              >
                 NPA
               </label>
               <input
@@ -302,14 +308,14 @@ export default function IdentitePage() {
                 type="text"
                 name="adresse_npa"
                 defaultValue={selectionne?.adresse_npa ?? ""}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
             <div>
               <label
                 htmlFor="adresse_ville"
-                className="mb-1 block text-sm font-medium text-gray-700"
+                className="mb-1 block text-sm font-medium text-slate-700"
               >
                 Ville
               </label>
@@ -318,13 +324,13 @@ export default function IdentitePage() {
                 type="text"
                 name="adresse_ville"
                 defaultValue={selectionne?.adresse_ville ?? ""}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
             {/* TVA */}
             <div>
-              <label htmlFor="tva_numero" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="tva_numero" className="mb-1 block text-sm font-medium text-slate-700">
                 Numéro TVA
               </label>
               <input
@@ -332,13 +338,13 @@ export default function IdentitePage() {
                 type="text"
                 name="tva_numero"
                 placeholder="CHE-XXX.XXX.XXX MVA"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
             {/* Téléphone */}
             <div>
-              <label htmlFor="telephone" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="telephone" className="mb-1 block text-sm font-medium text-slate-700">
                 Téléphone
               </label>
               <input
@@ -346,13 +352,13 @@ export default function IdentitePage() {
                 type="tel"
                 name="telephone"
                 placeholder="+41 XX XXX XX XX"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
             {/* Site web */}
             <div className="sm:col-span-2">
-              <label htmlFor="site_web" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="site_web" className="mb-1 block text-sm font-medium text-slate-700">
                 Site web
               </label>
               <input
@@ -360,7 +366,7 @@ export default function IdentitePage() {
                 type="url"
                 name="site_web"
                 placeholder="https://cabinet-dupont.ch"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
               {identiteState.fieldErrors?.site_web && (
                 <p className="mt-1 text-xs text-red-600">{identiteState.fieldErrors.site_web}</p>
@@ -370,9 +376,11 @@ export default function IdentitePage() {
         </div>
 
         {/* Langues opérationnelles */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900">Langues de travail</h2>
-          <p className="mt-1 text-sm text-gray-500">Langues dans lesquelles votre cabinet opère.</p>
+        <div className="rounded-lg border border-border bg-card p-6 shadow-card">
+          <h2 className="text-base font-semibold text-slate-900">Langues de travail</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Langues dans lesquelles votre cabinet opère.
+          </p>
 
           <div className="mt-4 flex flex-wrap gap-3">
             {LANGUES.map((l) => (
@@ -390,9 +398,9 @@ export default function IdentitePage() {
                   onChange={() => {
                     toggleLangue(l.code);
                   }}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
                 />
-                <span className="text-sm text-gray-700">{l.label}</span>
+                <span className="text-sm text-slate-700">{l.label}</span>
               </label>
             ))}
           </div>
@@ -403,7 +411,7 @@ export default function IdentitePage() {
           <div className="mt-4">
             <label
               htmlFor="langue_principale"
-              className="mb-1 block text-sm font-medium text-gray-700"
+              className="mb-1 block text-sm font-medium text-slate-700"
             >
               Langue principale <span className="text-red-500">*</span>
             </label>
@@ -411,7 +419,7 @@ export default function IdentitePage() {
               id="langue_principale"
               name="langue_principale"
               defaultValue="fr"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
             >
               {LANGUES.map((l) => (
                 <option key={l.code} value={l.code}>
@@ -428,7 +436,7 @@ export default function IdentitePage() {
           <button
             type="submit"
             disabled={isSaving}
-            className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-50"
           >
             {isSaving ? "Enregistrement…" : "Continuer →"}
           </button>

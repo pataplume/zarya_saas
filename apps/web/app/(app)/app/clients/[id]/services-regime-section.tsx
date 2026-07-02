@@ -59,13 +59,13 @@ const FREQUENCE_LABEL: Record<string, string> = {
 };
 
 const FIELD =
-  "mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:ring-blue-500";
+  "mt-1 block w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
 const LABEL = "block text-xs font-medium text-slate-600";
 const BTN_PRIMARY =
-  "inline-flex items-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-60";
+  "inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-60";
 const BTN_DANGER =
-  "inline-flex items-center rounded-lg border border-rose-300 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60";
-const CARD = "rounded-xl border border-gray-200 bg-white p-5 shadow-sm";
+  "inline-flex items-center rounded-md border border-rose-300 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60";
+const CARD = "rounded-lg border border-border bg-card p-5 shadow-card";
 
 function Erreur({ message }: { message?: string | undefined }) {
   if (!message) return null;
@@ -342,7 +342,7 @@ export function ServicesRegimeSection({
     // Lecteur : lecture seule (même pattern que DossierEditClient / BancaireSection).
     return (
       <section id="services" className="mt-10 scroll-mt-20">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Services & régime
         </h2>
         <div className={CARD}>
@@ -368,7 +368,7 @@ export function ServicesRegimeSection({
 
   return (
     <section id="services" className="mt-10 scroll-mt-20">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         Services & régime
       </h2>
       <div className={CARD}>

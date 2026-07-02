@@ -11,7 +11,7 @@ export default function Loading() {
       {/* Cartes employés */}
       <div className="mt-6 space-y-3">
         {["e1", "e2", "e3", "e4"].map((id) => (
-          <div key={id} className="rounded-lg border border-gray-200 bg-white p-4">
+          <div key={id} className="rounded-lg border border-slate-200 bg-white p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Skeleton className="h-5 w-36 max-w-full" />

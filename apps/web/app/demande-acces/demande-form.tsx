@@ -3,6 +3,10 @@
 // Run D1 — formulaire public de demande d'accès. Sur succès : message de confirmation.
 import Link from "next/link";
 import { useActionState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { creerDemandeAccesAction, type DemandeState } from "./actions";
 
 const INITIAL: DemandeState = {};
@@ -12,10 +16,10 @@ export function DemandeForm() {
 
   if (state.success) {
     return (
-      <div className="rounded-lg border border-green-200 bg-green-50 p-5 text-sm text-green-800">
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
         <p className="font-medium">Merci, votre demande a bien été envoyée.</p>
         <p className="mt-1">Notre équipe vous recontactera rapidement.</p>
-        <Link href="/" className="mt-3 inline-block text-xs font-medium text-green-700 underline">
+        <Link href="/" className="mt-3 inline-block text-xs font-medium text-emerald-700 underline">
           Retour à l'accueil
         </Link>
       </div>
@@ -28,15 +32,8 @@ export function DemandeForm() {
       <Field id="email" name="email" label="Email professionnel" type="email" required />
       <Field id="cabinet_nom" name="cabinet_nom" label="Nom du cabinet (optionnel)" />
       <div>
-        <label htmlFor="message" className="block text-sm font-medium text-gray-700">
-          Message (optionnel)
-        </label>
-        <textarea
-          id="message"
-          name="message"
-          rows={3}
-          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-        />
+        <Label htmlFor="message">Message (optionnel)</Label>
+        <Textarea id="message" name="message" rows={3} className="mt-1" />
       </div>
       {/* Honeypot anti-spam : caché des humains, rempli par les bots. */}
       <input
@@ -47,14 +44,10 @@ export function DemandeForm() {
         aria-hidden="true"
         className="hidden"
       />
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-      >
+      {state.error && <p className="text-sm text-rose-600">{state.error}</p>}
+      <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Envoi…" : "Envoyer ma demande"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -74,16 +67,8 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700">
-        {label}
-      </label>
-      <input
-        id={id}
-        name={name}
-        type={type}
-        required={required}
-        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-      />
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} name={name} type={type} required={required} className="mt-1" />
     </div>
   );
 }

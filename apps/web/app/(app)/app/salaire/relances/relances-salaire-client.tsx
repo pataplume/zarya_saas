@@ -1,7 +1,9 @@
 "use client";
 
+import { Check, CheckCircle2, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { envoyerLotRelancesSalaireAction, envoyerRelanceSalaireAction } from "./actions";
 
 export interface RelanceSalaireItem {
@@ -60,13 +62,19 @@ export function RelancesSalaireFile({
   }
 
   if (visibles.length === 0) {
-    return <p className="text-gray-500">Aucune relance salaire en attente. 🎉</p>;
+    return (
+      <EmptyState
+        icon={CheckCircle2}
+        title="Aucune relance salaire en attente"
+        hint="Les relances liées aux périodes de salaire en retard apparaîtront ici pour validation avant envoi."
+      />
+    );
   }
 
   return (
     <div>
       {message && (
-        <div className="mb-4 rounded bg-gray-100 px-3 py-2 text-sm" role="status">
+        <div className="mb-4 rounded bg-slate-100 px-3 py-2 text-sm" role="status">
           {message}
         </div>
       )}
@@ -86,7 +94,7 @@ export function RelancesSalaireFile({
 
       <ul className="space-y-3">
         {visibles.map((r) => (
-          <li key={r.relance_id} className="rounded border border-gray-200 p-3">
+          <li key={r.relance_id} className="rounded border border-slate-200 p-3">
             <div className="flex items-start gap-3">
               {peutEnvoyer && (
                 <input
@@ -101,15 +109,15 @@ export function RelancesSalaireFile({
                 <p className="font-medium">
                   {r.client_nom ?? "Client"} — salaires {r.periode_libelle}
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-slate-500">
                   À : {r.destinataire_email ?? "— aucun destinataire actif —"}
                   {r.date_limite ? ` · échéance ${r.date_limite}` : ""}
                 </p>
                 <p className="mt-1 text-sm">
-                  <span className="text-gray-400">Sujet :</span> {r.sujet}
+                  <span className="text-slate-400">Sujet :</span> {r.sujet}
                 </p>
                 {expanded.has(r.relance_id) && (
-                  <pre className="mt-2 whitespace-pre-wrap rounded bg-gray-50 p-2 text-sm">
+                  <pre className="mt-2 whitespace-pre-wrap rounded bg-slate-50 p-2 text-sm">
                     {r.corps}
                   </pre>
                 )}
@@ -126,17 +134,19 @@ export function RelancesSalaireFile({
                       type="button"
                       disabled={pending || !r.destinataire_email}
                       onClick={() => envoyer(r.relance_id)}
-                      className="text-sm font-medium text-green-700 disabled:opacity-40"
+                      className="inline-flex items-center gap-1 text-sm font-medium text-green-700 disabled:opacity-40"
                     >
-                      ✓ Envoyer
+                      <Check className="size-3.5" aria-hidden />
+                      Envoyer
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => setDismissed((s) => toggle(s, r.relance_id))}
-                    className="text-sm text-gray-500"
+                    className="inline-flex items-center gap-1 text-sm text-slate-500"
                   >
-                    ⏭ Plus tard
+                    <Clock className="size-3.5" aria-hidden />
+                    Plus tard
                   </button>
                 </div>
               </div>

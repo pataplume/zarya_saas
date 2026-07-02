@@ -1,10 +1,20 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, ExternalLink, RotateCw } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  QrCode,
+  RotateCw,
+} from "lucide-react";
 import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useOptimistic,
   useRef,
@@ -12,6 +22,10 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { useFileKeyboard } from "@/lib/hooks/use-file-keyboard";
 import { libelleAnomalie } from "@/lib/libelles";
 import { rejeterFactureAction, validerFactureAction } from "./actions";
@@ -155,7 +169,7 @@ export function ChampBadge({ prov }: { prov: ConfianceChampUi | undefined }) {
     return (
       <span
         title="Issu du QR-bill : donnée sûre"
-        className="inline-flex items-center gap-0.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800"
+        className="inline-flex items-center gap-0.5 rounded bg-emerald-50 px-1 py-0.5 text-[10px] font-medium leading-3 text-emerald-700 ring-1 ring-inset ring-emerald-600/20"
       >
         QR ✓
       </span>
@@ -171,8 +185,8 @@ export function ChampBadge({ prov }: { prov: ConfianceChampUi | undefined }) {
       }
       className={
         faible
-          ? "inline-flex items-center gap-0.5 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-800"
-          : "inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800"
+          ? "inline-flex items-center gap-0.5 rounded bg-rose-50 px-1 py-0.5 text-[10px] font-medium leading-3 text-rose-700 ring-1 ring-inset ring-rose-600/20"
+          : "inline-flex items-center gap-0.5 rounded bg-amber-50 px-1 py-0.5 text-[10px] font-medium leading-3 text-amber-700 ring-1 ring-inset ring-amber-600/20"
       }
     >
       {faible ? "IA · à vérifier" : "IA"}
@@ -213,27 +227,27 @@ function ApercuDocument({
             key={version}
             src={`/api/documents/${fichierId}/apercu${version > 0 ? `?v=${version}` : ""}`}
             title={`Aperçu du document — ${titre}`}
-            className="h-[80vh] w-full rounded border border-gray-200 bg-gray-50"
+            className="h-[80vh] w-full rounded-md border border-border bg-secondary"
           />
           <button
             type="button"
             onClick={() => setVersion(Date.now())}
             title="L'aperçu expire après 5 minutes — recharger si la page grise"
-            className="mt-1 inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
+            className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <RotateCw className="h-3 w-3" aria-hidden />
             Recharger l'aperçu
           </button>
         </>
       ) : (
-        <div className="flex h-[80vh] flex-col items-center justify-center gap-2 rounded border border-dashed border-gray-200 bg-gray-50">
-          <p className="text-sm text-gray-500">Aperçu indisponible</p>
+        <div className="flex h-[80vh] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-input bg-secondary">
+          <p className="text-sm text-muted-foreground">Aperçu indisponible</p>
           {fichierId !== null ? (
             <a
               href={`/api/documents/${fichierId}/apercu`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
             >
               <ExternalLink className="h-3.5 w-3.5" aria-hidden />
               Ouvrir le document
@@ -291,7 +305,7 @@ function FactureCard({
     <li
       ref={cardRef}
       onMouseDown={onFocus}
-      className={`rounded border p-4 ${actif ? "border-blue-300 ring-2 ring-blue-500" : "border-gray-200"}`}
+      className={`rounded-lg border bg-card p-4 shadow-card ${actif ? "border-blue-300 ring-2 ring-blue-500" : "border-border"}`}
     >
       <div className="flex items-center justify-between gap-4">
         {peutValider ? (
@@ -302,19 +316,23 @@ function FactureCard({
             disabled={motifLot !== null}
             title={motifLot ?? "Sélectionner pour la validation en lot"}
             aria-label="Sélectionner pour la validation en lot"
-            className="h-4 w-4 shrink-0 self-start rounded border-gray-300 disabled:cursor-not-allowed disabled:opacity-40"
+            className="h-4 w-4 shrink-0 self-start rounded border-input disabled:cursor-not-allowed disabled:opacity-40"
           />
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="font-medium">
+          <p className="font-medium text-foreground">
             {f.fournisseur_raison_sociale || "Fournisseur à saisir"}{" "}
-            {f.qr_facture_detecte ? <span title="QR-facture détectée">🔳</span> : null}
+            {f.qr_facture_detecte ? (
+              <span title="QR-facture détectée">
+                <QrCode className="inline size-3.5 text-emerald-700" aria-hidden />
+              </span>
+            ) : null}
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-[13px] text-muted-foreground">
             {f.client_id ? (
               <Link
                 href={`/app/clients/${f.client_id}`}
-                className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                className="font-medium text-primary hover:text-primary-hover hover:underline"
               >
                 {f.client_nom}
               </Link>
@@ -334,10 +352,10 @@ function FactureCard({
                 return (
                   <li
                     key={a}
-                    className={`text-xs ${fraude ? "font-semibold text-rose-700" : "text-amber-700"}`}
+                    className={`flex items-start gap-1 text-xs ${fraude ? "font-semibold text-rose-700" : "text-amber-700"}`}
                   >
-                    {fraude ? "" : "⚠️ "}
-                    {libelleAnomalie(a)}
+                    {!fraude && <AlertTriangle className="mt-0.5 size-3 shrink-0" aria-hidden />}
+                    <span>{libelleAnomalie(a)}</span>
                   </li>
                 );
               })}
@@ -350,35 +368,35 @@ function FactureCard({
               // En-tête du split : passer à la facture précédente/suivante de la liste
               // visible sans fermer le mode vérification (déplace aussi le curseur clavier).
               <>
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={onPrecedente ?? undefined}
                   disabled={onPrecedente === null}
                   title="Facture précédente"
-                  className="inline-flex items-center gap-1 rounded border px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="disabled:cursor-not-allowed"
                 >
                   <ChevronLeft className="h-4 w-4" aria-hidden />
                   Précédente
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={onSuivante ?? undefined}
                   disabled={onSuivante === null}
                   title="Facture suivante"
-                  className="inline-flex items-center gap-1 rounded border px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="disabled:cursor-not-allowed"
                 >
                   Suivante
                   <ChevronRight className="h-4 w-4" aria-hidden />
-                </button>
+                </Button>
               </>
             ) : null}
-            <button
-              type="button"
-              onClick={onToggleOpen}
-              className="shrink-0 rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-            >
+            <Button type="button" size="sm" onClick={onToggleOpen} className="shrink-0">
               {open ? "Fermer" : "Vérifier & valider"}
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>
@@ -386,7 +404,7 @@ function FactureCard({
       {open && peutValider ? (
         // Split-screen (lg+) : aperçu du document à gauche (sticky), formulaire à droite.
         // Sur mobile, pas d'iframe — un lien « Ouvrir le document » au-dessus du formulaire.
-        <div className="mt-4 border-t pt-4 lg:grid lg:grid-cols-[1fr_1fr] lg:items-start lg:gap-6">
+        <div className="mt-4 border-t border-border pt-4 lg:grid lg:grid-cols-[1fr_1fr] lg:items-start lg:gap-6">
           <ApercuDocument
             fichierId={f.fichier_id}
             typeMime={f.type_mime}
@@ -398,7 +416,7 @@ function FactureCard({
                 href={`/api/documents/${f.fichier_id}/apercu`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mb-3 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline lg:hidden"
+                className="mb-3 inline-flex items-center gap-1 text-sm text-primary hover:underline lg:hidden"
               >
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                 Ouvrir le document
@@ -497,34 +515,29 @@ function FactureCard({
                 def={val(f.taux_tva_principal)}
                 prov={prov("taux_tva_principal")}
               />
-              <label className="flex flex-col gap-1">
-                <span className="flex items-center gap-1.5 text-gray-600">
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor={`devise-${f.id}`}
+                  className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
+                >
                   <span>Devise</span>
                   <ChampBadge prov={prov("devise")} />
-                </span>
-                <select name="devise" defaultValue={f.devise} className="rounded border px-2 py-1">
+                </label>
+                <Select id={`devise-${f.id}`} name="devise" defaultValue={f.devise}>
                   <option>CHF</option>
                   <option>EUR</option>
                   <option>USD</option>
-                </select>
-              </label>
+                </Select>
+              </div>
 
               <div className="col-span-2 flex gap-2">
-                <button
-                  type="submit"
-                  disabled={pending}
-                  className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
-                >
-                  ✓ Valider la facture
-                </button>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={onRejeter}
-                  className="rounded border px-4 py-2 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                >
+                <Button type="submit" disabled={pending}>
+                  <Check className="size-4" aria-hidden />
+                  Valider la facture
+                </Button>
+                <Button type="button" variant="secondary" disabled={pending} onClick={onRejeter}>
                   Rejeter
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -543,36 +556,35 @@ function FactureCard({
  */
 function IbanQrField({ masque }: { masque: string }) {
   const [corriger, setCorriger] = useState(false);
+  const inputId = useId();
   if (corriger) {
     return (
-      <label className="flex flex-col gap-1">
-        <span className="flex items-center gap-1.5 text-gray-600">
+      <div className="flex flex-col gap-1">
+        <label
+          htmlFor={inputId}
+          className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
+        >
           <span>IBAN</span>
           <ChampBadge prov={{ source: "qr", confiance: 1 }} />
-        </span>
-        <input
-          name="fournisseur_iban"
-          defaultValue=""
-          placeholder="CHxx…"
-          className="rounded border px-2 py-1"
-        />
-      </label>
+        </label>
+        <Input id={inputId} name="fournisseur_iban" defaultValue="" placeholder="CHxx…" />
+      </div>
     );
   }
   return (
     <div className="flex flex-col gap-1">
-      <span className="flex items-center gap-1.5 text-gray-600">
+      <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
         <span>IBAN</span>
         <ChampBadge prov={{ source: "qr", confiance: 1 }} />
       </span>
-      <div className="flex items-center justify-between gap-2 rounded border border-emerald-200 bg-emerald-50 px-2 py-1">
-        <span className="font-mono text-emerald-900" title="IBAN issu du QR-bill">
+      <div className="flex h-8 items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1">
+        <span className="font-mono text-[13px] text-emerald-900" title="IBAN issu du QR-bill">
           {masque || "IBAN au coffre"}
         </span>
         <button
           type="button"
           onClick={() => setCorriger(true)}
-          className="shrink-0 text-xs text-blue-600 hover:underline"
+          className="shrink-0 text-xs text-primary hover:underline"
         >
           Corriger
         </button>
@@ -589,23 +601,27 @@ function Field(props: {
   placeholder?: string;
   prov?: ConfianceChampUi | undefined;
 }) {
+  const inputId = useId();
   return (
-    <label className="flex flex-col gap-1">
-      <span className="flex items-center gap-1.5 text-gray-600">
+    <div className="flex flex-col gap-1">
+      <label
+        htmlFor={inputId}
+        className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
+      >
         <span>
           {props.label}
           {props.required ? " *" : ""}
         </span>
         <ChampBadge prov={props.prov} />
-      </span>
-      <input
+      </label>
+      <Input
+        id={inputId}
         name={props.name}
         defaultValue={props.def}
         placeholder={props.placeholder}
         required={props.required}
-        className="rounded border px-2 py-1"
       />
-    </label>
+    </div>
   );
 }
 
@@ -802,14 +818,20 @@ export function FacturesValidation({
   }, [cursor, enAttente.length]);
 
   if (enAttente.length === 0) {
-    return <p className="text-sm text-gray-500">Aucune facture en attente de validation.</p>;
+    return (
+      <EmptyState
+        icon={CheckCircle2}
+        title="Aucune facture en attente de validation"
+        hint="Les factures extraites de vos documents apparaîtront ici pour vérification."
+      />
+    );
   }
   return (
     <div>
       {peutValider ? (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded border border-gray-200 bg-white p-3">
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-2.5 shadow-card">
           <label
-            className="flex items-center gap-2 text-sm text-gray-600"
+            className="flex items-center gap-2 text-[13px] text-secondary-foreground"
             title="Sélectionne les factures sans anomalie dont l'IBAN et les champs obligatoires sont présents"
           >
             <input
@@ -817,25 +839,43 @@ export function FacturesValidation({
               checked={toutSelectionne}
               onChange={toggleTout}
               disabled={eligiblesLot.length === 0}
-              className="h-4 w-4 rounded border-gray-300"
+              className="h-4 w-4 rounded border-input"
             />
             Tout sélectionner
           </label>
-          <button
+          <Button
             type="button"
+            size="sm"
             onClick={validerSelection}
             disabled={selected.size === 0 || pending}
-            className="inline-flex items-center rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="disabled:cursor-not-allowed"
           >
             {pending
               ? "Validation…"
               : `Valider la sélection${selected.size ? ` (${selected.size})` : ""}`}
-          </button>
-          <span className="ml-auto hidden text-xs text-gray-400 sm:inline">
-            Raccourcis : <kbd className="font-semibold">J</kbd> début ·{" "}
-            <kbd className="font-semibold">N</kbd> suivant · <kbd className="font-semibold">P</kbd>{" "}
-            précédent · <kbd className="font-semibold">V</kbd> vérifier ·{" "}
-            <kbd className="font-semibold">R</kbd> rejeter
+          </Button>
+          <span className="ml-auto hidden text-[11px] text-muted-foreground sm:inline">
+            Raccourcis :{" "}
+            <kbd className="rounded border border-border bg-secondary px-1 font-mono text-[10px]">
+              J
+            </kbd>{" "}
+            début ·{" "}
+            <kbd className="rounded border border-border bg-secondary px-1 font-mono text-[10px]">
+              N
+            </kbd>{" "}
+            suivant ·{" "}
+            <kbd className="rounded border border-border bg-secondary px-1 font-mono text-[10px]">
+              P
+            </kbd>{" "}
+            précédent ·{" "}
+            <kbd className="rounded border border-border bg-secondary px-1 font-mono text-[10px]">
+              V
+            </kbd>{" "}
+            vérifier ·{" "}
+            <kbd className="rounded border border-border bg-secondary px-1 font-mono text-[10px]">
+              R
+            </kbd>{" "}
+            rejeter
           </span>
         </div>
       ) : null}

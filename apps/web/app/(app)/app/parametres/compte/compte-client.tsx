@@ -20,8 +20,8 @@ export function CompteClient({
 
   return (
     <section className="max-w-2xl">
-      <h1 className="text-xl font-semibold text-gray-900">Compte du cabinet</h1>
-      <p className="mt-1 text-sm text-gray-500">
+      <h1 className="text-xl font-semibold text-slate-900">Compte du cabinet</h1>
+      <p className="mt-1 text-sm text-slate-500">
         Gestion de la clôture et de la suppression du compte (conformité nLPD/RGPD).
       </p>
 
@@ -55,7 +55,7 @@ export function CompteClient({
                 name="motif"
                 rows={2}
                 disabled={!isResponsable}
-                className="mt-1 w-full rounded-md border border-red-300 px-3 py-2 text-sm disabled:bg-gray-100"
+                className="mt-1 w-full rounded-md border border-red-300 px-3 py-2 text-sm disabled:bg-slate-100"
               />
             </div>
             <div>
@@ -68,7 +68,7 @@ export function CompteClient({
                 name="confirmation"
                 autoComplete="off"
                 disabled={!isResponsable}
-                className="mt-1 w-full rounded-md border border-red-300 px-3 py-2 text-sm disabled:bg-gray-100"
+                className="mt-1 w-full rounded-md border border-red-300 px-3 py-2 text-sm disabled:bg-slate-100"
               />
             </div>
             {state.error && <p className="text-sm text-red-700">{state.error}</p>}

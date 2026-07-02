@@ -34,7 +34,7 @@ export function ActiverForm({ next }: { next: string }) {
             fieldErrors?.password ? "password-hint password-error" : "password-hint"
           }
         />
-        <p id="password-hint" className="mt-1 text-xs text-gray-400">
+        <p id="password-hint" className="mt-1 text-xs text-muted-foreground">
           Au moins 12 caractères.
         </p>
         <PasswordStrength password={password} />
