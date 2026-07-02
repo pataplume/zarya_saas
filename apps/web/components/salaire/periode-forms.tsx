@@ -217,7 +217,20 @@ export function ValiderPeriodeForm({ periode_id }: { periode_id: string }) {
       </div>
       {state.error ? <p className="mt-2 text-sm text-red-600">{state.error}</p> : null}
       {state.success ? (
-        <p className="mt-2 text-sm text-green-600">Période validée. Merci !</p>
+        <div
+          role="status"
+          className="mt-3 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3 duration-300 animate-in fade-in zoom-in-95 motion-reduce:animate-none"
+        >
+          <span
+            aria-hidden
+            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-green-600 text-sm font-bold text-white"
+          >
+            ✓
+          </span>
+          <p className="text-sm font-medium text-green-800">
+            Période validée, votre fiduciaire est informée.
+          </p>
+        </div>
       ) : null}
     </div>
   );

@@ -82,7 +82,7 @@ export default async function EspaceAccueilPage() {
           <Link
             key={l.href}
             href={l.href}
-            className="rounded-lg border border-gray-200 bg-white p-4 text-sm font-medium text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50/40"
+            className="rounded-lg border border-gray-200 bg-white p-4 text-sm font-medium text-gray-700 transition-all duration-150 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/40 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
           >
             <span className="mr-2" aria-hidden>
               {l.icon}
@@ -111,7 +111,7 @@ function ActionCard({
   return (
     <Link
       href={href}
-      className="group rounded-lg border border-amber-200 bg-amber-50 p-5 transition-colors hover:border-amber-300"
+      className="group rounded-lg border border-amber-200 bg-amber-50 p-5 transition-all duration-150 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
       <div className="flex items-center gap-3">
         <span className="text-2xl" aria-hidden>
