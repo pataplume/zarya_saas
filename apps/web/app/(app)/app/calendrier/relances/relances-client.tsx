@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { envoyerLotAction, envoyerRelanceAction, modifierRelanceAction } from "./actions";
 
 export interface RelanceItem {
@@ -34,7 +35,19 @@ export function RelancesFile({
   const [editing, setEditing] = useState<RelanceItem | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const visibles = relances.filter((r) => !dismissed.has(r.relance_id));
+  // Optimistic UI : la carte disparaît dès le clic « Envoyer ». Si l'envoi échoue (aucun
+  // destinataire, reconnexion Microsoft requise…), la fin de la transition annule l'ajout
+  // optimiste (rollback automatique de useOptimistic) → la carte réapparaît et l'erreur est
+  // portée par un toast. En succès, revalidatePath renvoie la liste sans l'item avant la fin
+  // de la transition → pas de réapparition.
+  const [idsEnvoyees, marquerEnvoyees] = useOptimistic<Set<string>, string[]>(
+    new Set(),
+    (prev, ids) => new Set([...prev, ...ids]),
+  );
+
+  const visibles = relances.filter(
+    (r) => !dismissed.has(r.relance_id) && !idsEnvoyees.has(r.relance_id),
+  );
 
   function toggle(set: Set<string>, id: string): Set<string> {
     const next = new Set(set);
@@ -45,8 +58,11 @@ export function RelancesFile({
 
   function envoyer(id: string) {
     startTransition(async () => {
+      marquerEnvoyees([id]);
       const res = await envoyerRelanceAction(id);
-      setMessage(res.success ? "Relance envoyée." : (res.error ?? "Erreur."));
+      // Seul le succès fait disparaître la carte (la disparition EST le feedback, pas de
+      // toast de succès unitaire) ; tout autre statut → rollback + toast d'erreur.
+      if (!res.success) toast.error(res.error ?? "Échec de l'envoi.");
       router.refresh();
     });
   }
@@ -54,8 +70,18 @@ export function RelancesFile({
   function envoyerSelection() {
     const ids = [...selected];
     startTransition(async () => {
+      marquerEnvoyees(ids);
       const res = await envoyerLotAction(ids);
-      setMessage(res.error ?? `${res.envoyees ?? 0} envoyée(s), ${res.echecs ?? 0} échec(s).`);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        // Envoi de LOT : un toast de synthèse (succès et/ou échecs), pas un par relance.
+        // Les relances en échec réapparaissent d'elles-mêmes (rollback + liste revalidée).
+        const envoyees = res.envoyees ?? 0;
+        const echecs = res.echecs ?? 0;
+        if (envoyees > 0) toast.success(`${envoyees} relance(s) envoyée(s).`);
+        if (echecs > 0) toast.error(`${echecs} envoi(s) en échec.`);
+      }
       setSelected(new Set());
       router.refresh();
     });

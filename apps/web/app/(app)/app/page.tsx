@@ -3,6 +3,8 @@ import { cabinet, cabinetMembre, client, db, uploadBrut } from "@zarya/db";
 import { and, count, eq, gte } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { type DigestCabinet, getDigestCabinet } from "@/lib/dashboard-data";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -131,6 +133,83 @@ function construireTuilesDigest(d: DigestCabinet): TuileDigest[] {
   ];
 }
 
+// ─── Digest « à traiter » — section streamée (le reste de la page s'affiche
+// sans attendre la requête la plus lente) ────────────────────────────────────
+
+async function DigestSection({ cabinetId }: { cabinetId: string }) {
+  const digest = await getDigestCabinet(cabinetId);
+  const tuilesDigest = construireTuilesDigest(digest);
+  const totalATraiter = tuilesDigest.reduce((acc, t) => acc + t.valeur, 0);
+
+  if (totalATraiter === 0) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+        <span className="text-2xl" aria-hidden>
+          ✅
+        </span>
+        <div>
+          <p className="text-sm font-medium text-emerald-800">Rien à traiter, tout est à jour</p>
+          <p className="text-xs text-emerald-700">
+            Aucun document, facture, échéance, relance ou salaire en attente.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {tuilesDigest.map((t) => {
+        const aTraiter = t.valeur > 0;
+        return (
+          <Link
+            key={t.id}
+            href={t.href}
+            className={`group flex items-start gap-4 rounded-xl border p-5 transition-colors ${
+              aTraiter
+                ? "border-amber-200 bg-amber-50/50 hover:border-amber-300 hover:bg-amber-50"
+                : "border-slate-200 bg-white hover:border-slate-300"
+            }`}
+          >
+            <span className="text-2xl" aria-hidden>
+              {t.icon}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className={`text-2xl font-bold ${aTraiter ? "text-amber-700" : "text-slate-400"}`}>
+                {formatCompte(t.valeur)}
+              </p>
+              <p className="text-sm font-medium text-slate-700">{t.label}</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {aTraiter ? (t.detail ?? "À traiter") : "À jour"}
+              </p>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+function DigestSkeleton() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {["documents", "factures", "echeances", "relances", "salaires"].map((id) => (
+        <div
+          key={id}
+          className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5"
+        >
+          <Skeleton className="size-8 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-7 w-12" />
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AppHomePage() {
@@ -145,10 +224,11 @@ export default async function AppHomePage() {
   const now = new Date();
   const debutMois = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-  // Données cabinet + KPIs (membres, clients actifs, documents du mois) + digest
-  // « à traiter » en parallèle. Tout est scopé cabinet_id (frontière de sécurité réelle
-  // sur le chemin service-role — ADR 0005 addendum).
-  const [cabinetResult, membresResult, clientsResult, docsResult, digest] = await Promise.all([
+  // Données cabinet + KPIs (membres, clients actifs, documents du mois) en parallèle ;
+  // le digest « à traiter » (requête la plus lourde) est streamé via <Suspense>.
+  // Tout est scopé cabinet_id (frontière de sécurité réelle sur le chemin
+  // service-role — ADR 0005 addendum).
+  const [cabinetResult, membresResult, clientsResult, docsResult] = await Promise.all([
     db
       .select({
         raison_sociale: cabinet.raison_sociale,
@@ -173,11 +253,7 @@ export default async function AppHomePage() {
       .select({ total: count() })
       .from(uploadBrut)
       .where(and(eq(uploadBrut.cabinet_id, cabinet_id), gte(uploadBrut.date_upload, debutMois))),
-    getDigestCabinet(cabinet_id),
   ]);
-
-  const tuilesDigest = construireTuilesDigest(digest);
-  const totalATraiter = tuilesDigest.reduce((acc, t) => acc + t.valeur, 0);
 
   const [cabinetData] = cabinetResult;
   const [membresData] = membresResult;
@@ -268,56 +344,12 @@ export default async function AppHomePage() {
         </div>
       )}
 
-      {/* ─── À traiter (digest cabinet, C3.1) ───────────────────────────────── */}
+      {/* ─── À traiter (digest cabinet, C3.1 — streamé) ─────────────────────── */}
       <section className="mb-8">
         <h2 className="mb-4 text-base font-semibold text-slate-700">À traiter</h2>
-        {totalATraiter === 0 ? (
-          <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-            <span className="text-2xl" aria-hidden>
-              ✅
-            </span>
-            <div>
-              <p className="text-sm font-medium text-emerald-800">
-                Rien à traiter, tout est à jour
-              </p>
-              <p className="text-xs text-emerald-700">
-                Aucun document, facture, échéance, relance ou salaire en attente.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {tuilesDigest.map((t) => {
-              const aTraiter = t.valeur > 0;
-              return (
-                <Link
-                  key={t.id}
-                  href={t.href}
-                  className={`group flex items-start gap-4 rounded-xl border p-5 transition-colors ${
-                    aTraiter
-                      ? "border-amber-200 bg-amber-50/50 hover:border-amber-300 hover:bg-amber-50"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <span className="text-2xl" aria-hidden>
-                    {t.icon}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`text-2xl font-bold ${aTraiter ? "text-amber-700" : "text-slate-400"}`}
-                    >
-                      {formatCompte(t.valeur)}
-                    </p>
-                    <p className="text-sm font-medium text-slate-700">{t.label}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {aTraiter ? (t.detail ?? "À traiter") : "À jour"}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
+        <Suspense fallback={<DigestSkeleton />}>
+          <DigestSection cabinetId={cabinet_id} />
+        </Suspense>
       </section>
 
       {/* ─── Modules ─────────────────────────────────────────────────────────── */}
