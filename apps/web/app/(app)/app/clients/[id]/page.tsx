@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { type ReactNode, Suspense } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { helpAttrs } from "@/lib/help-attrs";
 import {
   badgeStatutClassement,
   badgeStatutFacture,
@@ -181,7 +182,14 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
 
       {/* Fil d'Ariane + retour vers la liste des clients */}
       <nav className="mb-4 text-[13px] text-muted-foreground">
-        <Link href="/app/clients" className="font-medium text-primary hover:underline">
+        <Link
+          href="/app/clients"
+          className="font-medium text-primary hover:underline"
+          {...helpAttrs(
+            "Retour à la liste des clients",
+            "Revient à la liste de tous vos clients, sans enregistrer de modification en cours.",
+          )}
+        >
           ← Clients
         </Link>
         <span className="mx-1.5">/</span>
@@ -244,6 +252,10 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
             key={a.id}
             href={`#${a.id}`}
             className="rounded-md px-2.5 py-1 text-[13px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+            {...helpAttrs(
+              `Aller à « ${a.label} »`,
+              "Saute directement à cette section du dossier, sans recharger la page.",
+            )}
           >
             {a.label}
           </a>
@@ -533,7 +545,14 @@ function SectionShell({
           {titre}
         </h2>
         {lien && (
-          <Link href={lien.href} className="text-[13px] font-medium text-primary hover:underline">
+          <Link
+            href={lien.href}
+            className="text-[13px] font-medium text-primary hover:underline"
+            {...helpAttrs(
+              lien.label,
+              "Ouvre la vue complète de ce module pour ce cabinet, au-delà de l'aperçu du dossier.",
+            )}
+          >
             {lien.label} →
           </Link>
         )}
@@ -600,6 +619,10 @@ function DocumentsSection({ documents }: { documents: DossierDocument[] }) {
                               href={`/app/documents/${d.id}`}
                               className="block truncate text-sm font-medium text-slate-800 hover:text-blue-700"
                               title={d.libelle}
+                              {...helpAttrs(
+                                "Ouvrir la fiche du document",
+                                "Affiche le détail du document classé : données extraites, statut et pièce d'origine.",
+                              )}
                             >
                               {d.libelle}
                             </Link>
@@ -624,6 +647,10 @@ function DocumentsSection({ documents }: { documents: DossierDocument[] }) {
                               <Link
                                 href={`/app/documents/${d.id}`}
                                 className="inline-flex items-center rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm hover:bg-secondary"
+                                {...helpAttrs(
+                                  "Fiche du document",
+                                  "Ouvre la fiche détaillée : données extraites, classement et rattachement au client.",
+                                )}
                               >
                                 Fiche
                               </Link>
@@ -632,6 +659,10 @@ function DocumentsSection({ documents }: { documents: DossierDocument[] }) {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm hover:bg-secondary"
+                                {...helpAttrs(
+                                  "Ouvrir la pièce",
+                                  "Affiche le fichier d'origine (PDF ou image) dans un nouvel onglet.",
+                                )}
                               >
                                 Ouvrir
                               </a>
@@ -944,6 +975,10 @@ function MetriqueCard({
     <Link
       href={href}
       className="block rounded-lg border border-border bg-card p-4 shadow-card transition-colors hover:border-slate-300"
+      {...helpAttrs(
+        titre,
+        "Ouvre la liste correspondante pour traiter ces éléments. Le chiffre indique ce qui reste à faire.",
+      )}
     >
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {titre}

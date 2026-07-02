@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { helpAttrs } from "@/lib/help-attrs";
 import { reclasserDocumentAction } from "./actions";
 
 // Hub Documents — interactivité client minimale : onglets pilotés par ?tab=
@@ -72,6 +73,10 @@ export function HubTabs({
           aria-controls="panneau-documents"
           onClick={() => changerOnglet("documents")}
           className={classeOnglet(tab === "documents")}
+          {...helpAttrs(
+            "Documents reçus",
+            "Affiche vos dépôts et les pièces jointes captées par email, avec leur classement. Cliquez pour ouvrir cet onglet.",
+          )}
         >
           Documents reçus ({nbDocuments})
         </button>
@@ -83,6 +88,10 @@ export function HubTabs({
           aria-controls="panneau-emails"
           onClick={() => changerOnglet("emails")}
           className={classeOnglet(tab === "emails")}
+          {...helpAttrs(
+            "Emails reçus",
+            "Liste les emails captés depuis votre boîte Microsoft connectée. Cliquez pour ouvrir cet onglet et suivre les pièces jointes classées.",
+          )}
         >
           Emails reçus ({nbEmails})
         </button>
@@ -120,7 +129,15 @@ export function LienOngletDocuments({
 }) {
   const changerOnglet = useChangerOnglet();
   return (
-    <button type="button" onClick={() => changerOnglet("documents")} className={className}>
+    <button
+      type="button"
+      onClick={() => changerOnglet("documents")}
+      className={className}
+      {...helpAttrs(
+        "Voir ces documents",
+        "Bascule sur l'onglet Documents pour retrouver les pièces jointes classées de cet email.",
+      )}
+    >
       {children}
     </button>
   );
@@ -155,6 +172,10 @@ export function ReclasserButton({ uploadBrutId }: { uploadBrutId: string }) {
         onClick={onClick}
         disabled={isPending}
         className="disabled:cursor-wait"
+        {...helpAttrs(
+          "Relancer le classement",
+          "Redemande à ZARYA d'analyser un dépôt bloqué ou en erreur. Le document repart en classement et réapparaît à valider si l'IA réussit.",
+        )}
       >
         {isPending ? "Reclassement…" : "Reclasser"}
       </Button>

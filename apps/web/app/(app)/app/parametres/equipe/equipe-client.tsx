@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { helpAttrs } from "@/lib/help-attrs";
 import {
   annulerInvitationAction,
   changerRoleAction,
@@ -111,6 +112,10 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                         if (form) form.requestSubmit();
                       }}
                       className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                      {...helpAttrs(
+                        "Changer le rôle",
+                        "Modifie les droits du membre (responsable, gestionnaire salaires, collaborateur, lecteur). Le changement s'applique dès la sélection.",
+                      )}
                     >
                       {ROLES.map((r) => (
                         <option key={r.value} value={r.value}>
@@ -134,6 +139,10 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                     type="submit"
                     className="shrink-0 rounded p-1 text-slate-300 hover:text-red-500 focus:outline-none"
                     aria-label={`Révoquer ${nomAffiche(membre)}`}
+                    {...helpAttrs(
+                      "Révoquer le membre",
+                      "Retire l'accès de ce membre au cabinet. Il ne pourra plus se connecter ; son historique d'actions reste conservé.",
+                    )}
                   >
                     <svg
                       className="h-4 w-4"
@@ -203,6 +212,10 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                       type="submit"
                       className="shrink-0 rounded p-1 text-amber-400 hover:text-red-500 focus:outline-none"
                       aria-label={`Annuler l'invitation de ${inv.email}`}
+                      {...helpAttrs(
+                        "Annuler l'invitation",
+                        "Retire l'invitation en attente. Le lien envoyé par email devient invalide ; vous pourrez réinviter la personne plus tard.",
+                      )}
                     >
                       <svg
                         className="h-4 w-4"
@@ -284,6 +297,10 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                     name="role"
                     defaultValue="collaborateur"
                     className="w-full rounded-md border border-input bg-card px-2.5 py-1.5 text-[13px] text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                    {...helpAttrs(
+                      "Rôle du membre",
+                      "Choisit les droits attribués à l'invité : responsable, gestionnaire salaires, collaborateur ou lecteur (lecture seule).",
+                    )}
                   >
                     {ROLES.map((r) => (
                       <option key={r.value} value={r.value}>
@@ -303,6 +320,10 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
                 type="submit"
                 disabled={isInviting}
                 className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-50"
+                {...helpAttrs(
+                  "Inviter un membre",
+                  "Envoie une invitation par email avec le rôle choisi. Le membre définit son mot de passe à la 1ʳᵉ connexion.",
+                )}
               >
                 {isInviting ? "Envoi…" : "Envoyer l'invitation →"}
               </button>

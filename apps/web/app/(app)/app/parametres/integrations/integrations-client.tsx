@@ -5,6 +5,7 @@
 // pas de next-intl câblé — convention parametres/*).
 import type { MicrosoftIntegrationParams, MicrosoftIntegrationStatut } from "@zarya/integrations";
 import { useActionState } from "react";
+import { helpAttrs } from "@/lib/help-attrs";
 import { acknowledgeRegionAction, disconnectMicrosoftAction } from "./actions";
 
 const CONNECT_URL = "/api/integrations/microsoft/connect";
@@ -118,6 +119,10 @@ function ReconnectBanner({
         <a
           href={CONNECT_URL}
           className="mt-3 inline-block rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700"
+          {...helpAttrs(
+            "Reconnecter Microsoft 365",
+            "Relance l'autorisation Microsoft pour rétablir l'envoi et l'ingestion des emails du cabinet, suspendus depuis l'expiration de la connexion.",
+          )}
         >
           Reconnecter Microsoft 365
         </a>
@@ -187,12 +192,16 @@ function ConnectButton({
   reconnect: boolean;
 }) {
   const label = reconnect ? "Reconnecter Microsoft 365" : "Connecter Microsoft 365";
+  const aide = reconnect
+    ? "Relance l'autorisation Microsoft pour rétablir l'envoi et l'ingestion des emails du cabinet. Réservé au responsable."
+    : "Autorise ZARYA à envoyer et lire les emails depuis la boîte Microsoft 365 du cabinet (relances, notifications). Réservé au responsable.";
   if (!isResponsable) {
     return (
       <button
         type="button"
         disabled
         className="cursor-not-allowed rounded-lg bg-slate-200 px-4 py-2 text-sm font-medium text-slate-400"
+        {...helpAttrs(label, aide)}
       >
         {label}
       </button>
@@ -202,6 +211,7 @@ function ConnectButton({
     <a
       href={CONNECT_URL}
       className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover"
+      {...helpAttrs(label, aide)}
     >
       {label}
     </a>
@@ -216,6 +226,10 @@ function DisconnectButton({ isResponsable }: { isResponsable: boolean }) {
         type="submit"
         disabled={!isResponsable || pending}
         className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+        {...helpAttrs(
+          "Déconnecter Microsoft 365",
+          "Révoque l'accès de ZARYA à la boîte du cabinet. L'envoi et l'ingestion des emails s'arrêtent jusqu'à une reconnexion. Réservé au responsable.",
+        )}
       >
         {pending ? "Déconnexion…" : "Déconnecter"}
       </button>
@@ -251,6 +265,10 @@ function RegionBanner({
             type="submit"
             disabled={pending}
             className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            {...helpAttrs(
+              "Accuser réception de la région",
+              "Confirme que vous avez pris connaissance de l'hébergement des emails hors UE côté Microsoft. La bannière ne réapparaîtra plus.",
+            )}
           >
             {pending ? "Enregistrement…" : "J'ai compris, continuer"}
           </button>

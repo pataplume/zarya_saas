@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { helpAttrs } from "@/lib/help-attrs";
 import { cn } from "@/lib/utils";
 
 type PaginationProps = {
@@ -40,6 +41,10 @@ export function Pagination({ page, total, parPage, hrefPour }: PaginationProps) 
         <Link
           href={hrefPour(precedent)}
           aria-disabled={page <= 1}
+          {...helpAttrs(
+            "Page précédente",
+            "Affiche la page précédente. La position et les filtres sont conservés dans l'URL (partageable, résiste au rafraîchissement).",
+          )}
           className={cn(
             "inline-flex h-8 items-center gap-1 rounded-lg border border-input bg-card px-2.5 font-medium text-secondary-foreground shadow-sm transition-colors hover:bg-secondary",
             page <= 1 && lienDesactive,
@@ -51,6 +56,10 @@ export function Pagination({ page, total, parPage, hrefPour }: PaginationProps) 
         <Link
           href={hrefPour(suivant)}
           aria-disabled={page >= nbPages}
+          {...helpAttrs(
+            "Page suivante",
+            "Affiche la page suivante. La position et les filtres sont conservés dans l'URL (partageable, résiste au rafraîchissement).",
+          )}
           className={cn(
             "inline-flex h-8 items-center gap-1 rounded-lg border border-input bg-card px-2.5 font-medium text-secondary-foreground shadow-sm transition-colors hover:bg-secondary",
             page >= nbPages && lienDesactive,

@@ -4,6 +4,7 @@
 // interne, convention parametres/*). L'effet réel du flag dépend du kill-switch global
 // EXTRACTION_MODE (ADR 0023) — on l'affiche honnêtement à l'utilisateur.
 import { useActionState } from "react";
+import { helpAttrs } from "@/lib/help-attrs";
 import { toggleExtractionIaAction } from "./actions";
 
 interface CoutCabinet {
@@ -103,6 +104,9 @@ function ToggleButton({
   const [state, action, pending] = useActionState(toggleExtractionIaAction, {});
   const next = cabinetActive ? "false" : "true";
   const label = cabinetActive ? "Désactiver l'IA" : "Activer l'IA";
+  const aide = cabinetActive
+    ? "Repasse ce cabinet en validation 100 % manuelle : plus aucune extraction ni classement automatique. Réservé au responsable."
+    : "Active l'extraction et le classement automatiques. L'IA propose toujours ; un humain valide. La consommation est suivie ici. Réservé au responsable.";
   return (
     <form action={action}>
       <input type="hidden" name="active" value={next} />
@@ -112,6 +116,7 @@ function ToggleButton({
         className={`rounded-lg px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 ${
           cabinetActive ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
         }`}
+        {...helpAttrs(label, aide)}
       >
         {pending ? "…" : label}
       </button>

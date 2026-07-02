@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { helpAttrs } from "@/lib/help-attrs";
 import { type SauvegarderCabinetState, sauvegarderCabinetAction } from "./actions";
 
 type CabinetData = {
@@ -270,6 +271,10 @@ export function CabinetClient({ cabinet: cab, isResponsable }: Props) {
             type="submit"
             disabled={isPending}
             className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-50"
+            {...helpAttrs(
+              "Enregistrer les modifications",
+              "Sauvegarde les coordonnées et préférences du cabinet. Les champs issus de Zefix (IDE, forme juridique) ne sont pas modifiables.",
+            )}
           >
             {isPending ? "Enregistrement…" : "Enregistrer les modifications"}
           </button>

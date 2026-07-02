@@ -129,3 +129,15 @@
     animation: none;
   }
 }
+
+/* Affordance quand le mode guide est actif : curseur d'aide + liseré indigo au
+   survol/focus des éléments annotés (data-help-title). L'outline ne décale rien. */
+.zarya-guide-on [data-help-title] {
+  cursor: help;
+}
+
+.zarya-guide-on [data-help-title]:hover,
+.zarya-guide-on [data-help-title]:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.5);
+  outline-offset: 2px;
+}

@@ -8,6 +8,7 @@ import {
   type RechercheState,
   rechercheAction,
 } from "@/app/(app)/app/recherche/actions";
+import { helpAttrs } from "@/lib/help-attrs";
 
 const INITIAL: RechercheState = {};
 
@@ -45,11 +46,19 @@ export function RechercheClient({ questionInitiale }: { questionInitiale?: strin
           placeholder="Posez une question sur vos documents…"
           aria-label="Question"
           className="flex-1 rounded-lg border border-input bg-card px-4 py-2 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          {...helpAttrs(
+            "Votre question",
+            "Écrivez une question en langage naturel (ex. « quelle est la dernière facture de X ? »). ZARYA cherche la réponse dans les documents de votre cabinet.",
+          )}
         />
         <button
           type="submit"
           disabled={pending}
           className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
+          {...helpAttrs(
+            "Recherche documentaire IA",
+            "Posez une question en langage naturel ; la réponse cite les documents-sources de votre cabinet.",
+          )}
         >
           {pending ? "Recherche…" : "Rechercher"}
         </button>
@@ -103,6 +112,10 @@ function Feedback({ requeteId }: { requeteId: string }) {
         disabled={pending}
         className="rounded px-2 py-0.5 text-sm hover:bg-gray-100 disabled:opacity-50"
         aria-label="Utile"
+        {...helpAttrs(
+          "Réponse utile",
+          "Signale que cette réponse vous a aidé. Votre retour sert à améliorer la recherche du cabinet.",
+        )}
       >
         👍
       </button>
@@ -113,6 +126,10 @@ function Feedback({ requeteId }: { requeteId: string }) {
         disabled={pending}
         className="rounded px-2 py-0.5 text-sm hover:bg-gray-100 disabled:opacity-50"
         aria-label="Pas utile"
+        {...helpAttrs(
+          "Réponse insatisfaisante",
+          "Signale que cette réponse ne convient pas. Votre retour sert à améliorer la recherche du cabinet.",
+        )}
       >
         👎
       </button>

@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { helpAttrs } from "@/lib/help-attrs";
 import {
   badgeStatutClassement,
   libelleAnomalie,
@@ -96,7 +97,14 @@ export default async function FicheDocumentPage({ params }: { params: Promise<{ 
         actions={
           <>
             <Badge famille={statutClassement.famille}>{statutClassement.label}</Badge>
-            <Button asChild size="sm">
+            <Button
+              asChild
+              size="sm"
+              {...helpAttrs(
+                "Ouvrir le document",
+                "Ouvre le fichier d'origine dans un nouvel onglet pour le consulter.",
+              )}
+            >
               <a
                 href={`/api/documents/${doc.fichier_physique_id}/apercu`}
                 target="_blank"
@@ -129,12 +137,28 @@ export default async function FicheDocumentPage({ params }: { params: Promise<{ 
       {/* Liens transverses */}
       <section className="mt-8 flex flex-wrap gap-2">
         {(extraction_facture || facture_finale) && (
-          <Button asChild variant="secondary" size="sm">
+          <Button
+            asChild
+            variant="secondary"
+            size="sm"
+            {...helpAttrs(
+              "Voir dans Factures",
+              "Ouvre la file de validation des factures pour retrouver et traiter la facture issue de ce document.",
+            )}
+          >
             <Link href="/app/factures/validation">→ Voir dans Factures</Link>
           </Button>
         )}
         {echeance_couverte && (
-          <Button asChild variant="secondary" size="sm">
+          <Button
+            asChild
+            variant="secondary"
+            size="sm"
+            {...helpAttrs(
+              "Échéance couverte",
+              "Ce document répond à une échéance attendue du client. Cliquez pour ouvrir le calendrier des échéances.",
+            )}
+          >
             <Link
               href="/app/calendrier/echeances"
               title={`${echeance_couverte.libelle} · ${formatDate(echeance_couverte.date_echeance)}`}
@@ -144,7 +168,15 @@ export default async function FicheDocumentPage({ params }: { params: Promise<{ 
             </Link>
           </Button>
         )}
-        <Button asChild variant="secondary" size="sm">
+        <Button
+          asChild
+          variant="secondary"
+          size="sm"
+          {...helpAttrs(
+            "Ouvrir le dossier client",
+            "Affiche la fiche du client rattaché à ce document : coordonnées, échéances et documents associés.",
+          )}
+        >
           <Link href={`/app/clients/${doc.client_id}`}>→ Dossier client</Link>
         </Button>
       </section>

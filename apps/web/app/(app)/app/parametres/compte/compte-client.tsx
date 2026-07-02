@@ -2,6 +2,7 @@
 
 // Run I1 — zone de danger : demande de suppression du compte cabinet (responsable).
 import { useActionState } from "react";
+import { helpAttrs } from "@/lib/help-attrs";
 import { demanderSuppressionCabinetAction, type SuppressionCabinetState } from "./actions";
 
 const INITIAL: SuppressionCabinetState = {};
@@ -76,6 +77,10 @@ export function CompteClient({
               type="submit"
               disabled={!isResponsable || pending}
               className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              {...helpAttrs(
+                "Demander la suppression",
+                "Enregistre la demande et clôture l'accès du cabinet. Le traitement définitif est réalisé sous 30 jours ; certaines données sont conservées puis anonymisées. Réservé au responsable.",
+              )}
             >
               {pending ? "Enregistrement…" : "Demander la suppression"}
             </button>
