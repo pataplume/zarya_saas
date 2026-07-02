@@ -1,11 +1,12 @@
 "use client";
 
-import { HelpCircle, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
 // ─── Mode guide : survol d'un élément → carte futuriste « ce que ça fait /
-// comment l'utiliser ». Activable via un toggle dans le header (persisté). ────
+// comment l'utiliser ». Provider monté au niveau du shell app ; toggle dans la
+// sidebar (au-dessus de Paramètres). ────────────────────────────────────────
 
 type Placement = "haut" | "bas";
 
@@ -117,43 +118,6 @@ function HintCard({ hint }: { hint: ActiveHint }) {
         </div>
       </div>
     </div>
-  );
-}
-
-// ─── Toggle du header ─────────────────────────────────────────────────────────
-
-export function HelpModeToggle() {
-  const { enabled, toggle } = useHelpMode();
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={enabled}
-      onClick={toggle}
-      className={cn(
-        "inline-flex shrink-0 items-center gap-2 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
-        enabled
-          ? "border-indigo-400/50 bg-indigo-500/10 text-indigo-200"
-          : "border-white/15 text-slate-400 hover:border-white/25 hover:text-slate-200",
-      )}
-    >
-      <HelpCircle className="size-3.5" aria-hidden />
-      Mode guide
-      <span
-        className={cn(
-          "relative h-3.5 w-6 rounded-full transition-colors",
-          enabled ? "bg-indigo-500" : "bg-white/15",
-        )}
-        aria-hidden
-      >
-        <span
-          className={cn(
-            "absolute top-0.5 size-2.5 rounded-full bg-white transition-all",
-            enabled ? "left-3" : "left-0.5",
-          )}
-        />
-      </span>
-    </button>
   );
 }
 

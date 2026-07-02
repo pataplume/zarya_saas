@@ -2,14 +2,12 @@ import { getCurrentUser } from "@zarya/auth";
 import { cabinet, db, sessionOnboardingFiduciaire } from "@zarya/db";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { CommandPalette } from "@/components/layout/command-palette";
-import { Sidebar } from "@/components/layout/sidebar";
+import { AppShell } from "@/components/layout/app-shell";
 
 /**
  * Layout du dashboard principal — exige que l'onboarding soit terminé.
  * Le parent (app)/layout.tsx a déjà vérifié l'authentification.
- *
- * Récupère les données cabinet pour alimenter la sidebar.
+ * Le chrome (sidebar repliable, mode guide, palette) vit dans <AppShell>.
  */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -49,16 +47,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const userRole = (user?.app_metadata.role as string | undefined) ?? "collaborateur";
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <CommandPalette />
-      <Sidebar cabinetName={cabinetName} userEmail={userEmail} userRole={userRole} />
-
-      {/* Main content — offset de la sidebar sur desktop */}
-      <main className="lg:pl-60">
-        {/* Espace pour la topbar mobile */}
-        <div className="h-14 lg:hidden" />
-        {children}
-      </main>
-    </div>
+    <AppShell cabinetName={cabinetName} userEmail={userEmail} userRole={userRole}>
+      {children}
+    </AppShell>
   );
 }
