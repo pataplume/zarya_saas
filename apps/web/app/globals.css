@@ -1,1 +1,70 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Tokens du design system ZARYA (Lot UX 1).
+ * Les valeurs reprennent la palette historique (slate + bleu) : les classes
+ * Tailwind brutes existantes restent valides ; les composants `components/ui/`
+ * consomment les alias sémantiques ci-dessous. Le jour où un dark mode est
+ * introduit, seul ce bloc :root change.
+ */
+:root {
+  --background: #f8fafc; /* slate-50 — fond de page */
+  --foreground: #0f172a; /* slate-900 — texte principal */
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #2563eb; /* blue-600 — actions principales */
+  --primary-hover: #1d4ed8; /* blue-700 */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9; /* slate-100 */
+  --secondary-foreground: #334155; /* slate-700 */
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b; /* slate-500 */
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #e11d48; /* rose-600 */
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0; /* slate-200 */
+  --input: #cbd5e1; /* slate-300 — bordures de champs */
+  --ring: #3b82f6; /* blue-500 — focus */
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 0.25rem);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 0.25rem);
+  --radius-xl: calc(var(--radius) + 0.5rem);
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+  }
+}
