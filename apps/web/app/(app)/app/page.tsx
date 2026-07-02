@@ -1,38 +1,39 @@
 import { getCurrentUser } from "@zarya/auth";
-import { cabinet, cabinetMembre, client, db, sql, uploadBrut } from "@zarya/db";
-import { and, count, eq, gte } from "drizzle-orm";
+import { cabinet, cabinetMembre, client, db, evenement, sql, uploadBrut } from "@zarya/db";
+import { and, count, desc, eq, gte } from "drizzle-orm";
 import {
+  Activity,
+  AlertTriangle,
   ArrowRight,
+  Bot,
   Briefcase,
-  Calendar,
+  CalendarPlus,
   CheckCircle2,
+  FileCheck2,
+  FileSignature,
   FileText,
   type LucideIcon,
-  Mail,
-  Receipt,
-  Search,
+  MailCheck,
+  Plug,
+  ShieldCheck,
+  StickyNote,
+  TrendingUp,
+  UserPlus,
   Users,
 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type DigestCabinet, getDigestCabinet } from "@/lib/dashboard-data";
 import { badgeRisque } from "@/lib/libelles";
 import { cn } from "@/lib/utils";
+import { DashboardAskBar } from "./dashboard-ask-bar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Module = {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  href: string;
-};
-
-// Ligne de la file de travail : libellé FR + icône (jamais couleur seule) + lien.
 type LigneDigest = {
   id: string;
   icon: LucideIcon;
@@ -42,20 +43,8 @@ type LigneDigest = {
   href: string;
 };
 
-// ─── Modules (raccourcis compacts — mêmes icônes lucide que la sidebar) ───────
+// ─── File de travail ─────────────────────────────────────────────────────────
 
-const MODULES: Module[] = [
-  { id: "clients", label: "Clients", icon: Users, href: "/app/clients" },
-  { id: "documents", label: "Documents", icon: FileText, href: "/app/documents" },
-  { id: "calendrier", label: "Calendrier", icon: Calendar, href: "/app/calendrier/echeances" },
-  { id: "factures", label: "Factures", icon: Receipt, href: "/app/factures/validation" },
-  { id: "salaires", label: "Salaires", icon: Briefcase, href: "/app/salaire" },
-  { id: "recherche", label: "Recherche", icon: Search, href: "/app/recherche" },
-];
-
-// ─── File de travail (digest « à traiter », C3.1) ────────────────────────────
-
-// Compteur abrégé : au-delà de 999 on plafonne l'affichage à « 999+ ».
 function formatCompte(n: number): string {
   if (n >= 1000) return "999+";
   return String(n);
@@ -65,26 +54,26 @@ function construireLignesDigest(d: DigestCabinet): LigneDigest[] {
   const echeancesTotal = d.echeances_en_retard + d.echeances_a_venir;
   return [
     {
+      id: "factures",
+      icon: FileText,
+      valeur: d.factures_a_valider,
+      label: "factures à valider",
+      detail: d.factures_a_valider > 0 ? "Extraction IA prête à confirmer" : null,
+      href: "/app/factures/validation",
+    },
+    {
       id: "documents",
       icon: FileText,
       valeur: d.documents_a_valider,
-      label: "Documents à valider",
+      label: "documents à valider",
       detail: d.documents_a_valider > 0 ? "Classement IA à confirmer" : null,
       href: "/app/documents",
     },
     {
-      id: "factures",
-      icon: Receipt,
-      valeur: d.factures_a_valider,
-      label: "Factures à valider",
-      detail: d.factures_a_valider > 0 ? "Extraction IA à confirmer" : null,
-      href: "/app/factures/validation",
-    },
-    {
       id: "echeances",
-      icon: Calendar,
+      icon: CalendarPlus,
       valeur: echeancesTotal,
-      label: "Échéances à traiter",
+      label: "échéances à traiter",
       detail:
         d.echeances_en_retard > 0
           ? `Dont ${formatCompte(d.echeances_en_retard)} en retard`
@@ -95,9 +84,9 @@ function construireLignesDigest(d: DigestCabinet): LigneDigest[] {
     },
     {
       id: "relances",
-      icon: Mail,
+      icon: MailCheck,
       valeur: d.relances_a_valider,
-      label: "Relances à valider",
+      label: "relances à valider",
       detail: d.relances_a_valider > 0 ? "Brouillons à envoyer" : null,
       href: "/app/calendrier/relances",
     },
@@ -105,29 +94,30 @@ function construireLignesDigest(d: DigestCabinet): LigneDigest[] {
       id: "salaires",
       icon: Briefcase,
       valeur: d.periodes_salaire_a_traiter,
-      label: "Périodes salaire à traiter",
+      label: "périodes salaire à traiter",
       detail: d.periodes_salaire_a_traiter > 0 ? "À valider ou en retard" : null,
       href: "/app/salaire",
     },
   ];
 }
 
-// ─── File de travail — section streamée (le reste de la page s'affiche sans
-// attendre la requête la plus lente) ────────────────────────────────────────
+// ─── « À faire maintenant » — un focus qui domine, le reste résumé ────────────
 
-async function DigestSection({ cabinetId }: { cabinetId: string }) {
+async function FocusSection({ cabinetId }: { cabinetId: string }) {
   const digest = await getDigestCabinet(cabinetId);
   const lignes = construireLignesDigest(digest);
-  const totalATraiter = lignes.reduce((acc, t) => acc + t.valeur, 0);
+  const total = lignes.reduce((acc, l) => acc + l.valeur, 0);
 
-  if (totalATraiter === 0) {
+  if (total === 0) {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-card">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-          <CheckCircle2 className="size-5 text-emerald-600" aria-hidden />
+      <div className="flex items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6 shadow-card">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100">
+          <CheckCircle2 className="size-6 text-emerald-600" aria-hidden />
         </span>
         <div>
-          <p className="text-sm font-medium text-emerald-900">Tout est à jour</p>
+          <p className="text-lg font-semibold tracking-tight text-emerald-900">
+            Tout est à jour, rien ne t'attend
+          </p>
           <p className="text-[13px] text-emerald-700">
             Aucun document, facture, échéance, relance ou salaire en attente.
           </p>
@@ -136,102 +126,88 @@ async function DigestSection({ cabinetId }: { cabinetId: string }) {
     );
   }
 
-  // Ce qui demande attention (valeur > 0) remonte en tête et prend le poids visuel ;
-  // le reste passe en pied, compact et discret.
   const attention = lignes.filter((l) => l.valeur > 0).sort((a, b) => b.valeur - a.valeur);
-  const aJour = lignes.filter((l) => l.valeur === 0);
+  const focus = attention[0];
+  if (!focus) return null;
+  const FocusIcon = focus.icon;
+  // Résumé des autres catégories (hors focus) — chips compacts.
+  const autres = lignes.filter((l) => l.id !== focus.id);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
-      {/* Bandeau récap */}
-      <div className="flex items-center gap-2 border-b border-border bg-slate-50/60 px-4 py-2">
-        <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 px-2 py-0.5 text-[13px] font-semibold text-amber-800 tabular-nums">
-          {formatCompte(totalATraiter)}
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+      {/* Focus — l'action qui domine */}
+      <div className="flex flex-col gap-4 border-l-[3px] border-amber-400 bg-amber-50/40 p-5 sm:flex-row sm:items-center">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+          <FocusIcon className="size-7" strokeWidth={1.75} aria-hidden />
         </span>
-        <span className="text-[13px] text-muted-foreground">
-          élément{totalATraiter > 1 ? "s" : ""} en attente de validation
-        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-2xl font-semibold tracking-tight text-foreground">
+            <span className="tabular-nums">{formatCompte(focus.valeur)}</span>{" "}
+            <span className="font-medium">{focus.label}</span>
+          </p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">{focus.detail ?? "À traiter"}</p>
+        </div>
+        <Link
+          href={focus.href}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-slate-800"
+        >
+          Traiter maintenant
+          <ArrowRight className="size-4" aria-hidden />
+        </Link>
       </div>
 
-      {/* Lignes prioritaires */}
-      <ul>
-        {attention.map((l) => {
+      {/* Le reste, résumé */}
+      <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+        {autres.map((l) => {
           const Icon = l.icon;
+          const actif = l.valeur > 0;
           return (
-            <li key={l.id}>
-              <Link
-                href={l.href}
-                className="group flex items-center gap-4 border-l-2 border-amber-400 bg-amber-50/40 px-4 py-3 transition-colors hover:bg-amber-50"
-              >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-                  <Icon className="size-5" strokeWidth={1.75} aria-hidden />
-                </span>
-                <span className="w-12 shrink-0 text-2xl font-semibold tabular-nums tracking-tight text-amber-700">
-                  {formatCompte(l.valeur)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-foreground">{l.label}</span>
-                  <span className="block text-[13px] text-muted-foreground">
-                    {l.detail ?? "À traiter"}
-                  </span>
-                </span>
-                <ArrowRight
-                  className="size-4 shrink-0 text-amber-400 transition-transform group-hover:translate-x-0.5 group-hover:text-amber-600"
-                  aria-hidden
-                />
-              </Link>
-            </li>
+            <Link
+              key={l.id}
+              href={l.href}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[13px] transition-colors",
+                actif
+                  ? "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-300"
+                  : "border-border bg-card text-slate-500 hover:border-slate-300",
+              )}
+            >
+              <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />
+              <span className="capitalize">{l.label}</span>
+              {actif ? (
+                <span className="font-semibold tabular-nums">{formatCompte(l.valeur)}</span>
+              ) : (
+                <CheckCircle2 className="size-3.5 text-emerald-500" aria-hidden />
+              )}
+            </Link>
           );
         })}
-      </ul>
-
-      {/* Ce qui est à jour (compact) */}
-      {aJour.length > 0 && (
-        <ul className="divide-y divide-border/60 border-t border-border">
-          {aJour.map((l) => {
-            const Icon = l.icon;
-            return (
-              <li key={l.id}>
-                <Link
-                  href={l.href}
-                  className="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-slate-50"
-                >
-                  <Icon className="size-4 shrink-0 text-slate-400" strokeWidth={1.75} aria-hidden />
-                  <span className="flex-1 text-[13px] text-slate-500">{l.label}</span>
-                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
-                    <CheckCircle2 className="size-3.5" aria-hidden />à jour
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function DigestSkeleton() {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
-      <div className="border-b border-border bg-slate-50/60 px-4 py-2">
-        <Skeleton className="h-5 w-48" />
       </div>
-      {["a", "b"].map((id) => (
-        <div key={id} className="flex items-center gap-4 px-4 py-3">
-          <Skeleton className="size-10 rounded-lg" />
-          <Skeleton className="h-7 w-10" />
-          <div className="flex-1 space-y-1.5">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-3 w-28" />
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
 
-// ─── KPI (cartes métriques) ──────────────────────────────────────────────────
+function FocusSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+      <div className="flex items-center gap-4 p-5">
+        <Skeleton className="size-14 rounded-2xl" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-7 w-64" />
+          <Skeleton className="h-3 w-40" />
+        </div>
+        <Skeleton className="h-10 w-40 rounded-lg" />
+      </div>
+      <div className="flex gap-2 border-t border-border px-4 py-3">
+        {["a", "b", "c", "d"].map((id) => (
+          <Skeleton key={id} className="h-7 w-32 rounded-md" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── KPI ─────────────────────────────────────────────────────────────────────
 
 function MetricCard({
   label,
@@ -262,8 +238,7 @@ function MetricCard({
   );
 }
 
-// ─── Clients à suivre — top 5 par risque (vue crm.v_client_dashboard, scopée
-// cabinet_id) — section streamée ─────────────────────────────────────────────
+// ─── Clients à suivre — top 5 par risque (vue crm.v_client_dashboard) ─────────
 
 type ClientASuivre = {
   id: string;
@@ -274,7 +249,6 @@ type ClientASuivre = {
   nb_documents_manquants: number;
 };
 
-// Couleur de la pastille de risque (le badge porte déjà symbole + texte).
 const RISQUE_DOT: Record<string, string> = {
   faible: "bg-emerald-500",
   moyen: "bg-amber-500",
@@ -290,8 +264,8 @@ function formatDateCourte(value: string | null): string {
 }
 
 async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
-  // Sécurité (ADR 0005 addendum) : chemin service-role → la frontière réelle est
-  // le filtre cabinet_id dans le WHERE, jamais une valeur issue d'URL/body.
+  // Sécurité (ADR 0005 addendum) : le filtre cabinet_id dans le WHERE est la
+  // frontière réelle sur le chemin service-role, jamais une valeur d'URL/body.
   const rows = (await db.execute(sql`
     SELECT id, raison_sociale, risque_score, risque_niveau,
            prochaine_echeance, nb_documents_manquants
@@ -315,17 +289,19 @@ async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
     }));
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-card">
       {clients.length === 0 ? (
-        <p className="p-6 text-center text-[13px] text-muted-foreground">Aucun client actif</p>
+        <div className="flex flex-1 items-center justify-center p-6">
+          <p className="text-[13px] text-muted-foreground">Aucun client actif</p>
+        </div>
       ) : (
         <table className="w-full text-[13px]">
           <thead className="border-b border-border bg-slate-50/60">
             <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-2 font-semibold">Client</th>
               <th className="px-4 py-2 font-semibold">Risque</th>
-              <th className="hidden px-4 py-2 font-semibold sm:table-cell">Prochaine échéance</th>
-              <th className="px-4 py-2 font-semibold">Docs manquants</th>
+              <th className="hidden px-4 py-2 font-semibold sm:table-cell">Échéance</th>
+              <th className="px-4 py-2 font-semibold">Docs</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">
@@ -365,9 +341,7 @@ async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
                   </td>
                   <td className="px-4 py-2.5">
                     {c.nb_documents_manquants > 0 ? (
-                      <Badge famille="attention">
-                        {c.nb_documents_manquants} manquant{c.nb_documents_manquants > 1 ? "s" : ""}
-                      </Badge>
+                      <Badge famille="attention">{c.nb_documents_manquants}</Badge>
                     ) : (
                       <span className="text-slate-400">à jour</span>
                     )}
@@ -378,7 +352,7 @@ async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
           </tbody>
         </table>
       )}
-      <div className="border-t border-border px-4 py-2.5">
+      <div className="mt-auto border-t border-border px-4 py-2.5">
         <Link
           href="/app/clients"
           className="inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"
@@ -395,21 +369,133 @@ function ClientsASuivreSkeleton() {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
       <div className="border-b border-border bg-slate-50/60 px-4 py-2">
-        <Skeleton className="h-4 w-full max-w-md" />
+        <Skeleton className="h-4 w-full max-w-sm" />
       </div>
       <ul className="divide-y divide-border/60">
         {["a", "b", "c", "d", "e"].map((id) => (
           <li key={id} className="flex items-center gap-4 px-4 py-2.5">
             <Skeleton className="h-4 flex-1" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="hidden h-3 w-24 sm:block" />
-            <Skeleton className="h-5 w-20 rounded-md" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-5 w-10 rounded-md" />
           </li>
         ))}
       </ul>
       <div className="border-t border-border px-4 py-2.5">
         <Skeleton className="h-3 w-28" />
       </div>
+    </div>
+  );
+}
+
+// ─── Fil d'activité (crm.evenement, scopé cabinet) ───────────────────────────
+
+const EVENEMENT_META: Record<string, { icon: LucideIcon; label: string }> = {
+  document_recu: { icon: FileText, label: "Document reçu" },
+  document_classe: { icon: FileCheck2, label: "Document classé" },
+  relance_envoyee: { icon: MailCheck, label: "Relance envoyée" },
+  echeance_creee: { icon: CalendarPlus, label: "Échéance créée" },
+  service_active: { icon: ShieldCheck, label: "Service activé" },
+  note_ajoutee: { icon: StickyNote, label: "Note ajoutée" },
+  mandat_signe: { icon: FileSignature, label: "Mandat signé" },
+  anomalie_facture: { icon: AlertTriangle, label: "Anomalie de facture" },
+  score_recalcule: { icon: TrendingUp, label: "Risque recalculé" },
+  cabinet_membre_ajoute: { icon: UserPlus, label: "Membre ajouté" },
+  integration_configuree: { icon: Plug, label: "Intégration configurée" },
+};
+
+function formatRelatifCourt(value: Date): string {
+  const mins = Math.floor((Date.now() - value.getTime()) / 60_000);
+  if (mins < 1) return "à l'instant";
+  if (mins < 60) return `il y a ${mins} min`;
+  const heures = Math.floor(mins / 60);
+  if (heures < 24) return `il y a ${heures} h`;
+  const jours = Math.floor(heures / 24);
+  if (jours === 1) return "hier";
+  if (jours < 7) return `il y a ${jours} j`;
+  return value.toLocaleDateString("fr-CH", { day: "2-digit", month: "2-digit" });
+}
+
+async function ActiviteSection({ cabinetId }: { cabinetId: string }) {
+  const rows = await db
+    .select({
+      id: evenement.id,
+      type: evenement.type,
+      acteur_type: evenement.acteur_type,
+      description: evenement.description,
+      created_at: evenement.created_at,
+      client_nom: client.raison_sociale,
+    })
+    .from(evenement)
+    .leftJoin(client, eq(evenement.client_id, client.id))
+    .where(eq(evenement.cabinet_id, cabinetId))
+    .orderBy(desc(evenement.created_at))
+    .limit(7);
+
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon={Activity}
+        title="Rien à signaler"
+        hint="L'activité de votre cabinet (documents reçus, relances, classements IA) s'affichera ici."
+        className="h-full"
+      />
+    );
+  }
+
+  return (
+    <div className="h-full overflow-hidden rounded-xl border border-border bg-card shadow-card">
+      <ul className="divide-y divide-border/60">
+        {rows.map((e) => {
+          const meta = EVENEMENT_META[e.type] ?? { icon: Activity, label: e.type };
+          const Icon = meta.icon;
+          const parIa = e.acteur_type === "ia";
+          return (
+            <li key={e.id} className="flex items-start gap-3 px-4 py-2.5">
+              <span
+                className={cn(
+                  "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg",
+                  parIa ? "bg-blue-50 text-primary" : "bg-slate-100 text-slate-500",
+                )}
+              >
+                <Icon className="size-4" strokeWidth={1.75} aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] text-foreground">
+                  {e.description ?? meta.label}
+                  {e.client_nom && <span className="text-muted-foreground"> · {e.client_nom}</span>}
+                </p>
+                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {parIa && (
+                    <span className="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1 py-px font-medium text-primary">
+                      <Bot className="size-3" aria-hidden />
+                      IA
+                    </span>
+                  )}
+                  {formatRelatifCourt(new Date(e.created_at))}
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function ActiviteSkeleton() {
+  return (
+    <div className="h-full overflow-hidden rounded-xl border border-border bg-card shadow-card">
+      <ul className="divide-y divide-border/60">
+        {["a", "b", "c", "d", "e"].map((id) => (
+          <li key={id} className="flex items-start gap-3 px-4 py-2.5">
+            <Skeleton className="size-7 rounded-lg" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-3.5 w-full" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -424,23 +510,17 @@ export default async function AppHomePage() {
     redirect("/onboarding");
   }
 
-  // Début du mois courant (UTC) pour le compteur « Documents ce mois ».
   const now = new Date();
   const debutMois = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-  // Données cabinet + KPIs (membres, clients actifs, documents du mois) en parallèle ;
-  // la file de travail et les clients à suivre (requêtes les plus lourdes) sont
-  // streamés via <Suspense>. Tout est scopé cabinet_id (frontière de sécurité
-  // réelle sur le chemin service-role — ADR 0005 addendum).
+  // Cabinet + KPIs (requêtes légères) résolus tout de suite ; le focus, les
+  // clients à suivre et le fil d'activité (plus lourds) sont streamés via
+  // <Suspense>. Tout est scopé cabinet_id (ADR 0005 addendum).
   const [cabinetResult, membresResult, clientsResult, docsResult] = await Promise.all([
     db
       .select({
         raison_sociale: cabinet.raison_sociale,
-        ide: cabinet.ide,
-        adresse_ville: cabinet.adresse_ville,
-        adresse_canton: cabinet.adresse_canton,
         plan_tarifaire: cabinet.plan_tarifaire,
-        forme_juridique: cabinet.forme_juridique,
       })
       .from(cabinet)
       .where(eq(cabinet.id, cabinet_id))
@@ -470,9 +550,7 @@ export default async function AppHomePage() {
     enterprise: "Enterprise",
   };
 
-  // Prénom à partir de l'email (avant le @)
   const prenomAffiche = user.email?.split("@")[0] ?? "vous";
-
   const dateDuJour = now.toLocaleDateString("fr-CH", {
     weekday: "long",
     day: "numeric",
@@ -481,38 +559,30 @@ export default async function AppHomePage() {
   });
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
-      {/* ─── En-tête (identité cabinet + salutation + date) ──────────────────── */}
-      <PageHeader
-        title={
-          <>
-            Bonjour, <span className="text-muted-foreground">{prenomAffiche}</span>
-          </>
-        }
-        description={
-          cabinetData ? (
-            <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-              <span className="font-medium text-slate-700">{cabinetData.raison_sociale}</span>
-              {cabinetData.plan_tarifaire && (
-                <Badge>{planLabel[cabinetData.plan_tarifaire] ?? cabinetData.plan_tarifaire}</Badge>
-              )}
-              {cabinetData.ide && (
-                <span className="font-mono text-slate-500">{cabinetData.ide}</span>
-              )}
-              {(cabinetData.adresse_ville ?? cabinetData.adresse_canton) && (
-                <span className="text-muted-foreground">
-                  {[cabinetData.adresse_ville, cabinetData.adresse_canton]
-                    .filter(Boolean)
-                    .join(", ")}
-                </span>
-              )}
-            </span>
-          ) : undefined
-        }
-        actions={
-          <p className="text-[13px] text-muted-foreground first-letter:uppercase">{dateDuJour}</p>
-        }
-      />
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+      {/* ─── Salutation éditoriale ───────────────────────────────────────────── */}
+      <div className="mb-5">
+        <p className="text-[13px] font-medium uppercase tracking-wider text-muted-foreground first-letter:uppercase">
+          {dateDuJour}
+          {cabinetData && <> · {cabinetData.raison_sociale}</>}
+          {cabinetData?.plan_tarifaire && (
+            <>
+              {" "}
+              <span className="text-slate-400">
+                · {planLabel[cabinetData.plan_tarifaire] ?? cabinetData.plan_tarifaire}
+              </span>
+            </>
+          )}
+        </p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
+          Bonjour, {prenomAffiche}.
+        </h1>
+      </div>
+
+      {/* ─── Barre « demande à ZARYA » (surface de commande → RAG) ───────────── */}
+      <div className="mb-6">
+        <DashboardAskBar />
+      </div>
 
       {/* ─── KPIs ────────────────────────────────────────────────────────────── */}
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
@@ -536,42 +606,35 @@ export default async function AppHomePage() {
         />
       </div>
 
-      {/* ─── File de travail (digest cabinet — streamé) ─────────────────────── */}
+      {/* ─── À faire maintenant (focus — streamé) ───────────────────────────── */}
       <section className="mb-6">
         <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-          File de travail
+          À faire maintenant
         </h2>
-        <Suspense fallback={<DigestSkeleton />}>
-          <DigestSection cabinetId={cabinet_id} />
+        <Suspense fallback={<FocusSkeleton />}>
+          <FocusSection cabinetId={cabinet_id} />
         </Suspense>
       </section>
 
-      {/* ─── Clients à suivre (top 5 par risque — streamé) ──────────────────── */}
-      <section className="mb-6">
-        <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Clients à suivre
-        </h2>
-        <Suspense fallback={<ClientsASuivreSkeleton />}>
-          <ClientsASuivreSection cabinetId={cabinet_id} />
-        </Suspense>
-      </section>
-
-      {/* ─── Accès rapides (chips modules) ──────────────────────────────────── */}
-      <nav aria-label="Accès rapides" className="flex flex-wrap gap-2">
-        {MODULES.map((mod) => {
-          const Icon = mod.icon;
-          return (
-            <Link
-              key={mod.id}
-              href={mod.href}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[13px] font-medium text-slate-600 shadow-sm transition-colors hover:border-slate-300 hover:text-foreground"
-            >
-              <Icon className="size-4 text-slate-400" strokeWidth={1.75} aria-hidden />
-              {mod.label}
-            </Link>
-          );
-        })}
-      </nav>
+      {/* ─── Clients à suivre + Fil d'activité (streamés) ───────────────────── */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="lg:col-span-2">
+          <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Clients à suivre
+          </h2>
+          <Suspense fallback={<ClientsASuivreSkeleton />}>
+            <ClientsASuivreSection cabinetId={cabinet_id} />
+          </Suspense>
+        </section>
+        <section className="lg:col-span-1">
+          <h2 className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Fil d'activité
+          </h2>
+          <Suspense fallback={<ActiviteSkeleton />}>
+            <ActiviteSection cabinetId={cabinet_id} />
+          </Suspense>
+        </section>
+      </div>
     </div>
   );
 }
