@@ -96,3 +96,36 @@
     background-color: #bfdbfe;
   }
 }
+
+/* Mode guide (help-mode.tsx) : carte d'aide futuriste à bordure animée. */
+@keyframes zarya-hint-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes zarya-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.zarya-hint-spin {
+  animation: zarya-hint-spin 4s linear infinite;
+}
+
+.zarya-hint-enter {
+  animation: zarya-hint-in 0.18s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zarya-hint-spin,
+  .zarya-hint-enter {
+    animation: none;
+  }
+}
