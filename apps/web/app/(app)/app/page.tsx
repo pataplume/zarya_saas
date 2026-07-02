@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { HelpHint } from "@/components/help-mode";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,7 +32,6 @@ import { type DigestCabinet, getDigestCabinet } from "@/lib/dashboard-data";
 import { badgeRisque } from "@/lib/libelles";
 import { cn } from "@/lib/utils";
 import { DashboardAskBar } from "./dashboard-ask-bar";
-import { HelpHint, HelpModeProvider, HelpModeToggle } from "./help-mode";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -227,7 +227,7 @@ function MetricCard({
       className="group flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3.5 shadow-card transition-all duration-150 hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md motion-reduce:transform-none"
     >
       <span>
-        <span className="block text-3xl font-semibold tabular-nums tracking-tight text-foreground transition-colors group-hover:text-primary">
+        <span className="block text-3xl font-semibold tabular-nums tracking-tight text-foreground transition-colors group-hover:text-indigo-600">
           {formatCompte(valeur)}
         </span>
         <span className="mt-0.5 block text-[13px] text-muted-foreground">{label}</span>
@@ -310,11 +310,11 @@ async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
               const badge = c.risque_niveau ? badgeRisque(c.risque_niveau) : null;
               const dot = c.risque_niveau ? RISQUE_DOT[c.risque_niveau] : undefined;
               return (
-                <tr key={c.id} className="transition-colors hover:bg-slate-50">
+                <tr key={c.id} className="group transition-colors hover:bg-indigo-50/40">
                   <td className="px-4 py-2.5">
                     <Link
                       href={`/app/clients/${c.id}`}
-                      className="font-medium text-foreground hover:text-primary"
+                      className="font-medium text-foreground transition-colors group-hover:text-indigo-700"
                     >
                       {c.raison_sociale}
                     </Link>
@@ -356,10 +356,13 @@ async function ClientsASuivreSection({ cabinetId }: { cabinetId: string }) {
       <div className="mt-auto border-t border-border px-4 py-2.5">
         <Link
           href="/app/clients"
-          className="inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"
+          className="group inline-flex items-center gap-1 text-[13px] font-medium text-indigo-600 hover:text-indigo-700"
         >
           Tous les clients
-          <ArrowRight className="size-3.5" aria-hidden />
+          <ArrowRight
+            className="size-3.5 transition-transform group-hover:translate-x-0.5"
+            aria-hidden
+          />
         </Link>
       </div>
     </div>
@@ -451,7 +454,10 @@ async function ActiviteSection({ cabinetId }: { cabinetId: string }) {
           const Icon = meta.icon;
           const parIa = e.acteur_type === "ia";
           return (
-            <li key={e.id} className="flex items-start gap-3 px-4 py-2.5">
+            <li
+              key={e.id}
+              className="flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50/70"
+            >
               <span
                 className={cn(
                   "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg",
@@ -560,29 +566,26 @@ export default async function AppHomePage() {
   });
 
   return (
-    <HelpModeProvider>
+    <>
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
         {/* ─── Bande « co-pilote » sombre : salutation + commande + focus ──────── */}
         <section className="mb-6 overflow-hidden rounded-2xl bg-[#0d1220] p-5 ring-1 ring-white/[0.06] sm:p-7">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[13px] font-medium uppercase tracking-wider text-slate-400 first-letter:uppercase">
-                {dateDuJour}
-                {cabinetData && <> · {cabinetData.raison_sociale}</>}
-                {cabinetData?.plan_tarifaire && (
-                  <>
-                    {" "}
-                    <span className="text-slate-500">
-                      · {planLabel[cabinetData.plan_tarifaire] ?? cabinetData.plan_tarifaire}
-                    </span>
-                  </>
-                )}
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">
-                Bonjour, {prenomAffiche}.
-              </h1>
-            </div>
-            <HelpModeToggle />
+          <div>
+            <p className="text-[13px] font-medium uppercase tracking-wider text-slate-400 first-letter:uppercase">
+              {dateDuJour}
+              {cabinetData && <> · {cabinetData.raison_sociale}</>}
+              {cabinetData?.plan_tarifaire && (
+                <>
+                  {" "}
+                  <span className="text-slate-500">
+                    · {planLabel[cabinetData.plan_tarifaire] ?? cabinetData.plan_tarifaire}
+                  </span>
+                </>
+              )}
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">
+              Bonjour, {prenomAffiche}.
+            </h1>
           </div>
 
           {/* Barre « demande à ZARYA » (surface de commande → RAG) */}
@@ -678,6 +681,6 @@ export default async function AppHomePage() {
           </section>
         </div>
       </div>
-    </HelpModeProvider>
+    </>
   );
 }
