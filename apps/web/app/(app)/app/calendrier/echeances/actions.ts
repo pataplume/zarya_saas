@@ -2,7 +2,7 @@
 
 import { requireAuth } from "@zarya/auth";
 import { db, echeance } from "@zarya/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -52,6 +52,51 @@ export async function marquerTraiteeAction(echeanceId: string): Promise<Echeance
 /** Annule l'échéance. */
 export async function annulerEcheanceAction(echeanceId: string): Promise<EcheanceActionState> {
   return transition(echeanceId, { statut: "annulee" });
+}
+
+// ─── Actions de lot ────────────────────────────────────────────────────────────────
+// Même frontière que `transition` : auth + RBAC + re-vérification cabinet_id sur CHAQUE
+// id via WHERE and(inArray(id, ids), eq(cabinet_id)) — un id d'un autre cabinet est
+// silencieusement ignoré (anti-fuite, ADR 0005 addendum). Pas d'écriture crm.evenement
+// (les actions unitaires n'en font pas non plus).
+
+const lotSchema = z.array(z.string().uuid()).min(1).max(100);
+
+export type EcheanceLotState = { traitees: number; error?: string };
+
+async function transitionLot(
+  echeanceIds: string[],
+  set: Record<string, unknown>,
+): Promise<EcheanceLotState> {
+  const parsed = lotSchema.safeParse(echeanceIds);
+  if (!parsed.success) return { traitees: 0, error: "Sélection invalide (1 à 100 échéances)." };
+
+  const { cabinet_id, role } = acteur(await requireAuth());
+  if (!cabinet_id) return { traitees: 0, error: "Cabinet introuvable." };
+  if (!ROLES_ECRITURE.has(role)) return { traitees: 0, error: "Droits insuffisants." };
+
+  const updated = await db
+    .update(echeance)
+    .set({ ...set, updated_at: new Date() })
+    .where(and(inArray(echeance.id, parsed.data), eq(echeance.cabinet_id, cabinet_id)))
+    .returning({ id: echeance.id });
+  if (updated.length === 0) return { traitees: 0, error: "Aucune échéance mise à jour." };
+
+  revalidatePath(ECHEANCES_PATH);
+  return { traitees: updated.length };
+}
+
+/** Marque un lot d'échéances traitées (date du jour). */
+export async function marquerTraiteesLotAction(echeanceIds: string[]): Promise<EcheanceLotState> {
+  return transitionLot(echeanceIds, {
+    statut: "traitee",
+    date_traitement: new Date().toISOString().slice(0, 10),
+  });
+}
+
+/** Annule un lot d'échéances. */
+export async function annulerLotAction(echeanceIds: string[]): Promise<EcheanceLotState> {
+  return transitionLot(echeanceIds, { statut: "annulee" });
 }
 
 const reporterSchema = z.object({

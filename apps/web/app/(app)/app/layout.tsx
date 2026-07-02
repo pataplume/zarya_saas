@@ -2,6 +2,7 @@ import { getCurrentUser } from "@zarya/auth";
 import { cabinet, db, sessionOnboardingFiduciaire } from "@zarya/db";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { CommandPalette } from "@/components/layout/command-palette";
 import { Sidebar } from "@/components/layout/sidebar";
 
 /**
@@ -49,6 +50,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <CommandPalette />
       <Sidebar cabinetName={cabinetName} userEmail={userEmail} userRole={userRole} />
 
       {/* Main content — offset de la sidebar sur desktop */}

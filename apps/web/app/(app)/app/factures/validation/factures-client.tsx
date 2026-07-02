@@ -1,8 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useOptimistic, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
+import { useFileKeyboard } from "@/lib/hooks/use-file-keyboard";
 import { libelleAnomalie } from "@/lib/libelles";
 import { rejeterFactureAction, validerFactureAction } from "./actions";
 
@@ -55,6 +64,54 @@ function val(n: number | null): string {
 
 // Confiance en dessous de laquelle on attire l'attention du validateur ("à vérifier").
 const SEUIL_CONFIANCE_FAIBLE = 0.6;
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Éligibilité à la validation EN LOT : le lot soumet les valeurs extraites TELLES QUELLES
+ * (sans passage par le formulaire), donc il est réservé aux factures sans anomalie, avec
+ * IBAN-du-QR au Vault (récupéré côté serveur par validerFactureAction) et dont tous les
+ * champs OBLIGATOIRES du schéma serveur (ValiderSchema) sont déjà présents.
+ * Retourne null si éligible, sinon le motif (affiché en title sur la checkbox désactivée).
+ */
+function motifIneligibleLot(f: FactureItem): string | null {
+  if (f.anomalies.length > 0) return "Anomalies détectées — à vérifier via le formulaire";
+  if (!f.a_iban_qr) return "IBAN absent — à saisir via le formulaire";
+  if (!f.fournisseur_raison_sociale) return "Raison sociale manquante — à saisir via le formulaire";
+  if (!f.numero_facture) return "Numéro de facture manquant — à saisir via le formulaire";
+  if (!DATE_RE.test(f.date_emission))
+    return "Date d'émission manquante — à saisir via le formulaire";
+  if (f.total_ht === null || f.total_ttc === null)
+    return "Montants incomplets — à vérifier via le formulaire";
+  if (f.date_echeance !== "" && !DATE_RE.test(f.date_echeance))
+    return "Date d'échéance invalide — à corriger via le formulaire";
+  return null;
+}
+
+/**
+ * Construit le FormData de validerFactureAction depuis les valeurs EXTRAITES, à l'identique
+ * des defaultValue du formulaire « Vérifier & valider » (mêmes noms de champs, mêmes replis
+ * compte_charge/montant_a_payer). `fournisseur_iban` est volontairement absent : côté serveur,
+ * l'IBAN-du-QR au Vault prend le relais (d'où l'éligibilité restreinte à a_iban_qr).
+ */
+function formDataDepuisProposition(f: FactureItem): FormData {
+  const fd = new FormData();
+  fd.set("proposition_id", f.id);
+  fd.set("fournisseur_raison_sociale", f.fournisseur_raison_sociale);
+  fd.set("fournisseur_ide", f.fournisseur_ide);
+  fd.set("fournisseur_numero_tva", f.fournisseur_numero_tva);
+  fd.set("numero_facture", f.numero_facture);
+  fd.set("compte_charge", f.categorie || "6000");
+  fd.set("date_emission", f.date_emission);
+  fd.set("date_echeance", f.date_echeance);
+  fd.set("total_ht", val(f.total_ht));
+  fd.set("total_tva", val(f.total_tva));
+  fd.set("total_ttc", val(f.total_ttc));
+  fd.set("montant_a_payer", val(f.montant_a_payer ?? f.total_ttc));
+  fd.set("taux_tva_principal", val(f.taux_tva_principal));
+  fd.set("devise", f.devise);
+  return fd;
+}
 
 /**
  * Résout la provenance d'un champ de FORMULAIRE vers la clé stockée dans confiance_par_champ.
@@ -118,25 +175,57 @@ function FactureCard({
   f,
   peutValider,
   pending,
+  actif,
+  open,
+  selectionne,
+  motifLot,
+  cardRef,
+  onFocus,
+  onToggleOpen,
+  onToggleSelection,
   onValider,
   onRejeter,
 }: {
   f: FactureItem;
   peutValider: boolean;
   pending: boolean;
+  /** Carte sous le curseur clavier (J/N/P) : anneau bleu + scrollIntoView côté parent. */
+  actif: boolean;
+  /** Formulaire « Vérifier & valider » ouvert — état remonté au parent pour le raccourci V. */
+  open: boolean;
+  selectionne: boolean;
+  /** null = éligible au lot ; sinon motif affiché en title sur la checkbox désactivée. */
+  motifLot: string | null;
+  cardRef: (el: HTMLLIElement | null) => void;
+  onFocus: () => void;
+  onToggleOpen: () => void;
+  onToggleSelection: () => void;
   onValider: (formData: FormData) => void;
   onRejeter: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   // Provenance d'un champ de formulaire pour ce document (ADR 0024).
   const prov = (champ: string): ConfianceChampUi | undefined =>
     provenanceChamp(f.confiance_par_champ, champ);
 
   return (
-    <li className="rounded border border-gray-200 p-4">
+    <li
+      ref={cardRef}
+      onMouseDown={onFocus}
+      className={`rounded border p-4 ${actif ? "border-blue-300 ring-2 ring-blue-500" : "border-gray-200"}`}
+    >
       <div className="flex items-center justify-between gap-4">
-        <div>
+        {peutValider ? (
+          <input
+            type="checkbox"
+            checked={selectionne}
+            onChange={onToggleSelection}
+            disabled={motifLot !== null}
+            title={motifLot ?? "Sélectionner pour la validation en lot"}
+            aria-label="Sélectionner pour la validation en lot"
+            className="h-4 w-4 shrink-0 self-start rounded border-gray-300 disabled:cursor-not-allowed disabled:opacity-40"
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
           <p className="font-medium">
             {f.fournisseur_raison_sociale || "Fournisseur à saisir"}{" "}
             {f.qr_facture_detecte ? <span title="QR-facture détectée">🔳</span> : null}
@@ -178,7 +267,7 @@ function FactureCard({
         {peutValider ? (
           <button
             type="button"
-            onClick={() => setOpen((o) => !o)}
+            onClick={onToggleOpen}
             className="shrink-0 rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
           >
             {open ? "Fermer" : "Vérifier & valider"}
@@ -410,7 +499,29 @@ export function FacturesValidation({
   );
   const [pending, startTransition] = useTransition();
 
-  const enAttente = factures.filter((f) => !idsTraitees.has(f.id));
+  // Curseur clavier (J/N/P) + formulaire ouvert (état remonté pour le raccourci V) +
+  // sélection pour la validation en lot.
+  const [cursor, setCursor] = useState(0);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const rowRefs = useRef<(HTMLLIElement | null)[]>([]);
+
+  const enAttente = useMemo(
+    () => factures.filter((f) => !idsTraitees.has(f.id)),
+    [factures, idsTraitees],
+  );
+  const eligiblesLot = useMemo(
+    () => enAttente.filter((f) => motifIneligibleLot(f) === null),
+    [enAttente],
+  );
+
+  const retirerDeSelection = useCallback((ids: string[]) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.delete(id);
+      return next;
+    });
+  }, []);
 
   function valider(id: string, formData: FormData) {
     startTransition(async () => {
@@ -421,6 +532,7 @@ export function FacturesValidation({
       }
       // Masque la carte sans attendre le payload revalidé (toujours dans la transition).
       marquerTraitees([id]);
+      retirerDeSelection([id]);
       // Pas de toast de succès unitaire (la disparition EST le feedback) — mais les signaux
       // de vigilance retournés par la validation restent montrés, sinon ils partiraient avec
       // la carte (icône + texte, pas seulement la couleur).
@@ -433,29 +545,179 @@ export function FacturesValidation({
     });
   }
 
-  function rejeter(id: string) {
+  const rejeter = useCallback(
+    (id: string) => {
+      startTransition(async () => {
+        marquerTraitees([id]);
+        const res = await rejeterFactureAction(id, "Pas une facture");
+        if (res.error) toast.error(res.error);
+        else retirerDeSelection([id]);
+      });
+    },
+    [marquerTraitees, retirerDeSelection],
+  );
+
+  // Validation EN LOT : boucle séquentielle sur validerFactureAction avec les valeurs
+  // extraites telles quelles (formDataDepuisProposition). Régime existant respecté :
+  // chaque carte ne disparaît qu'à la CONFIRMATION serveur de SON item (pas d'optimiste
+  // anticipé), les échecs restent affichés et comptés.
+  function validerSelection() {
+    const items = enAttente.filter((f) => selected.has(f.id) && motifIneligibleLot(f) === null);
+    if (items.length === 0) return;
     startTransition(async () => {
-      marquerTraitees([id]);
-      const res = await rejeterFactureAction(id, "Pas une facture");
-      if (res.error) toast.error(res.error);
+      const reussis: string[] = [];
+      let echecs = 0;
+      let ibanChanges = 0;
+      let doublons = 0;
+      for (const f of items) {
+        const res = await validerFactureAction({}, formDataDepuisProposition(f));
+        if (res.error) {
+          echecs++;
+          continue;
+        }
+        marquerTraitees([f.id]);
+        reussis.push(f.id);
+        if (res.iban_change_detecte) ibanChanges++;
+        if (res.doublons) doublons += res.doublons;
+      }
+      retirerDeSelection(reussis);
+      if (reussis.length > 0) {
+        toast.success(
+          `${reussis.length} facture${reussis.length > 1 ? "s" : ""} validée${reussis.length > 1 ? "s" : ""}`,
+        );
+      }
+      if (echecs > 0) {
+        toast.error(`${echecs} échec${echecs > 1 ? "s" : ""} — à vérifier via le formulaire`);
+      }
+      if (ibanChanges > 0) {
+        toast.warning(
+          `⚠️ ${ibanChanges} changement${ibanChanges > 1 ? "s" : ""} d'IBAN signalé${ibanChanges > 1 ? "s" : ""} (fraude possible).`,
+        );
+      }
+      if (doublons > 0) {
+        toast.warning(`⚠️ ${doublons} doublon(s) potentiel(s) détecté(s).`);
+      }
     });
   }
+
+  function toggleUn(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const toutSelectionne = eligiblesLot.length > 0 && eligiblesLot.every((f) => selected.has(f.id));
+
+  function toggleTout() {
+    setSelected(toutSelectionne ? new Set() : new Set(eligiblesLot.map((f) => f.id)));
+  }
+
+  // Raccourcis clavier partagés des files ZARYA. Suspendus quand un formulaire de facture
+  // est ouvert (openId) : on ne rejette pas pendant une saisie ; Échap referme le formulaire.
+  const formulaireOuvert = openId !== null;
+  const onAction = useCallback(
+    (index: number) => {
+      const f = enAttente[index];
+      if (f) setOpenId((cur) => (cur === f.id ? null : f.id));
+    },
+    [enAttente],
+  );
+  const onRejeterCourant = useCallback(
+    (index: number) => {
+      const f = enAttente[index];
+      if (f) rejeter(f.id);
+    },
+    [enAttente, rejeter],
+  );
+  useFileKeyboard({
+    count: enAttente.length,
+    cursor,
+    setCursor,
+    onAction,
+    onRejeter: onRejeterCourant,
+    enabled: peutValider && !formulaireOuvert,
+  });
+
+  // Échap referme le formulaire ouvert (pendant que les autres raccourcis sont suspendus).
+  useEffect(() => {
+    if (!formulaireOuvert) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpenId(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [formulaireOuvert]);
+
+  // Garder le curseur valide + visible quand la liste change (y compris après disparition
+  // optimiste : le curseur pointe l'item suivant visible, jamais hors limites).
+  useEffect(() => {
+    if (cursor > enAttente.length - 1) setCursor(Math.max(0, enAttente.length - 1));
+    rowRefs.current[cursor]?.scrollIntoView({ block: "nearest" });
+  }, [cursor, enAttente.length]);
 
   if (enAttente.length === 0) {
     return <p className="text-sm text-gray-500">Aucune facture en attente de validation.</p>;
   }
   return (
-    <ul className="flex flex-col gap-3">
-      {enAttente.map((f) => (
-        <FactureCard
-          key={f.id}
-          f={f}
-          peutValider={peutValider}
-          pending={pending}
-          onValider={(formData) => valider(f.id, formData)}
-          onRejeter={() => rejeter(f.id)}
-        />
-      ))}
-    </ul>
+    <div>
+      {peutValider ? (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded border border-gray-200 bg-white p-3">
+          <label
+            className="flex items-center gap-2 text-sm text-gray-600"
+            title="Sélectionne les factures sans anomalie dont l'IBAN et les champs obligatoires sont présents"
+          >
+            <input
+              type="checkbox"
+              checked={toutSelectionne}
+              onChange={toggleTout}
+              disabled={eligiblesLot.length === 0}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            Tout sélectionner
+          </label>
+          <button
+            type="button"
+            onClick={validerSelection}
+            disabled={selected.size === 0 || pending}
+            className="inline-flex items-center rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending
+              ? "Validation…"
+              : `Valider la sélection${selected.size ? ` (${selected.size})` : ""}`}
+          </button>
+          <span className="ml-auto hidden text-xs text-gray-400 sm:inline">
+            Raccourcis : <kbd className="font-semibold">J</kbd> début ·{" "}
+            <kbd className="font-semibold">N</kbd> suivant · <kbd className="font-semibold">P</kbd>{" "}
+            précédent · <kbd className="font-semibold">V</kbd> vérifier ·{" "}
+            <kbd className="font-semibold">R</kbd> rejeter
+          </span>
+        </div>
+      ) : null}
+      <ul className="flex flex-col gap-3">
+        {enAttente.map((f, i) => (
+          <FactureCard
+            key={f.id}
+            f={f}
+            peutValider={peutValider}
+            pending={pending}
+            actif={i === cursor}
+            open={openId === f.id}
+            selectionne={selected.has(f.id)}
+            motifLot={motifIneligibleLot(f)}
+            cardRef={(el) => {
+              rowRefs.current[i] = el;
+            }}
+            onFocus={() => setCursor(i)}
+            onToggleOpen={() => setOpenId((cur) => (cur === f.id ? null : f.id))}
+            onToggleSelection={() => toggleUn(f.id)}
+            onValider={(formData) => valider(f.id, formData)}
+            onRejeter={() => rejeter(f.id)}
+          />
+        ))}
+      </ul>
+    </div>
   );
 }

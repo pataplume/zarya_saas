@@ -2,6 +2,7 @@ import { getCurrentUser } from "@zarya/auth";
 import { client, db, facture, propositionFacture } from "@zarya/db";
 import { and, count, desc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { Pagination } from "@/components/ui/pagination";
 import { normaliserConfianceParChamp } from "./confiance-provenance";
 import { type FactureItem, FacturesValidation } from "./factures-client";
 
@@ -16,7 +17,14 @@ function n(v: string | null): number | null {
   return v === null ? null : Number(v);
 }
 
-export default async function FacturesValidationPage() {
+// Pagination serveur (?page=) : taille de page de la file de validation.
+const PAR_PAGE = 25;
+
+export default async function FacturesValidationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const user = await getCurrentUser();
   const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
   if (!cabinet_id) redirect("/onboarding");
@@ -30,6 +38,23 @@ export default async function FacturesValidationPage() {
     .from(facture)
     .where(and(eq(facture.cabinet_id, cabinet_id), eq(facture.statut, "validee")));
   const nbExportables = exportables?.n ?? 0;
+
+  // Total des propositions à valider (pour le compteur + le nombre de pages).
+  const [enAttente] = await db
+    .select({ n: count() })
+    .from(propositionFacture)
+    .where(
+      and(
+        eq(propositionFacture.cabinet_id, cabinet_id),
+        eq(propositionFacture.statut, "a_valider"),
+      ),
+    );
+  const total = enAttente?.n ?? 0;
+
+  const sp = await searchParams;
+  const nbPages = Math.max(1, Math.ceil(total / PAR_PAGE));
+  const pageDemandee = Number.parseInt(sp.page ?? "1", 10);
+  const page = Math.min(Math.max(1, Number.isFinite(pageDemandee) ? pageDemandee : 1), nbPages);
 
   const rows = await db
     .select({
@@ -64,7 +89,8 @@ export default async function FacturesValidationPage() {
       ),
     )
     .orderBy(desc(propositionFacture.created_at))
-    .limit(200);
+    .limit(PAR_PAGE)
+    .offset((page - 1) * PAR_PAGE);
 
   const factures: FactureItem[] = rows.map((r) => {
     const f = (r.fournisseur_propose_data ?? {}) as Record<string, string | null>;
@@ -101,7 +127,7 @@ export default async function FacturesValidationPage() {
     <main className="mx-auto max-w-4xl p-6">
       <h1 className="mb-1 text-2xl font-semibold">Factures à valider</h1>
       <p className="mb-6 text-sm text-gray-500">
-        {factures.length} facture{factures.length > 1 ? "s" : ""} en attente
+        {total} facture{total > 1 ? "s" : ""} en attente
       </p>
 
       {/* Export comptable des factures validées (route /api/factures/export). */}
@@ -121,6 +147,13 @@ export default async function FacturesValidationPage() {
       )}
 
       <FacturesValidation factures={factures} peutValider={peutValider} />
+
+      <Pagination
+        page={page}
+        total={total}
+        parPage={PAR_PAGE}
+        hrefPour={(p) => `/app/factures/validation?page=${p}`}
+      />
     </main>
   );
 }

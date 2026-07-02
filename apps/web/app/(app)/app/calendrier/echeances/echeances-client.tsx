@@ -3,13 +3,25 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  badgeStatutEcheance,
-  libelleStatutEcheance,
-  libelleTypeEcheance,
-  styleFamille,
-} from "@/lib/libelles";
-import { annulerEcheanceAction, marquerTraiteeAction, reporterEcheanceAction } from "./actions";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { badgeStatutEcheance, libelleTypeEcheance } from "@/lib/libelles";
+import {
+  annulerEcheanceAction,
+  annulerLotAction,
+  marquerTraiteeAction,
+  marquerTraiteesLotAction,
+  reporterEcheanceAction,
+} from "./actions";
 
 export interface EcheanceRow {
   id: string;
@@ -43,6 +55,11 @@ export function EcheancesListe({
   const [pending, startTransition] = useTransition();
   const [reporting, setReporting] = useState<EcheanceRow | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [selection, setSelection] = useState<Set<string>>(new Set());
+  const [confirmerAnnulation, setConfirmerAnnulation] = useState(false);
+
+  const actionnables = echeances.filter((e) => STATUTS_ACTIONNABLES.has(e.statut));
+  const toutSelectionne = actionnables.length > 0 && actionnables.every((e) => selection.has(e.id));
 
   function appliquerFiltres(form: FormData) {
     const params = new URLSearchParams();
@@ -50,6 +67,7 @@ export function EcheancesListe({
       const v = String(form.get(k) ?? "").trim();
       if (v) params.set(k, v);
     }
+    // Nouveau filtre → retour page 1 (pas de param `page`).
     router.push(`/app/calendrier/echeances?${params.toString()}`);
   }
 
@@ -57,6 +75,34 @@ export function EcheancesListe({
     startTransition(async () => {
       const res = await action();
       setMessage(res.success ? ok : (res.error ?? "Erreur."));
+      router.refresh();
+    });
+  }
+
+  function basculer(id: string) {
+    setSelection((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function basculerTout() {
+    setSelection(toutSelectionne ? new Set() : new Set(actionnables.map((e) => e.id)));
+  }
+
+  // Actions de lot : feedback par toast (synthèse), pas de message inline par item.
+  function agirLot(
+    action: (ids: string[]) => Promise<{ traitees: number; error?: string }>,
+    libeller: (n: number) => string,
+  ) {
+    const ids = [...selection];
+    startTransition(async () => {
+      const res = await action(ids);
+      if (res.error) toast.error(res.error);
+      if (res.traitees > 0) toast.success(libeller(res.traitees));
+      setSelection(new Set());
       router.refresh();
     });
   }
@@ -70,7 +116,7 @@ export function EcheancesListe({
             <option value="">Tous</option>
             {statuts.map((s) => (
               <option key={s} value={s}>
-                {libelleStatutEcheance(s)}
+                {badgeStatutEcheance(s).label}
               </option>
             ))}
           </select>
@@ -95,14 +141,36 @@ export function EcheancesListe({
             className="rounded border px-2 py-1"
           />
         </label>
-        <button type="submit" className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white">
+        <Button type="submit" size="sm">
           Filtrer
-        </button>
+        </Button>
       </form>
 
       {message && (
         <div className="mb-4 rounded bg-gray-100 px-3 py-2 text-sm" role="status">
           {message}
+        </div>
+      )}
+
+      {peutAgir && actionnables.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            disabled={pending || selection.size === 0}
+            onClick={() => agirLot(marquerTraiteesLotAction, (n) => `${n} échéance(s) traitée(s).`)}
+          >
+            Traiter la sélection ({selection.size})
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={pending || selection.size === 0}
+            onClick={() => setConfirmerAnnulation(true)}
+          >
+            Annuler la sélection ({selection.size})
+          </Button>
         </div>
       )}
 
@@ -112,6 +180,17 @@ export function EcheancesListe({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-gray-500">
+              {peutAgir && (
+                <th className="w-8 py-2">
+                  <input
+                    type="checkbox"
+                    checked={toutSelectionne}
+                    disabled={actionnables.length === 0}
+                    onChange={basculerTout}
+                    aria-label="Tout sélectionner"
+                  />
+                </th>
+              )}
               <th className="py-2">Date</th>
               <th>Client</th>
               <th>Type</th>
@@ -123,6 +202,18 @@ export function EcheancesListe({
           <tbody>
             {echeances.map((e) => (
               <tr key={e.id} className="border-b">
+                {peutAgir && (
+                  <td className="py-2">
+                    {STATUTS_ACTIONNABLES.has(e.statut) && (
+                      <input
+                        type="checkbox"
+                        checked={selection.has(e.id)}
+                        onChange={() => basculer(e.id)}
+                        aria-label={`Sélectionner l'échéance ${e.libelle}`}
+                      />
+                    )}
+                  </td>
+                )}
                 <td className="py-2">{e.date_echeance ?? "—"}</td>
                 <td>
                   <Link
@@ -140,45 +231,49 @@ export function EcheancesListe({
                   )}
                 </td>
                 <td>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(
-                      badgeStatutEcheance(e.statut).famille,
-                    )} ${e.statut === "annulee" ? "line-through" : ""}`}
+                  <Badge
+                    famille={badgeStatutEcheance(e.statut).famille}
+                    className={e.statut === "annulee" ? "line-through" : undefined}
                   >
-                    {libelleStatutEcheance(e.statut)}
-                  </span>
+                    {badgeStatutEcheance(e.statut).label}
+                  </Badge>
                 </td>
                 {peutAgir && (
-                  <td className="space-x-2 whitespace-nowrap">
+                  <td className="whitespace-nowrap">
                     {STATUTS_ACTIONNABLES.has(e.statut) ? (
                       <>
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="sm"
                           disabled={pending}
                           onClick={() =>
                             agir(() => marquerTraiteeAction(e.id), "Échéance traitée.")
                           }
-                          className="text-green-700 disabled:opacity-40"
+                          className="text-emerald-700 hover:text-emerald-800"
                         >
                           Traiter
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="sm"
                           onClick={() => setReporting(e)}
-                          className="text-blue-700"
+                          className="text-blue-700 hover:text-blue-800"
                         >
                           Reporter
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="sm"
                           disabled={pending}
                           onClick={() =>
                             agir(() => annulerEcheanceAction(e.id), "Échéance annulée.")
                           }
-                          className="text-gray-500 disabled:opacity-40"
                         >
                           Annuler
-                        </button>
+                        </Button>
                       </>
                     ) : (
                       <span className="text-gray-300">—</span>
@@ -190,6 +285,34 @@ export function EcheancesListe({
           </tbody>
         </table>
       )}
+
+      <Dialog open={confirmerAnnulation} onOpenChange={setConfirmerAnnulation}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Annuler {selection.size} échéance(s) ?</DialogTitle>
+            <DialogDescription>
+              Les échéances sélectionnées passeront au statut « Annulée ». Cette action est
+              difficilement réversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setConfirmerAnnulation(false)}>
+              Retour
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={pending}
+              onClick={() => {
+                setConfirmerAnnulation(false);
+                agirLot(annulerLotAction, (n) => `${n} échéance(s) annulée(s).`);
+              }}
+            >
+              Annuler la sélection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {reporting && (
         <ReporterModal
@@ -253,16 +376,12 @@ function ReporterModal({
           </label>
           <input id="motif" name="motif" className="mb-4 w-full rounded border px-2 py-1 text-sm" />
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="rounded px-3 py-1.5 text-sm">
+            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
               Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-            >
+            </Button>
+            <Button type="submit" size="sm" disabled={pending}>
               Reporter
-            </button>
+            </Button>
           </div>
         </form>
       </div>

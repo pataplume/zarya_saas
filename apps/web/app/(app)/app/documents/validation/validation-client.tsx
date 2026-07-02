@@ -10,6 +10,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { useFileKeyboard } from "@/lib/hooks/use-file-keyboard";
 import { libelleAnomalie, libelleTypeDocument } from "@/lib/libelles";
 import { rejeterPropositionAction, validerLotAction, validerPropositionAction } from "./actions";
 
@@ -142,44 +143,37 @@ export function ValidationInbox({
     lancerLot(ids);
   }, [selected, lancerLot]);
 
-  // Raccourcis clavier (doc.md §15.1) : J file/début, V valider, C corriger, N suivant.
+  // Raccourcis clavier (doc.md §15.1) via le hook partagé des files de travail :
+  // J début · N suivant · P précédent · V valider · C corriger · R rejeter.
+  useFileKeyboard({
+    count: visibles.length,
+    cursor,
+    setCursor,
+    onAction: (i) => valider1Clic(visibles[i]),
+    onCorriger: (i) => {
+      const item = visibles[i];
+      if (item) setCorrecting(item);
+    },
+    onRejeter: (i) => {
+      const item = visibles[i];
+      if (item) setRejecting(item);
+    },
+    enabled: !modalOuverte,
+  });
+
+  // Escape ferme la modal ouverte (les raccourcis de file sont suspendus pendant ce temps).
   useEffect(() => {
+    if (!modalOuverte) return;
     function onKey(e: KeyboardEvent) {
-      const cible = e.target as HTMLElement | null;
-      const dansChamp =
-        cible &&
-        (cible.tagName === "INPUT" ||
-          cible.tagName === "TEXTAREA" ||
-          cible.tagName === "SELECT" ||
-          cible.isContentEditable);
-      if (modalOuverte) {
-        if (e.key === "Escape") {
-          setCorrecting(null);
-          setRejecting(null);
-          setConfirmLot(null);
-        }
-        return;
-      }
-      if (dansChamp || e.metaKey || e.ctrlKey || e.altKey) return;
-      const k = e.key.toLowerCase();
-      if (k === "j") {
-        e.preventDefault();
-        setCursor(0);
-      } else if (k === "n") {
-        e.preventDefault();
-        setCursor((c) => Math.min(c + 1, visibles.length - 1));
-      } else if (k === "v") {
-        e.preventDefault();
-        valider1Clic(visibles[cursor]);
-      } else if (k === "c") {
-        e.preventDefault();
-        const item = visibles[cursor];
-        if (item) setCorrecting(item);
+      if (e.key === "Escape") {
+        setCorrecting(null);
+        setRejecting(null);
+        setConfirmLot(null);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [modalOuverte, cursor, visibles, valider1Clic]);
+  }, [modalOuverte]);
 
   // Garder le curseur valide + visible quand la liste change (y compris après disparition
   // optimiste : le curseur pointe alors l'item suivant visible, jamais hors limites).
@@ -232,8 +226,9 @@ export function ValidationInbox({
         </button>
         <span className="ml-auto hidden text-xs text-slate-400 sm:inline">
           Raccourcis : <kbd className="font-semibold">J</kbd> début ·{" "}
-          <kbd className="font-semibold">V</kbd> valider · <kbd className="font-semibold">C</kbd>{" "}
-          corriger · <kbd className="font-semibold">N</kbd> suivant
+          <kbd className="font-semibold">N</kbd> suivant · <kbd className="font-semibold">V</kbd>{" "}
+          valider · <kbd className="font-semibold">C</kbd> corriger ·{" "}
+          <kbd className="font-semibold">R</kbd> rejeter
         </span>
       </div>
 
