@@ -13,7 +13,12 @@ import { Select } from "@/components/ui/select";
 import { helpAttrs } from "@/lib/help-attrs";
 import { badgeRisque, badgeStatutClient, libelleTypeClient } from "@/lib/libelles";
 import { cn } from "@/lib/utils";
-import { archiverClientAction, type ClientActionState, updateClientAction } from "./actions";
+import {
+  archiverClientAction,
+  type ClientActionState,
+  reactiverClientAction,
+  updateClientAction,
+} from "./actions";
 import { ClientCreateZefix } from "./client-create-zefix";
 import type { ClientRow } from "./page";
 
@@ -316,26 +321,48 @@ export function ClientsClient({ clients, archives, peutEcrire, isResponsable }: 
           </h2>
           <div className="overflow-hidden rounded-lg border border-border bg-slate-50 shadow-card">
             {archives.map((c, idx) => (
-              <Link
+              <div
                 key={c.id}
-                href={`/app/clients/${c.id}`}
                 className={cn(
                   "flex items-center gap-4 px-4 py-3 hover:bg-slate-100",
                   idx < archives.length - 1 && "border-b border-border/70",
                 )}
-                {...helpAttrs(
-                  "Ouvrir un client archivé",
-                  "Ouvre la fiche d'un client archivé en lecture. Vous pourrez le réactiver depuis son dossier.",
-                )}
               >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-500">{c.raison_sociale}</p>
-                  {c.ide && <p className="truncate text-xs text-slate-400">{c.ide}</p>}
-                </div>
-                <Badge famille="termine" className="shrink-0">
-                  Archivé
-                </Badge>
-              </Link>
+                <Link
+                  href={`/app/clients/${c.id}`}
+                  className="flex min-w-0 flex-1 items-center gap-4"
+                  {...helpAttrs(
+                    "Ouvrir un client archivé",
+                    "Ouvre la fiche d'un client archivé en lecture. Vous pourrez le réactiver depuis son dossier.",
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-500">
+                      {c.raison_sociale}
+                    </p>
+                    {c.ide && <p className="truncate text-xs text-slate-400">{c.ide}</p>}
+                  </div>
+                  <Badge famille="termine" className="shrink-0">
+                    Archivé
+                  </Badge>
+                </Link>
+                {isResponsable && (
+                  <form action={reactiverClientAction} className="shrink-0">
+                    <input type="hidden" name="id" value={c.id} />
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      size="sm"
+                      {...helpAttrs(
+                        "Réactiver le client",
+                        "Sort le client des archives et le repasse en actif. Il réapparaît dans la liste et ses échéances reprennent.",
+                      )}
+                    >
+                      Réactiver
+                    </Button>
+                  </form>
+                )}
+              </div>
             ))}
           </div>
         </section>

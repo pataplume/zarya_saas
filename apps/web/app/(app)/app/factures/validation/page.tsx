@@ -1,7 +1,9 @@
 import { getCurrentUser } from "@zarya/auth";
 import { client, db, document, facture, fichierPhysique, propositionFacture } from "@zarya/db";
 import { and, count, desc, eq } from "drizzle-orm";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
@@ -26,7 +28,7 @@ const PAR_PAGE = 25;
 export default async function FacturesValidationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; client?: string }>;
 }) {
   const user = await getCurrentUser();
   const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
@@ -34,6 +36,18 @@ export default async function FacturesValidationPage({
 
   const role = (user?.app_metadata.role as string | undefined) ?? "lecteur";
   const peutValider = role !== "lecteur";
+
+  const sp = await searchParams;
+  // Filtre « dossier client » (?client=<uuid>) : validé uuid (param invalide ⇒ ignoré). Le
+  // filtre s'AJOUTE au scope cabinet — une proposition d'un autre cabinet ne peut jamais
+  // matcher (le WHERE reste scopé cabinet_id, frontière de sécurité ADR 0005 addendum).
+  const clientFiltre = z.string().uuid().safeParse(sp.client).data;
+  // Conditions communes au compteur, à la requête paginée et au bandeau.
+  const conditionsPropositions = [
+    eq(propositionFacture.cabinet_id, cabinet_id),
+    eq(propositionFacture.statut, "a_valider"),
+    ...(clientFiltre ? [eq(propositionFacture.client_id, clientFiltre)] : []),
+  ];
 
   // Factures validées prêtes à exporter vers la comptabilité (statut 'validee').
   const [exportables] = await db
@@ -46,15 +60,9 @@ export default async function FacturesValidationPage({
   const [enAttente] = await db
     .select({ n: count() })
     .from(propositionFacture)
-    .where(
-      and(
-        eq(propositionFacture.cabinet_id, cabinet_id),
-        eq(propositionFacture.statut, "a_valider"),
-      ),
-    );
+    .where(and(...conditionsPropositions));
   const total = enAttente?.n ?? 0;
 
-  const sp = await searchParams;
   const nbPages = Math.max(1, Math.ceil(total / PAR_PAGE));
   const pageDemandee = Number.parseInt(sp.page ?? "1", 10);
   const page = Math.min(Math.max(1, Number.isFinite(pageDemandee) ? pageDemandee : 1), nbPages);
@@ -92,12 +100,7 @@ export default async function FacturesValidationPage({
     .leftJoin(client, eq(propositionFacture.client_id, client.id))
     .leftJoin(document, eq(propositionFacture.document_id, document.id))
     .leftJoin(fichierPhysique, eq(document.fichier_physique_id, fichierPhysique.id))
-    .where(
-      and(
-        eq(propositionFacture.cabinet_id, cabinet_id),
-        eq(propositionFacture.statut, "a_valider"),
-      ),
-    )
+    .where(and(...conditionsPropositions))
     .orderBy(desc(propositionFacture.created_at))
     .limit(PAR_PAGE)
     .offset((page - 1) * PAR_PAGE);
@@ -135,6 +138,18 @@ export default async function FacturesValidationPage({
     };
   });
 
+  // Bandeau « Filtré sur [raison sociale] » : raison sociale du client filtré, scopée
+  // cabinet_id (un id d'un autre cabinet ⇒ aucune ligne, donc pas de bandeau).
+  let clientNomFiltre: string | null = null;
+  if (clientFiltre) {
+    const [c] = await db
+      .select({ raison_sociale: client.raison_sociale })
+      .from(client)
+      .where(and(eq(client.id, clientFiltre), eq(client.cabinet_id, cabinet_id)))
+      .limit(1);
+    clientNomFiltre = c?.raison_sociale ?? null;
+  }
+
   return (
     // lg:max-w-7xl : donne au split-screen aperçu/formulaire la largeur nécessaire (lg+).
     <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:max-w-7xl lg:px-8">
@@ -142,6 +157,30 @@ export default async function FacturesValidationPage({
         title="Factures à valider"
         description={`${total} facture${total > 1 ? "s" : ""} en attente`}
       />
+
+      {/* Bandeau « Filtré sur [client] · tout voir » (?client=<uuid>). Le lien retire le
+          filtre client (retour à la file globale, toujours scopée cabinet). */}
+      {clientFiltre && clientNomFiltre && (
+        <div
+          className="mb-6 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"
+          role="status"
+        >
+          <span>
+            Filtré sur <span className="font-semibold">{clientNomFiltre}</span>
+          </span>
+          <span aria-hidden="true">·</span>
+          <Link
+            href="/app/factures/validation"
+            className="font-medium text-primary hover:underline"
+            {...helpAttrs(
+              "Tout voir",
+              "Retire le filtre « dossier client » et affiche toutes les factures à valider du cabinet.",
+            )}
+          >
+            tout voir
+          </Link>
+        </div>
+      )}
 
       {/* Export comptable des factures validées (route /api/factures/export). */}
       {peutValider && nbExportables > 0 && (
@@ -170,7 +209,11 @@ export default async function FacturesValidationPage({
         page={page}
         total={total}
         parPage={PAR_PAGE}
-        hrefPour={(p) => `/app/factures/validation?page=${p}`}
+        hrefPour={(p) =>
+          clientFiltre
+            ? `/app/factures/validation?client=${clientFiltre}&page=${p}`
+            : `/app/factures/validation?page=${p}`
+        }
       />
     </main>
   );

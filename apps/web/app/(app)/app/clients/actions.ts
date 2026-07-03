@@ -279,3 +279,24 @@ export async function archiverClientAction(formData: FormData): Promise<void> {
 
   revalidatePath("/app/clients");
 }
+
+// ─── Réactiver un client archivé (annule l'archivage, responsable uniquement) ──
+
+export async function reactiverClientAction(formData: FormData): Promise<void> {
+  const user = await requireAuth();
+  const cabinet_id = user.app_metadata.cabinet_id as string | undefined;
+  if (!cabinet_id) return;
+
+  const role = user.app_metadata.role as string | undefined;
+  if (role !== "responsable") return;
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  await db
+    .update(client)
+    .set({ statut: "actif", archived_at: null, updated_at: new Date() })
+    .where(and(eq(client.id, id), eq(client.cabinet_id, cabinet_id)));
+
+  revalidatePath("/app/clients");
+}

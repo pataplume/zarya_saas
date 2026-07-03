@@ -2,6 +2,7 @@ import { getCurrentUser } from "@zarya/auth";
 import { client, db, echeance } from "@zarya/db";
 import { and, asc, count, eq, ilike, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { PageHeader } from "@/components/layout/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { type EcheanceRow, EcheancesListe } from "./echeances-client";
@@ -30,7 +31,13 @@ type TypeEch = (typeof TYPES)[number];
 export default async function EcheancesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ statut?: string; type?: string; q?: string; page?: string }>;
+  searchParams: Promise<{
+    statut?: string;
+    type?: string;
+    q?: string;
+    page?: string;
+    client?: string;
+  }>;
 }) {
   const user = await getCurrentUser();
   const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
@@ -43,6 +50,10 @@ export default async function EcheancesPage({
   const statut = STATUTS.includes(sp.statut as Statut) ? (sp.statut as Statut) : undefined;
   const type = TYPES.includes(sp.type as TypeEch) ? (sp.type as TypeEch) : undefined;
   const q = sp.q?.trim() || undefined;
+  // Filtre « dossier client » (?client=<uuid>) : validé uuid (param invalide ⇒ ignoré, pas
+  // d'erreur). Le filtre s'AJOUTE au scope cabinet — un client d'un autre cabinet ne matche
+  // aucune ligne (frontière de sécurité ADR 0005 addendum : le WHERE reste scopé cabinet_id).
+  const clientFiltre = z.string().uuid().safeParse(sp.client).data;
   const pageParsee = Number.parseInt(sp.page ?? "1", 10);
   const page = Number.isFinite(pageParsee) && pageParsee >= 1 ? pageParsee : 1;
 
@@ -50,6 +61,7 @@ export default async function EcheancesPage({
   if (statut) conditions.push(eq(echeance.statut, statut));
   if (type) conditions.push(eq(echeance.type, type));
   if (q) conditions.push(ilike(client.raison_sociale, `%${q}%`));
+  if (clientFiltre) conditions.push(eq(echeance.client_id, clientFiltre));
 
   const [totalRow] = await db
     .select({ n: count() })
@@ -89,16 +101,39 @@ export default async function EcheancesPage({
     motif_report: r.motif_report,
   }));
 
-  // Construit l'URL d'une page en préservant les filtres actifs (statut/type/q).
+  // Bandeau « Filtré sur [raison sociale] » : on lit la raison sociale du client filtré,
+  // scopée cabinet_id (un id d'un autre cabinet ⇒ aucune ligne, donc pas de bandeau).
+  let clientNomFiltre: string | null = null;
+  if (clientFiltre) {
+    const [c] = await db
+      .select({ raison_sociale: client.raison_sociale })
+      .from(client)
+      .where(and(eq(client.id, clientFiltre), eq(client.cabinet_id, cabinet_id)))
+      .limit(1);
+    clientNomFiltre = c?.raison_sociale ?? null;
+  }
+
+  // Construit l'URL d'une page en préservant les filtres actifs (statut/type/q/client).
   function hrefPour(p: number): string {
     const params = new URLSearchParams();
     if (statut) params.set("statut", statut);
     if (type) params.set("type", type);
     if (q) params.set("q", q);
+    if (clientFiltre) params.set("client", clientFiltre);
     if (p > 1) params.set("page", String(p));
     const qs = params.toString();
     return qs ? `${ECHEANCES_PATH}?${qs}` : ECHEANCES_PATH;
   }
+
+  // Lien « tout voir » du bandeau : retire ?client mais garde les autres filtres.
+  const hrefSansClient = (() => {
+    const params = new URLSearchParams();
+    if (statut) params.set("statut", statut);
+    if (type) params.set("type", type);
+    if (q) params.set("q", q);
+    const qs = params.toString();
+    return qs ? `${ECHEANCES_PATH}?${qs}` : ECHEANCES_PATH;
+  })();
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
@@ -109,6 +144,9 @@ export default async function EcheancesPage({
         types={[...TYPES]}
         filtres={{ statut: statut ?? "", type: type ?? "", q: q ?? "" }}
         peutAgir={peutAgir}
+        {...(clientFiltre && clientNomFiltre
+          ? { filtreClient: { id: clientFiltre, nom: clientNomFiltre, hrefTout: hrefSansClient } }
+          : {})}
       />
       <Pagination page={page} total={total} parPage={PAR_PAGE} hrefPour={hrefPour} />
     </main>

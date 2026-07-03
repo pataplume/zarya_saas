@@ -269,7 +269,7 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetriqueCard
-            href="/app/documents"
+            href="#documents"
             titre="Documents manquants"
             valeur={agregats.nb_documents_manquants}
             sousTitre={
@@ -278,7 +278,7 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
             alerte={agregats.nb_documents_manquants > 0}
           />
           <MetriqueCard
-            href="/app/calendrier/echeances"
+            href={`/app/calendrier/echeances?client=${id}`}
             titre="Échéances"
             valeur={dossier.echeances.length}
             sousTitre={
@@ -291,7 +291,7 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
             alerte={echeancesEnRetard > 0}
           />
           <MetriqueCard
-            href="/app/factures/validation"
+            href={`/app/factures/validation?client=${id}`}
             titre="Factures à valider"
             valeur={nb_factures_a_valider}
             sousTitre={nb_factures_a_valider > 0 ? "En attente de validation" : "Rien à valider"}
@@ -355,7 +355,7 @@ export default async function DossierClientPage({ params }: { params: Promise<{ 
       </Suspense>
 
       {/* C1.4 — Échéances — données déjà portées par la requête-porte : rendu immédiat. */}
-      <EcheancesSection echeances={dossier.echeances} />
+      <EcheancesSection echeances={dossier.echeances} clientId={id} />
 
       {/* Lot 4 (ADR 0025) — Documents attendus & relances (brouillon Mode A + journal + à venir) */}
       <Suspense fallback={<SectionSkeleton id="relances" titre="Documents attendus & relances" />}>
@@ -506,7 +506,7 @@ async function BancaireAsync({
 
 async function FacturesAsync({ cabinet_id, clientId }: { cabinet_id: string; clientId: string }) {
   const factures = await getDossierFactures(cabinet_id, clientId);
-  return <FacturesSection factures={factures} />;
+  return <FacturesSection factures={factures} clientId={clientId} />;
 }
 
 async function SalairesAsync({ cabinet_id, clientId }: { cabinet_id: string; clientId: string }) {
@@ -686,6 +686,7 @@ function DocumentsSection({ documents }: { documents: DossierDocument[] }) {
 
 function EcheancesSection({
   echeances,
+  clientId,
 }: {
   echeances: {
     id: string;
@@ -695,12 +696,13 @@ function EcheancesSection({
     statut: string;
     en_retard: boolean;
   }[];
+  clientId: string;
 }) {
   return (
     <SectionShell
       id="echeances"
       titre="Échéances"
-      lien={{ href: "/app/calendrier/echeances", label: "Voir le calendrier" }}
+      lien={{ href: `/app/calendrier/echeances?client=${clientId}`, label: "Voir le calendrier" }}
     >
       {echeances.length === 0 ? (
         <EtatVide
@@ -759,7 +761,7 @@ function EcheancesSection({
 
 // ─── C1.4 — Section Factures ─────────────────────────────────────────────────────
 
-function FacturesSection({ factures }: { factures: DossierFactures }) {
+function FacturesSection({ factures, clientId }: { factures: DossierFactures; clientId: string }) {
   const { validees, a_valider } = factures;
   const vide = validees.length === 0 && a_valider.length === 0;
 
@@ -767,7 +769,7 @@ function FacturesSection({ factures }: { factures: DossierFactures }) {
     <SectionShell
       id="factures"
       titre="Factures"
-      lien={{ href: "/app/factures/validation", label: "File de validation" }}
+      lien={{ href: `/app/factures/validation?client=${clientId}`, label: "File de validation" }}
     >
       {vide ? (
         <EtatVide
