@@ -1221,6 +1221,10 @@ export const relance = crmSchema.table(
     // Bloc C2b — tracking de l'envoi Microsoft (ADR 0019, exception additive au sceau A).
     microsoft_message_id: text("microsoft_message_id"),
     internet_message_id: text("internet_message_id"),
+    // RUN6 usabilité — snooze persistant (migration 0055) : la relance redevient visible
+    // après snoozed_until. snoozed_par nullable (traçabilité, pas obligatoire).
+    snoozed_until: timestamp("snoozed_until", { withTimezone: true }),
+    snoozed_par: uuid("snoozed_par").references(() => cabinetMembre.id, { onDelete: "set null" }),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -1228,6 +1232,7 @@ export const relance = crmSchema.table(
     index("idx_relance_echeance").on(t.echeance_id),
     index("idx_relance_client").on(t.cabinet_id, t.client_id),
     index("idx_relance_statut").on(t.cabinet_id, t.statut),
+    index("idx_relance_snoozed_until").on(t.cabinet_id, t.snoozed_until),
   ],
 );
 

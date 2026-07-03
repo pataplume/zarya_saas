@@ -13,7 +13,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { cabinet, client, contact } from "./crm";
+import { cabinet, cabinetMembre, client, contact } from "./crm";
 import { document } from "./doc";
 
 // Namespace Postgres salaire.* — module Salaire (Bloc F0 : schéma minimal consommé par
@@ -977,9 +977,15 @@ export const relanceSalaire = salaireSchema.table(
     auto_generated: boolean("auto_generated").notNull().default(false),
     valide_par_humain: boolean("valide_par_humain").notNull().default(false),
     graph_message_id: text("graph_message_id"),
+    // RUN6 usabilité — snooze persistant (migration 0055), symétrique à crm.relance.
+    snoozed_until: timestamp("snoozed_until", { withTimezone: true }),
+    snoozed_par: uuid("snoozed_par").references(() => cabinetMembre.id, { onDelete: "set null" }),
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("idx_relance_periode").on(t.cabinet_id, t.periode_id)],
+  (t) => [
+    index("idx_relance_periode").on(t.cabinet_id, t.periode_id),
+    index("idx_relance_salaire_snoozed_until").on(t.cabinet_id, t.snoozed_until),
+  ],
 );
 
 // ─── salaire.piece ────────────────────────────────────────────────────────────
