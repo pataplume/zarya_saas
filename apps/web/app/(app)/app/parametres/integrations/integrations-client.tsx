@@ -4,9 +4,10 @@
 // bannière région hors-zone (D3) + accusé. Textes FR en dur (interface fiduciaire interne,
 // pas de next-intl câblé — convention parametres/*).
 import type { MicrosoftIntegrationParams, MicrosoftIntegrationStatut } from "@zarya/integrations";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { toast } from "sonner";
 import { helpAttrs } from "@/lib/help-attrs";
-import { acknowledgeRegionAction, disconnectMicrosoftAction } from "./actions";
+import { acknowledgeRegionAction, disconnectMicrosoftAction, testerEnvoiAction } from "./actions";
 
 const CONNECT_URL = "/api/integrations/microsoft/connect";
 
@@ -82,7 +83,10 @@ export function IntegrationsClient({
 
         <div className="mt-5 flex gap-3">
           {connected ? (
-            <DisconnectButton isResponsable={isResponsable} />
+            <>
+              <DisconnectButton isResponsable={isResponsable} />
+              {isResponsable && <TesterEnvoiButton />}
+            </>
           ) : (
             <ConnectButton isResponsable={isResponsable} reconnect={statut === "revoque"} />
           )}
@@ -234,6 +238,34 @@ function DisconnectButton({ isResponsable }: { isResponsable: boolean }) {
         {pending ? "Déconnexion…" : "Déconnecter"}
       </button>
       {state.error && <p className="mt-2 text-xs text-red-600">{state.error}</p>}
+    </form>
+  );
+}
+
+function TesterEnvoiButton() {
+  const [state, action, pending] = useActionState(testerEnvoiAction, {});
+
+  useEffect(() => {
+    if (state.success) {
+      toast.success("Email de test envoyé à vous-même — vérifiez votre boîte.");
+    } else if (state.error) {
+      toast.error(state.error);
+    }
+  }, [state]);
+
+  return (
+    <form action={action}>
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        {...helpAttrs(
+          "Tester l'envoi",
+          "Envoie un email de test à votre propre adresse via la boîte Microsoft connectée du cabinet, pour vérifier que l'envoi des relances fonctionne.",
+        )}
+      >
+        {pending ? "Envoi…" : "Tester l'envoi"}
+      </button>
     </form>
   );
 }
