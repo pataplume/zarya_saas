@@ -1,8 +1,13 @@
 "use server";
 
 import { requireAuth } from "@zarya/auth";
-import { envoyerRelance, envoyerRelancesValidees } from "@zarya/calendar";
-import { db, relance } from "@zarya/db";
+import {
+  envoyerRelance,
+  envoyerRelancesValidees,
+  escaladerRelances,
+  genererBrouillonsRelances,
+} from "@zarya/calendar";
+import { db, evenement, relance, sql } from "@zarya/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -17,12 +22,27 @@ import { getMembreSignature } from "@/lib/membre-signature";
 const ROLES_VALIDATION = new Set(["responsable", "gestionnaire_salaires", "collaborateur"]);
 const RELANCES_PATH = "/app/calendrier/relances";
 
+// Déclenchement manuel de la génération (RUN5 usabilité, arbitrage A8) : le cabinet peut
+// forcer une passe de génération des brouillons (au lieu d'attendre le cron `generer-relances`,
+// toutes les 5h). Confirmation côté UI + cooldown 1h côté serveur (anti-spam si le cabinet
+// doute que le cron ait tourné). Le cooldown est tracé via `crm.evenement` (pas de nouvelle
+// table) : même convention que l'archivage de document (RUN3) — on réutilise `note_ajoutee`
+// avec un `metadata` distinctif, `crm.evenement.type` faisant partie du schéma scellé (Bloc A).
+const COOLDOWN_GENERATION_MS = 60 * 60 * 1000;
+const ACTION_GENERATION_MANUELLE = "generation_manuelle_relances";
+
 export type RelanceActionState = { error?: string; success?: boolean };
 export type RelanceLotState = {
   error?: string;
   envoyees?: number;
   echecs?: number;
   ignores?: number;
+};
+export type GenererRelancesManuelState = {
+  error?: string;
+  success?: boolean;
+  brouillonsCrees?: number;
+  candidats?: number;
 };
 
 function acteur(user: { app_metadata: Record<string, unknown> }) {
@@ -120,4 +140,66 @@ export async function modifierRelanceAction(formData: FormData): Promise<Relance
 
   revalidatePath(RELANCES_PATH);
   return { success: true };
+}
+
+/** Formatte le temps restant avant la fin du cooldown, arrondi à la minute (min 1). */
+function formatTempsRestant(depuisMs: number): string {
+  const restantMs = COOLDOWN_GENERATION_MS - depuisMs;
+  const totalMinutes = Math.max(1, Math.round(restantMs / 60_000));
+  const heures = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (heures === 0) return `${minutes}min`;
+  if (minutes === 0) return `${heures}h`;
+  return `${heures}h ${minutes}min`;
+}
+
+/**
+ * Déclenche manuellement une passe de génération des brouillons de relance pour le cabinet
+ * de l'acteur (même logique que le cron `generer-relances`, scopée à un seul cabinet) :
+ * `genererBrouillonsRelances` (n°1) puis `escaladerRelances` (n°2+), dans le même ordre.
+ * Ne crée QUE des brouillons — jamais d'envoi (l'envoi reste la file de validation existante).
+ * Cooldown 1h par cabinet (arbitrage A8), tracé via `crm.evenement`.
+ */
+export async function genererRelancesManuelAction(): Promise<GenererRelancesManuelState> {
+  const user = await requireAuth();
+  const { cabinet_id, role } = acteur(user);
+  if (!cabinet_id) return { error: "Cabinet introuvable." };
+  if (!ROLES_VALIDATION.has(role)) return { error: "Droits insuffisants." };
+
+  const [dernier] = await db.execute<{ created_at: Date }>(sql`
+    SELECT created_at FROM crm.evenement
+    WHERE cabinet_id = ${cabinet_id}::uuid
+      AND type = 'note_ajoutee'
+      AND metadata->>'action' = ${ACTION_GENERATION_MANUELLE}
+    ORDER BY created_at DESC
+    LIMIT 1
+  `);
+
+  if (dernier) {
+    const depuisMs = Date.now() - new Date(dernier.created_at).getTime();
+    if (depuisMs < COOLDOWN_GENERATION_MS) {
+      return {
+        error: `Génération déjà lancée récemment — réessayez dans ${formatTempsRestant(depuisMs)}.`,
+      };
+    }
+  }
+
+  const generation = await genererBrouillonsRelances({ cabinetId: cabinet_id });
+  const escalade = await escaladerRelances({ cabinetId: cabinet_id });
+  const brouillonsCrees = generation.brouillons_crees + escalade.brouillons_crees;
+  const candidats = generation.candidats + escalade.candidats;
+
+  await db.insert(evenement).values({
+    cabinet_id,
+    client_id: null,
+    type: "note_ajoutee",
+    acteur_type: "cabinet_membre",
+    acteur_id: user.id,
+    ressource_type: "crm.relance",
+    description: "Génération manuelle des relances déclenchée",
+    metadata: { action: ACTION_GENERATION_MANUELLE, brouillons_crees: brouillonsCrees, candidats },
+  });
+
+  revalidatePath(RELANCES_PATH);
+  return { success: true, brouillonsCrees, candidats };
 }

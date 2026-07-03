@@ -26,6 +26,19 @@ const calendarMock = vi.hoisted(() => ({
     echecs: 0,
     plafonnees: false,
   })),
+  genererBrouillonsRelances: vi.fn(async () => ({
+    candidats: 0,
+    brouillons_crees: 0,
+    sans_modele: 0,
+    sans_destinataire: 0,
+  })),
+  escaladerRelances: vi.fn(async () => ({
+    candidats: 0,
+    brouillons_crees: 0,
+    arretees_max: 0,
+    sans_modele: 0,
+    sans_destinataire: 0,
+  })),
 }));
 
 vi.mock("@zarya/auth", () => ({
@@ -37,11 +50,16 @@ vi.mock("@zarya/auth", () => ({
 vi.mock("@zarya/calendar", () => ({
   envoyerRelance: calendarMock.envoyerRelance,
   envoyerRelancesValidees: calendarMock.envoyerRelancesValidees,
+  genererBrouillonsRelances: calendarMock.genererBrouillonsRelances,
+  escaladerRelances: calendarMock.escaladerRelances,
 }));
 
-const { envoyerRelanceAction, envoyerLotAction, modifierRelanceAction } = await import(
-  "../../../apps/web/app/(app)/app/calendrier/relances/actions"
-);
+const {
+  envoyerRelanceAction,
+  envoyerLotAction,
+  modifierRelanceAction,
+  genererRelancesManuelAction,
+} = await import("../../../apps/web/app/(app)/app/calendrier/relances/actions");
 
 const sql = createServiceClient();
 
@@ -72,10 +90,19 @@ describe("Server actions file relances (C3a)", () => {
     lecteur = await createTestUser(sql, { cabinet_id: cabinetA.id, role: "lecteur" });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     authState.user = null;
     calendarMock.envoyerRelance.mockClear();
     calendarMock.envoyerRelancesValidees.mockClear();
+    calendarMock.genererBrouillonsRelances.mockClear();
+    calendarMock.escaladerRelances.mockClear();
+    // Nettoyage des événements de cooldown créés par genererRelancesManuelAction (les deux
+    // cabinets, pour ne pas polluer les tests suivants ni laisser fuiter entre cas).
+    await sql`
+      DELETE FROM crm.evenement
+      WHERE cabinet_id IN (${cabinetA.id}, ${cabinetB.id})
+        AND metadata->>'action' = 'generation_manuelle_relances'
+    `;
   });
 
   afterAll(async () => {
@@ -134,5 +161,74 @@ describe("Server actions file relances (C3a)", () => {
       SELECT sujet, corps FROM crm.relance WHERE id = ${relanceId}
     `;
     expect(row).toMatchObject({ sujet: "Nouveau sujet", corps: "Nouveau corps" });
+  });
+
+  // ─── Déclenchement manuel de la génération (RUN5 usabilité, arbitrage A8) ────────────────
+
+  async function countEvenementsGeneration(cabinet_id: string): Promise<number> {
+    const [row] = await sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM crm.evenement
+      WHERE cabinet_id = ${cabinet_id}
+        AND type = 'note_ajoutee'
+        AND metadata->>'action' = 'generation_manuelle_relances'
+    `;
+    return row?.n ?? 0;
+  }
+
+  test("génération manuelle — RBAC : un lecteur ne peut pas déclencher", async () => {
+    authState.user = lecteur.authUser;
+    const res = await genererRelancesManuelAction();
+    expect(res.error).toMatch(/droits/i);
+    expect(calendarMock.genererBrouillonsRelances).not.toHaveBeenCalled();
+    expect(calendarMock.escaladerRelances).not.toHaveBeenCalled();
+    expect(await countEvenementsGeneration(cabinetA.id)).toBe(0);
+  });
+
+  test("génération manuelle — nominal : sans échéance due, 0 brouillon + événement tracé", async () => {
+    authState.user = responsable.authUser;
+    const res = await genererRelancesManuelAction();
+    expect(res.success).toBe(true);
+    expect(res.brouillonsCrees).toBe(0);
+    expect(calendarMock.genererBrouillonsRelances).toHaveBeenCalledWith({ cabinetId: cabinetA.id });
+    expect(calendarMock.escaladerRelances).toHaveBeenCalledWith({ cabinetId: cabinetA.id });
+    expect(await countEvenementsGeneration(cabinetA.id)).toBe(1);
+  });
+
+  test("génération manuelle — cooldown : un 2e déclenchement immédiat est bloqué", async () => {
+    authState.user = responsable.authUser;
+    const premier = await genererRelancesManuelAction();
+    expect(premier.success).toBe(true);
+    calendarMock.genererBrouillonsRelances.mockClear();
+    calendarMock.escaladerRelances.mockClear();
+
+    const second = await genererRelancesManuelAction();
+    expect(second.error).toMatch(/réessayez/i);
+    expect(second.success).toBeUndefined();
+    expect(calendarMock.genererBrouillonsRelances).not.toHaveBeenCalled();
+    expect(calendarMock.escaladerRelances).not.toHaveBeenCalled();
+    // Aucun nouvel événement — un seul créé par le 1er déclenchement.
+    expect(await countEvenementsGeneration(cabinetA.id)).toBe(1);
+  });
+
+  test("génération manuelle — anti-fuite : le cooldown du cabinet A ne bloque pas le cabinet B", async () => {
+    authState.user = responsable.authUser;
+    const premier = await genererRelancesManuelAction();
+    expect(premier.success).toBe(true);
+
+    const gestionnaireB = await createTestUser(sql, {
+      cabinet_id: cabinetB.id,
+      role: "responsable",
+    });
+    try {
+      authState.user = gestionnaireB.authUser;
+      const res = await genererRelancesManuelAction();
+      expect(res.success).toBe(true);
+      expect(calendarMock.genererBrouillonsRelances).toHaveBeenCalledWith({
+        cabinetId: cabinetB.id,
+      });
+      expect(await countEvenementsGeneration(cabinetB.id)).toBe(1);
+    } finally {
+      await cleanupTestUsers(sql, gestionnaireB);
+    }
   });
 });

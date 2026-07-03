@@ -1,14 +1,28 @@
 "use client";
 
-import { Check, Clock, Mail, Pencil } from "lucide-react";
+import { Check, Clock, Mail, Pencil, Zap } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { helpAttrs } from "@/lib/help-attrs";
 import { useFileKeyboard } from "@/lib/hooks/use-file-keyboard";
-import { envoyerLotAction, envoyerRelanceAction, modifierRelanceAction } from "./actions";
+import {
+  envoyerLotAction,
+  envoyerRelanceAction,
+  genererRelancesManuelAction,
+  modifierRelanceAction,
+} from "./actions";
 
 export interface RelanceItem {
   relance_id: string;
@@ -40,6 +54,14 @@ export function RelancesFile({
   const [message, setMessage] = useState<string | null>(null);
   const [cursor, setCursor] = useState(0);
   const rowRefs = useRef<(HTMLLIElement | null)[]>([]);
+
+  // Déclenchement manuel de la génération (RUN5 usabilité, arbitrage A8) : transition dédiée
+  // (n'affecte pas les boutons Envoyer) + confirmation avant appel + désactivation locale du
+  // bouton si le serveur répond une erreur de cooldown (pas de compte à rebours live, un
+  // message suffit — cf. consigne).
+  const [pendingGeneration, startGenerationTransition] = useTransition();
+  const [confirmerGeneration, setConfirmerGeneration] = useState(false);
+  const [generationBloquee, setGenerationBloquee] = useState(false);
 
   // Optimistic UI : la carte disparaît dès le clic « Envoyer ». Si l'envoi échoue (aucun
   // destinataire, reconnexion Microsoft requise…), la fin de la transition annule l'ajout
@@ -93,6 +115,23 @@ export function RelancesFile({
     });
   }
 
+  function genererMaintenant() {
+    setConfirmerGeneration(false);
+    startGenerationTransition(async () => {
+      const res = await genererRelancesManuelAction();
+      if (res.error) {
+        toast.error(res.error);
+        setGenerationBloquee(true);
+      } else {
+        const n = res.brouillonsCrees ?? 0;
+        toast.success(
+          n > 0 ? `${n} brouillon(s) de relance créé(s).` : "Aucune nouvelle relance à générer.",
+        );
+      }
+      router.refresh();
+    });
+  }
+
   // Raccourcis clavier du hook partagé des files de travail :
   // J début · N suivant · P précédent · V envoyer · C modifier.
   useFileKeyboard({
@@ -119,13 +158,26 @@ export function RelancesFile({
     rowRefs.current[cursor]?.scrollIntoView({ block: "nearest" });
   }, [cursor, visibles.length]);
 
+  const boutonGeneration = peutEnvoyer && (
+    <GenererMaintenantButton
+      pending={pendingGeneration}
+      bloque={generationBloquee}
+      confirmerOuvert={confirmerGeneration}
+      setConfirmerOuvert={setConfirmerGeneration}
+      onConfirmer={genererMaintenant}
+    />
+  );
+
   if (visibles.length === 0) {
     return (
-      <EmptyState
-        icon={Mail}
-        title="Aucune relance en attente"
-        hint="Les brouillons de relance générés par ZARYA apparaîtront ici pour validation avant envoi."
-      />
+      <div>
+        {boutonGeneration && <div className="mb-4 flex justify-end">{boutonGeneration}</div>}
+        <EmptyState
+          icon={Mail}
+          title="Aucune relance en attente"
+          hint="Les brouillons de relance générés par ZARYA apparaîtront ici pour validation avant envoi."
+        />
+      </div>
     );
   }
 
@@ -151,6 +203,7 @@ export function RelancesFile({
           >
             Envoyer la sélection ({selected.size})
           </button>
+          {boutonGeneration}
           <span className="ml-auto hidden text-xs text-slate-400 sm:flex">
             <span>
               Raccourcis : <kbd className="font-semibold">J</kbd> début ·{" "}
@@ -347,5 +400,65 @@ function ModifierModal({
         </form>
       </div>
     </div>
+  );
+}
+
+/**
+ * Bouton « Générer les relances maintenant » (RUN5 usabilité, arbitrage A8) : déclenche
+ * manuellement une passe de génération des brouillons pour le cabinet, au lieu d'attendre le
+ * cron `generer-relances`. Confirmation obligatoire avant déclenchement ; ne crée que des
+ * brouillons (jamais d'envoi direct). Si le serveur répond une erreur de cooldown (1h), le
+ * bouton se désactive avec le message renvoyé tel quel (toast) — pas de compte à rebours live.
+ */
+function GenererMaintenantButton({
+  pending,
+  bloque,
+  confirmerOuvert,
+  setConfirmerOuvert,
+  onConfirmer,
+}: {
+  pending: boolean;
+  bloque: boolean;
+  confirmerOuvert: boolean;
+  setConfirmerOuvert: (v: boolean) => void;
+  onConfirmer: () => void;
+}) {
+  return (
+    <>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        disabled={pending || bloque}
+        onClick={() => setConfirmerOuvert(true)}
+        {...helpAttrs(
+          "Générer les relances maintenant",
+          "Crée immédiatement les brouillons de relance dus pour votre cabinet (au lieu d'attendre le prochain passage automatique). Rien n'est envoyé : vous les validez ensuite comme d'habitude.",
+        )}
+      >
+        <Zap className="size-3.5" aria-hidden />
+        Générer les relances maintenant
+      </Button>
+
+      <Dialog open={confirmerOuvert} onOpenChange={setConfirmerOuvert}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Générer les relances maintenant ?</DialogTitle>
+            <DialogDescription>
+              Crée des brouillons de relance pour les échéances dues de votre cabinet. Rien n'est
+              envoyé : vous les validez ensuite comme d'habitude.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setConfirmerOuvert(false)}>
+              Annuler
+            </Button>
+            <Button type="button" disabled={pending} onClick={onConfirmer}>
+              Générer maintenant
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
