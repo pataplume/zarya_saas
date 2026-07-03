@@ -11,6 +11,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { createClientDepuisZefixAction } from "@/app/(app)/app/clients/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,6 +154,10 @@ export function ValidationInbox({
   const [confirmLot, setConfirmLot] = useState<string[] | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Copie locale de `clients`, enrichie immédiatement quand un nouveau client est créé
+  // depuis la modale de correction (« + Nouveau client »), sans attendre un rechargement
+  // de la page serveur.
+  const [clientsLocal, setClientsLocal] = useState<ClientOption[]>(clients);
 
   // Optimistic UI : les propositions validées/rejetées disparaissent immédiatement de la
   // liste ; si le serveur échoue, React annule l'état optimiste en fin de transition
@@ -480,9 +485,10 @@ export function ValidationInbox({
       {correcting && (
         <CorrectionModal
           item={correcting}
-          clients={clients}
+          clients={clientsLocal}
           pending={isPending}
           onClose={() => setCorrecting(null)}
+          onClientCreated={(c) => setClientsLocal((prev) => [...prev, c])}
           onSubmit={(fd) => {
             // Pas d'optimistic ici : les erreurs de formulaire restent inline et la
             // modal reste ouverte pour corriger.
@@ -562,14 +568,19 @@ function CorrectionModal({
   clients,
   pending,
   onClose,
+  onClientCreated,
   onSubmit,
 }: {
   item: InboxItem;
   clients: ClientOption[];
   pending: boolean;
   onClose: () => void;
+  onClientCreated: (c: ClientOption) => void;
   onSubmit: (fd: FormData) => void;
 }) {
+  const [clientIdSelectionne, setClientIdSelectionne] = useState(item.client_id_propose ?? "");
+  const [creatingClient, setCreatingClient] = useState(false);
+
   return (
     <Overlay onClose={onClose}>
       <h2 className="text-base font-semibold text-foreground">Corriger le classement</h2>
@@ -595,21 +606,46 @@ function CorrectionModal({
             >
               Client
             </label>
-            <Select
-              id="correction-client"
-              name="client_id"
-              defaultValue={item.client_id_propose ?? ""}
-              required
-            >
-              <option value="" disabled>
-                Sélectionnez un client
-              </option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.raison_sociale}
-                </option>
-              ))}
-            </Select>
+            {creatingClient ? (
+              <NouveauClientInline
+                onCree={(c) => {
+                  onClientCreated(c);
+                  setClientIdSelectionne(c.id);
+                  setCreatingClient(false);
+                }}
+                onAnnuler={() => setCreatingClient(false)}
+              />
+            ) : (
+              <>
+                <Select
+                  id="correction-client"
+                  name="client_id"
+                  value={clientIdSelectionne}
+                  onChange={(e) => setClientIdSelectionne(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    Sélectionnez un client
+                  </option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.raison_sociale}
+                    </option>
+                  ))}
+                </Select>
+                <button
+                  type="button"
+                  onClick={() => setCreatingClient(true)}
+                  className="mt-1 text-xs text-primary hover:underline"
+                  {...helpAttrs(
+                    "Nouveau client",
+                    "Le client n'existe pas encore dans ZARYA ? Créez-le ici sans quitter cette fenêtre (raison sociale + IDE optionnel).",
+                  )}
+                >
+                  + Nouveau client
+                </button>
+              </>
+            )}
           </div>
           <div className="block">
             <label
@@ -698,6 +734,97 @@ function CorrectionModal({
         </div>
       </form>
     </Overlay>
+  );
+}
+
+/**
+ * Mini-formulaire de création de client, inline dans la modale de correction (pas de modal
+ * sur modal). Remplace le `<Select>` client le temps de la saisie, puis rebascule dessus une
+ * fois le client créé (sélection automatique gérée par l'appelant via `onCree`).
+ */
+function NouveauClientInline({
+  onCree,
+  onAnnuler,
+}: {
+  onCree: (c: ClientOption) => void;
+  onAnnuler: () => void;
+}) {
+  const [raisonSociale, setRaisonSociale] = useState("");
+  const [ide, setIde] = useState("");
+  const [erreurCreation, setErreurCreation] = useState<string | null>(null);
+  const [pendingCreation, startCreation] = useTransition();
+
+  function creer() {
+    setErreurCreation(null);
+    const nom = raisonSociale.trim();
+    if (!nom) {
+      setErreurCreation("Raison sociale requise");
+      return;
+    }
+    const fd = new FormData();
+    fd.set("raison_sociale", nom);
+    if (ide.trim()) fd.set("ide", ide.trim());
+    startCreation(async () => {
+      const res = await createClientDepuisZefixAction({}, fd);
+      if (res.error || !res.client_id) {
+        setErreurCreation(res.error ?? "Échec de la création du client");
+        return;
+      }
+      toast.success(`Client « ${nom} » créé`);
+      onCree({ id: res.client_id, raison_sociale: nom });
+    });
+  }
+
+  return (
+    <div className="rounded-md border border-dashed border-input bg-secondary p-2.5">
+      <div className="space-y-2">
+        <div>
+          <label
+            htmlFor="nouveau-client-raison-sociale"
+            className="mb-1 block text-xs font-medium text-muted-foreground"
+          >
+            Raison sociale
+          </label>
+          <Input
+            id="nouveau-client-raison-sociale"
+            value={raisonSociale}
+            onChange={(e) => setRaisonSociale(e.target.value)}
+            placeholder="Nom de l'entreprise"
+            disabled={pendingCreation}
+            autoFocus
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="nouveau-client-ide"
+            className="mb-1 block text-xs font-medium text-muted-foreground"
+          >
+            IDE (optionnel)
+          </label>
+          <Input
+            id="nouveau-client-ide"
+            value={ide}
+            onChange={(e) => setIde(e.target.value)}
+            placeholder="CHE-123.456.789"
+            disabled={pendingCreation}
+          />
+        </div>
+        {erreurCreation && <p className="text-xs text-rose-700">{erreurCreation}</p>}
+        <div className="flex items-center gap-3 pt-0.5">
+          <Button type="button" size="sm" onClick={creer} disabled={pendingCreation}>
+            {pendingCreation ? "Création…" : "Créer"}
+          </Button>
+          <button
+            type="button"
+            onClick={onAnnuler}
+            disabled={pendingCreation}
+            className="text-xs text-muted-foreground hover:text-foreground disabled:cursor-not-allowed"
+          >
+            Annuler
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

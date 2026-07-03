@@ -63,31 +63,40 @@ export default async function EcheancesPage({
   if (q) conditions.push(ilike(client.raison_sociale, `%${q}%`));
   if (clientFiltre) conditions.push(eq(echeance.client_id, clientFiltre));
 
-  const [totalRow] = await db
-    .select({ n: count() })
-    .from(echeance)
-    .innerJoin(client, eq(client.id, echeance.client_id))
-    .where(and(...conditions));
+  const [totalRow, rows, clientsActifs] = await Promise.all([
+    db
+      .select({ n: count() })
+      .from(echeance)
+      .innerJoin(client, eq(client.id, echeance.client_id))
+      .where(and(...conditions))
+      .then((r) => r[0]),
+    db
+      .select({
+        id: echeance.id,
+        client_id: echeance.client_id,
+        client_nom: client.raison_sociale,
+        type: echeance.type,
+        libelle: echeance.libelle,
+        date_echeance: echeance.date_echeance,
+        statut: echeance.statut,
+        reporte_a: echeance.reporte_a,
+        motif_report: echeance.motif_report,
+      })
+      .from(echeance)
+      .innerJoin(client, eq(client.id, echeance.client_id))
+      .where(and(...conditions))
+      .orderBy(asc(echeance.date_echeance))
+      .limit(PAR_PAGE)
+      .offset((page - 1) * PAR_PAGE),
+    // Liste des clients actifs (non archivés) du cabinet — sert au Select du dialog
+    // « + Échéance » (création manuelle, RUN4 usabilité).
+    db
+      .select({ id: client.id, raison_sociale: client.raison_sociale })
+      .from(client)
+      .where(and(eq(client.cabinet_id, cabinet_id), isNull(client.archived_at)))
+      .orderBy(asc(client.raison_sociale)),
+  ]);
   const total = totalRow?.n ?? 0;
-
-  const rows = await db
-    .select({
-      id: echeance.id,
-      client_id: echeance.client_id,
-      client_nom: client.raison_sociale,
-      type: echeance.type,
-      libelle: echeance.libelle,
-      date_echeance: echeance.date_echeance,
-      statut: echeance.statut,
-      reporte_a: echeance.reporte_a,
-      motif_report: echeance.motif_report,
-    })
-    .from(echeance)
-    .innerJoin(client, eq(client.id, echeance.client_id))
-    .where(and(...conditions))
-    .orderBy(asc(echeance.date_echeance))
-    .limit(PAR_PAGE)
-    .offset((page - 1) * PAR_PAGE);
 
   const echeances: EcheanceRow[] = rows.map((r) => ({
     id: r.id,
@@ -144,6 +153,7 @@ export default async function EcheancesPage({
         types={[...TYPES]}
         filtres={{ statut: statut ?? "", type: type ?? "", q: q ?? "" }}
         peutAgir={peutAgir}
+        clientsActifs={clientsActifs}
         {...(clientFiltre && clientNomFiltre
           ? { filtreClient: { id: clientFiltre, nom: clientNomFiltre, hrefTout: hrefSansClient } }
           : {})}

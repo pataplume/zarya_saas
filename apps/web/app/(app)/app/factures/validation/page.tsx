@@ -83,6 +83,7 @@ export default async function FacturesValidationPage({
       taux_tva_principal_propose: propositionFacture.taux_tva_principal_propose,
       devise_proposee: propositionFacture.devise_proposee,
       categorie_proposee: propositionFacture.categorie_proposee,
+      origine_saisie: propositionFacture.origine_saisie,
       qr_facture_detecte: propositionFacture.qr_facture_detecte,
       // IBAN-du-QR (C6.1) : on lit le masque + l'existence du secret Vault (PAS le vault_id lui-même).
       iban_paiement_masque: propositionFacture.iban_paiement_masque,
@@ -125,6 +126,7 @@ export default async function FacturesValidationPage({
       taux_tva_principal: n(r.taux_tva_principal_propose),
       devise: r.devise_proposee ?? "CHF",
       categorie: r.categorie_proposee ?? "",
+      origine_saisie: r.origine_saisie,
       qr_facture_detecte: r.qr_facture_detecte,
       // IBAN-du-QR au Vault (C6.1) : on n'expose JAMAIS le vault_id ni le clair au client, seulement
       // le masque + un booléen dérivé côté serveur.
@@ -156,6 +158,21 @@ export default async function FacturesValidationPage({
       <PageHeader
         title="Factures à valider"
         description={`${total} facture${total > 1 ? "s" : ""} en attente`}
+        actions={
+          peutValider ? (
+            <Button asChild variant="secondary" size="sm">
+              <Link
+                href="/app/factures/nouvelle"
+                {...helpAttrs(
+                  "Facture manuelle",
+                  "Créez une facture depuis les informations papier ou verbales du client, sans passer par l'extraction automatique. Elle rejoint la même file de validation ci-dessous.",
+                )}
+              >
+                + Facture manuelle
+              </Link>
+            </Button>
+          ) : undefined
+        }
       />
 
       {/* Bandeau « Filtré sur [client] · tout voir » (?client=<uuid>). Le lien retire le

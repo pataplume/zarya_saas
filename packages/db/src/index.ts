@@ -1,7 +1,7 @@
 // @zarya/db — Schémas Drizzle ORM, client DB, migrations
 
 // Opérateurs de requête drizzle ré-exportés (le package db possède l'ORM).
-export { and, eq, inArray, isNull, lte, sql } from "drizzle-orm";
+export { and, eq, inArray, isNull, lte, notInArray, sql } from "drizzle-orm";
 // Journaux d'audit append-only (security-and-audit §8)
 export { type ApiExterneAuditEntry, recordApiExterne } from "./audit";
 export type { DbForCabinet } from "./client";
@@ -76,6 +76,7 @@ export {
   niveauRisqueEnum,
   note,
   notificationSalaire,
+  origineSaisieEnum,
   paramComptable,
   pauseClient,
   periode,

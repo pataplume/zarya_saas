@@ -3,7 +3,7 @@
 import { CalendarCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,8 @@ import { badgeStatutEcheance, libelleTypeEcheance } from "@/lib/libelles";
 import {
   annulerEcheanceAction,
   annulerLotAction,
+  creerEcheanceManuelleAction,
+  type EcheanceActionState,
   marquerTraiteeAction,
   marquerTraiteesLotAction,
   reporterEcheanceAction,
@@ -49,6 +52,11 @@ export interface EcheanceRow {
   motif_report: string | null;
 }
 
+export interface ClientActif {
+  id: string;
+  raison_sociale: string;
+}
+
 const STATUTS_ACTIONNABLES = new Set(["a_venir", "imminente", "en_retard"]);
 
 export function EcheancesListe({
@@ -58,6 +66,7 @@ export function EcheancesListe({
   filtres,
   peutAgir,
   filtreClient,
+  clientsActifs,
 }: {
   echeances: EcheanceRow[];
   statuts: string[];
@@ -66,6 +75,8 @@ export function EcheancesListe({
   peutAgir: boolean;
   /** Filtre « dossier client » actif : bandeau « Filtré sur [nom] · tout voir ». */
   filtreClient?: { id: string; nom: string; hrefTout: string };
+  /** Clients actifs du cabinet — alimente le Select du dialog « + Échéance ». */
+  clientsActifs: ClientActif[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -129,6 +140,15 @@ export function EcheancesListe({
 
   return (
     <div>
+      {peutAgir && (
+        <div className="mb-4 flex justify-end">
+          <NouvelleEcheanceDialog
+            clientsActifs={clientsActifs}
+            onCreated={() => router.refresh()}
+          />
+        </div>
+      )}
+
       {filtreClient && (
         <div
           className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"
@@ -502,5 +522,130 @@ function ReporterModal({
         </form>
       </div>
     </div>
+  );
+}
+
+const ECHEANCE_INITIAL_STATE: EcheanceActionState = {};
+
+/** Dialog « + Échéance » — création manuelle d'une échéance personnalisée (RUN4 usabilité). */
+function NouvelleEcheanceDialog({
+  clientsActifs,
+  onCreated,
+}: {
+  clientsActifs: ClientActif[];
+  onCreated: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useActionState(
+    creerEcheanceManuelleAction,
+    ECHEANCE_INITIAL_STATE,
+  );
+
+  useEffect(() => {
+    if (state.success) {
+      toast.success("Échéance créée.");
+      setOpen(false);
+      onCreated();
+    }
+  }, [state.success, onCreated]);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          size="sm"
+          {...helpAttrs(
+            "Créer une échéance",
+            "Ajoute une échéance personnalisée pour un client (ex. un engagement ponctuel qui n'est généré par aucune règle automatique).",
+          )}
+        >
+          + Échéance
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nouvelle échéance</DialogTitle>
+          <DialogDescription>
+            Ajoute une échéance personnalisée pour un client (ex. un engagement ponctuel qui n'est
+            généré par aucune règle automatique).
+          </DialogDescription>
+        </DialogHeader>
+        <form action={action} className="space-y-3">
+          <div className="text-sm">
+            <label
+              htmlFor="nouvelle-echeance-client"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
+              Client
+            </label>
+            <Select id="nouvelle-echeance-client" name="client_id" required className="w-full">
+              <option value="">— Choisir un client —</option>
+              {clientsActifs.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.raison_sociale}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="text-sm">
+            <label
+              htmlFor="nouvelle-echeance-libelle"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
+              Libellé
+            </label>
+            <Input
+              id="nouvelle-echeance-libelle"
+              name="libelle"
+              required
+              maxLength={200}
+              placeholder="Ex. Dépôt statuts modifiés"
+              className="w-full"
+            />
+          </div>
+          <div className="text-sm">
+            <label
+              htmlFor="nouvelle-echeance-date"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
+              Date d'échéance
+            </label>
+            <Input
+              id="nouvelle-echeance-date"
+              name="date_echeance"
+              type="date"
+              required
+              className="w-full"
+            />
+          </div>
+          <div className="text-sm">
+            <label
+              htmlFor="nouvelle-echeance-alerte"
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
+              Date d'alerte (optionnel)
+            </label>
+            <Input
+              id="nouvelle-echeance-alerte"
+              name="date_alerte"
+              type="date"
+              className="w-full"
+            />
+          </div>
+
+          {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Création…" : "Créer l'échéance"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
