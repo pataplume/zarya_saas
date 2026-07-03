@@ -109,53 +109,45 @@ export default async function SalaireFiduciairePage({
                 <TableHead>Changements</TableHead>
                 <TableHead>Pièces</TableHead>
                 <TableHead>Limite</TableHead>
-                <TableHead className="text-right">Export</TableHead>
+                <TableHead className="text-right">Traitement</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {periodes.map((p) => {
-                // Exportable dès que validée (ou déjà exportée → ré-export possible).
-                const exportable = p.statut === "validee" || p.statut === "exportee";
-                return (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">
-                      <Link
-                        href={`/app/clients/${p.client_id}`}
-                        className="text-primary hover:text-primary-hover hover:underline"
-                        {...helpAttrs(
-                          "Ouvrir la fiche client",
-                          "Ouvre le dossier complet du client (documents, échéances, factures, salaires). Vous y retrouvez toute l'activité de la PME.",
-                        )}
-                      >
-                        {p.raison_sociale}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{libelleStatutPeriode(p.statut)}</TableCell>
-                    <TableCell>{p.nb_employes_concernes}</TableCell>
-                    <TableCell>{p.nb_changements_declares}</TableCell>
-                    <TableCell>{p.nb_pieces}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {p.date_limite_validation}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {peutExporter && exportable ? (
-                        <a
-                          href={`/app/salaire/export/${p.id}?format=xlsx`}
-                          className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                          {...helpAttrs(
-                            "Exporter la période (Excel)",
-                            "Télécharge le fichier Excel de la période validée, prêt à importer dans votre logiciel de paie. Disponible dès qu'une période est validée.",
-                          )}
-                        >
-                          Exporter (Excel)
-                        </a>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/50">—</span>
+              {periodes.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="font-medium">
+                    <Link
+                      href={`/app/clients/${p.client_id}`}
+                      className="text-primary hover:text-primary-hover hover:underline"
+                      {...helpAttrs(
+                        "Ouvrir la fiche client",
+                        "Ouvre le dossier complet du client (documents, échéances, factures, salaires). Vous y retrouvez toute l'activité de la PME.",
                       )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                    >
+                      {p.raison_sociale}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{libelleStatutPeriode(p.statut)}</TableCell>
+                  <TableCell>{p.nb_employes_concernes}</TableCell>
+                  <TableCell>{p.nb_changements_declares}</TableCell>
+                  <TableCell>{p.nb_pieces}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {p.date_limite_validation}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Link
+                      href={`/app/salaire/periode/${p.id}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-secondary-foreground shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-700"
+                      {...helpAttrs(
+                        peutExporter ? "Traiter la période" : "Ouvrir la période",
+                        "Ouvre le détail de la période : matrice employés × éléments, revue fiduciaire, export Excel, puis clôture après import dans votre logiciel de paie.",
+                      )}
+                    >
+                      {peutExporter ? "Traiter" : "Ouvrir"} →
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}
