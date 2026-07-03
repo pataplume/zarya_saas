@@ -3,7 +3,7 @@
 // H4b — Recherche conversationnelle (RAG) : server action. auth + scope cabinet. answerQuestion
 // orchestre intent → récupération (scopée cabinet) → génération sourcée anti-injection → trace.
 import { getCurrentUser } from "@zarya/auth";
-import { and, db, document, eq, inArray, searchRequete } from "@zarya/db";
+import { and, db, document, eq, inArray, isNull, searchRequete } from "@zarya/db";
 import { type AnswerSource, answerQuestion } from "@zarya/extraction";
 import { z } from "zod";
 
@@ -37,7 +37,15 @@ async function resolveLibellesDocuments(
   const rows = await db
     .select({ id: document.id, libelle: document.libelle })
     .from(document)
-    .where(and(eq(document.cabinet_id, cabinet_id), inArray(document.id, documentIds)));
+    .where(
+      and(
+        eq(document.cabinet_id, cabinet_id),
+        inArray(document.id, documentIds),
+        // Un document archivé ne doit pas produire de libellé/lien vivant (cf. commentaire
+        // ci-dessus) : retrieveChunks l'exclut déjà en amont, ceci est une défense en profondeur.
+        isNull(document.archived_at),
+      ),
+    );
   return new Map(rows.map((r) => [r.id, r.libelle]));
 }
 

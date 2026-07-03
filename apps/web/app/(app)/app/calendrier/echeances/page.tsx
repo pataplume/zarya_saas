@@ -280,6 +280,7 @@ export default async function EcheancesPage({
           mois={mois}
           hrefMois={hrefMois}
           hrefListe={hrefVue("liste")}
+          tronque={echeancesMoisRows.length === LIMITE_GRILLE}
         />
       ) : (
         <>

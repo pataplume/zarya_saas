@@ -44,35 +44,53 @@ const optNullStr = z
   .nullable()
   .optional();
 
-const CreerManuelleSchema = z.object({
-  client_id: z.string().uuid(),
-  document_id: z.string().uuid(),
-  fournisseur_raison_sociale: z.string().trim().min(1, "Raison sociale requise"),
-  fournisseur_ide: optNullStr,
-  fournisseur_numero_tva: optNullStr,
-  fournisseur_bic: optNullStr,
-  numero_facture: z.string().trim().min(1, "Numéro de facture requis"),
-  date_emission: z.string().regex(DATE_RE, "Date d'émission AAAA-MM-JJ requise"),
-  date_echeance: z
-    .string()
-    .trim()
-    .transform((v) => (v === "" ? null : v))
-    .nullable()
-    .optional()
-    .refine((v) => v === null || v === undefined || DATE_RE.test(v), "Date d'échéance invalide"),
-  total_ht: z.coerce.number(),
-  total_tva: z.coerce.number().default(0),
-  total_ttc: z.coerce.number(),
-  montant_a_payer: z.coerce.number(),
-  taux_tva_principal: z
-    .string()
-    .trim()
-    .transform((v) => (v === "" ? null : Number(v)))
-    .nullable()
-    .optional(),
-  devise: z.enum(["CHF", "EUR", "USD", "autre"]).default("CHF"),
-  categorie: optNullStr,
-});
+const CreerManuelleSchema = z
+  .object({
+    client_id: z.string().uuid(),
+    document_id: z.string().uuid(),
+    fournisseur_raison_sociale: z.string().trim().min(1, "Raison sociale requise"),
+    fournisseur_ide: optNullStr,
+    fournisseur_numero_tva: optNullStr,
+    fournisseur_bic: optNullStr,
+    numero_facture: z.string().trim().min(1, "Numéro de facture requis"),
+    date_emission: z.string().regex(DATE_RE, "Date d'émission AAAA-MM-JJ requise"),
+    date_echeance: z
+      .string()
+      .trim()
+      .transform((v) => (v === "" ? null : v))
+      .nullable()
+      .optional()
+      .refine((v) => v === null || v === undefined || DATE_RE.test(v), "Date d'échéance invalide"),
+    // `.finite()` rejette NaN/Infinity (ex. un total non numérique forgé hors formulaire client)
+    // AVANT l'insert numeric (sinon erreur Postgres brute illisible). `.nonnegative()` : une
+    // saisie manuelle est toujours une facture standard (type forcé plus bas), jamais un avoir.
+    total_ht: z.coerce.number().finite().nonnegative(),
+    total_tva: z.coerce.number().finite().nonnegative().default(0),
+    total_ttc: z.coerce.number().finite().nonnegative(),
+    montant_a_payer: z.coerce.number().finite().nonnegative(),
+    taux_tva_principal: z
+      .string()
+      .trim()
+      .transform((v) => (v === "" ? null : Number(v)))
+      .nullable()
+      .optional()
+      .refine(
+        (v) => v === null || v === undefined || (Number.isFinite(v) && v >= 0),
+        "Taux de TVA invalide",
+      ),
+    devise: z.enum(["CHF", "EUR", "USD", "autre"]).default("CHF"),
+    categorie: optNullStr,
+  })
+  .refine(
+    // Miroir de la contrainte DB `chk_facture_montants` (migration 0030) : on échoue TÔT avec un
+    // message métier lisible au lieu de laisser l'incohérence remonter en erreur Postgres brute
+    // au moment de la validation. Tolérance 0.05 identique à la contrainte.
+    (v) => Math.abs(v.total_ttc - (v.total_ht + v.total_tva)) <= 0.05,
+    {
+      message: "Incohérence des montants : le TTC doit égaler HT + TVA (± 0.05).",
+      path: ["total_ttc"],
+    },
+  );
 
 /** Construit confiance_par_champ = { source: "humain", confiance: 1 } pour chaque champ rempli. */
 function confianceHumaine(champs: Record<string, unknown>): ConfianceParChampUi {

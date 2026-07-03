@@ -43,6 +43,13 @@ export async function retrieveChunks(
   const topK = input.topK ?? 10;
   const client = opts.client ?? (infomaniakClient as unknown as EmbeddingsClient);
   const clientFilter = input.client_id ? sql`AND client_id = ${input.client_id}` : sql``;
+  // Un document archivé (retiré volontairement : mal classé / doublon — archiverDocumentAction)
+  // ne doit plus être servi comme source RAG ni au LLM. L'archivage ne désindexe pas les chunks
+  // (pas de trigger) : on filtre donc au read, comme le font déjà hub/dossier/dashboard. Scopé
+  // cabinet (les ids sont des UUID globalement uniques, le scope reste une défense en profondeur).
+  const nonArchive = sql`AND document_id NOT IN (
+    SELECT id FROM doc.document WHERE cabinet_id = ${input.cabinet_id} AND archived_at IS NOT NULL
+  )`;
 
   type ChunkRow = {
     id: string;
@@ -66,7 +73,7 @@ export async function retrieveChunks(
       const literal = `[${vec.join(",")}]`;
       const rows = (await db.execute(sql`
         SELECT id, document_id, client_id, text_content, cabinet_id FROM search.document_chunk
-        WHERE cabinet_id = ${input.cabinet_id} AND embedding IS NOT NULL ${clientFilter}
+        WHERE cabinet_id = ${input.cabinet_id} AND embedding IS NOT NULL ${clientFilter} ${nonArchive}
         ORDER BY embedding <=> ${literal}::halfvec
         LIMIT ${topK}
       `)) as unknown as ChunkRow[];
@@ -82,7 +89,7 @@ export async function retrieveChunks(
   const lexRows = (await db.execute(sql`
     SELECT id, document_id, client_id, text_content, cabinet_id FROM search.document_chunk
     WHERE cabinet_id = ${input.cabinet_id}
-      AND text_tsvector @@ plainto_tsquery('french', ${input.question}) ${clientFilter}
+      AND text_tsvector @@ plainto_tsquery('french', ${input.question}) ${clientFilter} ${nonArchive}
     ORDER BY ts_rank(text_tsvector, plainto_tsquery('french', ${input.question})) DESC
     LIMIT ${topK}
   `)) as unknown as ChunkRow[];
