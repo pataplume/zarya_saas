@@ -57,12 +57,15 @@ export function EcheancesListe({
   types,
   filtres,
   peutAgir,
+  filtreClient,
 }: {
   echeances: EcheanceRow[];
   statuts: string[];
   types: string[];
   filtres: { statut: string; type: string; q: string };
   peutAgir: boolean;
+  /** Filtre « dossier client » actif : bandeau « Filtré sur [nom] · tout voir ». */
+  filtreClient?: { id: string; nom: string; hrefTout: string };
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -80,6 +83,10 @@ export function EcheancesListe({
       const v = String(form.get(k) ?? "").trim();
       if (v) params.set(k, v);
     }
+    // Le filtre « dossier client » reste actif quand on change statut/type/q (préservé via
+    // le champ caché du formulaire). « Tout voir » (bandeau) est la seule sortie du filtre.
+    const clientId = String(form.get("client") ?? "").trim();
+    if (clientId) params.set("client", clientId);
     // Nouveau filtre → retour page 1 (pas de param `page`).
     router.push(`/app/calendrier/echeances?${params.toString()}`);
   }
@@ -122,7 +129,30 @@ export function EcheancesListe({
 
   return (
     <div>
+      {filtreClient && (
+        <div
+          className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"
+          role="status"
+        >
+          <span>
+            Filtré sur <span className="font-semibold">{filtreClient.nom}</span>
+          </span>
+          <span aria-hidden="true">·</span>
+          <Link
+            href={filtreClient.hrefTout}
+            className="font-medium text-primary hover:underline"
+            {...helpAttrs(
+              "Tout voir",
+              "Retire le filtre « dossier client » et affiche les échéances de tous les clients (les autres filtres sont conservés).",
+            )}
+          >
+            tout voir
+          </Link>
+        </div>
+      )}
+
       <form action={appliquerFiltres} className="mb-4 flex flex-wrap items-end gap-3">
+        {filtreClient && <input type="hidden" name="client" value={filtreClient.id} />}
         <div className="text-sm">
           <label
             htmlFor="filtre-statut"

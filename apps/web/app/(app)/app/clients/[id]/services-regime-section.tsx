@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  frequenceServiceSchema,
   logicielComptableSchema,
   modeTransmissionSchema,
   regimeTvaSchema,
@@ -20,6 +21,7 @@ import {
   type ServiceCrudState,
   type ServicesActionState,
   supprimerServiceAction,
+  updateServiceAction,
 } from "../services/actions";
 
 // UX Lot 4 — Section « Services & régime » du dossier client (trou connu UX-UI-MAP § annexe).
@@ -40,6 +42,7 @@ const TYPES_SERVICE = typeServiceSchema.options;
 const LOGICIELS = logicielComptableSchema.options;
 const MODES_TRANSMISSION = modeTransmissionSchema.options;
 const REGIMES_TVA = regimeTvaSchema.options;
+const FREQUENCES = frequenceServiceSchema.options;
 
 // Libellés locaux (pas de fonction partagée dans @/lib/libelles pour ces deux enums —
 // même précédent que TYPES_CLIENT/LANGUES dans dossier-edit-client.tsx).
@@ -66,6 +69,8 @@ const BTN_PRIMARY =
   "inline-flex h-8 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-sm hover:bg-primary-hover disabled:opacity-60";
 const BTN_DANGER =
   "inline-flex items-center rounded-md border border-rose-300 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-60";
+const BTN_SECONDARY =
+  "inline-flex items-center rounded-md border border-input px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60";
 const CARD = "rounded-lg border border-border bg-card p-5 shadow-card";
 
 function Erreur({ message }: { message?: string | undefined }) {
@@ -92,36 +97,103 @@ function ServiceActifLigne({ service }: { service: ServiceRegime }) {
     supprimerServiceAction,
     {},
   );
+  // Édition granulaire fréquence/régime d'un service DÉJÀ actif → updateServiceAction
+  // (existante, régénère les échéances). Choix UI : mini-formulaire inline (toggle),
+  // cohérent avec le principe « édition inline, pas de modal hell » (apps/web/CLAUDE.md).
+  const [editOuvert, setEditOuvert] = useState(false);
+  const [editState, editAction, editPending] = useActionState<ServiceCrudState, FormData>(
+    updateServiceAction,
+    {},
+  );
   useEffect(() => {
     if (state.success) toast.success("Service désactivé.");
   }, [state]);
+  useEffect(() => {
+    if (editState.success) {
+      toast.success("Service mis à jour — échéances régénérées");
+      setEditOuvert(false);
+    }
+  }, [editState]);
+
+  const estTva = service.type === "tva";
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3">
-      <div className="min-w-0">
-        <span className="text-sm font-medium text-slate-800">{libelleService(service.type)}</span>
-        {resumeService(service) && (
-          <p className="text-xs text-slate-500">{resumeService(service)}</p>
-        )}
-        <Erreur message={state.error} />
-      </div>
-      {/* TODO(founder) : édition granulaire fréquence/régime d'un service DÉJÀ actif —
-          updateServiceAction existe (régénère les échéances) mais l'évidence UI (inline vs
-          formulaire dédié) n'est pas documentée. À arbitrer avant de câbler. */}
-      <form action={action}>
-        <input type="hidden" name="id" value={service.id} />
-        <button
-          type="submit"
-          className={BTN_DANGER}
-          disabled={pending}
-          {...helpAttrs(
-            "Désactiver ce service",
-            "Retire ce service du client et cesse de générer ses échéances. L'historique est conservé.",
+    <li className="rounded-lg border border-slate-200 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <span className="text-sm font-medium text-slate-800">{libelleService(service.type)}</span>
+          {resumeService(service) && (
+            <p className="text-xs text-slate-500">{resumeService(service)}</p>
           )}
+          <Erreur message={state.error} />
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className={BTN_SECONDARY}
+            onClick={() => setEditOuvert((v) => !v)}
+            {...helpAttrs(
+              "Modifier le service",
+              "Change la fréquence ou le régime de ce service. Les échéances du client sont automatiquement régénérées en conséquence.",
+            )}
+          >
+            {editOuvert ? "Annuler" : "Modifier"}
+          </button>
+          <form action={action}>
+            <input type="hidden" name="id" value={service.id} />
+            <button
+              type="submit"
+              className={BTN_DANGER}
+              disabled={pending}
+              {...helpAttrs(
+                "Désactiver ce service",
+                "Retire ce service du client et cesse de générer ses échéances. L'historique est conservé.",
+              )}
+            >
+              {pending ? "…" : "Désactiver"}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {editOuvert && (
+        <form
+          action={editAction}
+          className="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2"
         >
-          {pending ? "…" : "Désactiver"}
-        </button>
-      </form>
+          <input type="hidden" name="id" value={service.id} />
+          <label className="block">
+            <span className={LABEL}>Fréquence</span>
+            <select name="frequence" defaultValue={service.frequence ?? ""} className={FIELD}>
+              <option value="">— Non renseignée</option>
+              {FREQUENCES.map((f) => (
+                <option key={f} value={f}>
+                  {FREQUENCE_LABEL[f] ?? f}
+                </option>
+              ))}
+            </select>
+          </label>
+          {estTva && (
+            <label className="block">
+              <span className={LABEL}>Régime TVA</span>
+              <select name="regime_tva" defaultValue={service.regime_tva ?? ""} className={FIELD}>
+                <option value="">— Non renseigné</option>
+                {REGIMES_TVA.map((r) => (
+                  <option key={r} value={r}>
+                    {REGIME_TVA_LABEL[r] ?? r}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div className="sm:col-span-2">
+            <Erreur message={editState.error} />
+            <button type="submit" className={BTN_PRIMARY} disabled={editPending}>
+              {editPending ? "Enregistrement…" : "Enregistrer les modifications"}
+            </button>
+          </div>
+        </form>
+      )}
     </li>
   );
 }
