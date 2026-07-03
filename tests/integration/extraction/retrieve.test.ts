@@ -24,6 +24,7 @@ let cabinet: TestCabinet;
 let cabinetB: TestCabinet;
 let client: TestClient;
 let chunkFactureId: string;
+let chunkArchiveId: string;
 
 /** Client embeddings qui renvoie un vecteur unitaire 3584 orienté `dir` pour la requête. */
 function queryClient(dir: number): EmbeddingsClient {
@@ -68,6 +69,17 @@ beforeAll(async () => {
   await seedChunk(cabinet.id, client.id, "Decompte salaire employe cotisations AVS", 100);
   // Cabinet B : même texte + même embedding (direction 5) → ne doit JAMAIS sortir pour cabinet A.
   await seedChunk(cabinetB.id, clientB.id, "Facture Swisscom telecom montant total", 5);
+
+  // Document ARCHIVÉ du cabinet A (retiré volontairement) : son chunk ne doit JAMAIS être
+  // récupéré (ni vectoriel ni full-text), même avec un texte/embedding pertinents.
+  const arch = await seedChunk(
+    cabinet.id,
+    client.id,
+    "Facture Swisscom telecom document archive obsolete",
+    5,
+  );
+  chunkArchiveId = arch.id;
+  await sql`UPDATE doc.document SET archived_at = now() WHERE id = ${arch.documentId}`;
 }, 120_000);
 
 afterAll(async () => {
@@ -97,6 +109,17 @@ describe("retrieveChunks (H3a)", () => {
       await sql`SELECT id FROM search.document_chunk WHERE cabinet_id = ${cabinetB.id} AND text_content LIKE 'Facture Swisscom%'`;
     const bId = b[0]?.id as string;
     expect(res.some((c) => c.chunk_id === bId)).toBe(false);
+  });
+
+  test("ARCHIVE : un chunk d'un document archivé n'est jamais récupéré (vectoriel + full-text)", async () => {
+    const res = await retrieveChunks(
+      { cabinet_id: cabinet.id, question: "Facture Swisscom telecom archive obsolete" },
+      { client: queryClient(5) },
+    );
+    // Le chunk archivé partage le texte/embedding pertinent mais son document est archivé.
+    expect(res.some((c) => c.chunk_id === chunkArchiveId)).toBe(false);
+    // Sanity : le chunk NON archivé pertinent, lui, remonte toujours.
+    expect(res.some((c) => c.chunk_id === chunkFactureId)).toBe(true);
   });
 
   test("fallback full-text si embeddings indisponibles", async () => {

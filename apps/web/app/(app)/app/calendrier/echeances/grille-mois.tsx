@@ -40,6 +40,7 @@ export function GrilleMois({
   mois,
   hrefMois,
   hrefListe,
+  tronque = false,
 }: {
   echeances: EcheanceRow[];
   annee: number;
@@ -51,6 +52,11 @@ export function GrilleMois({
    * filtre par jour exact — même URL pour tous les jours, cf. commentaire d'en-tête.
    */
   hrefListe: string;
+  /**
+   * Vrai si la requête serveur a atteint le plafond (LIMITE_GRILLE) : certaines échéances
+   * du mois ne sont PAS affichées. On le signale (pas de cap silencieux — règle projet).
+   */
+  tronque?: boolean;
 }) {
   const jours = joursGrilleMois(annee, mois);
   const parJour = regrouperParJour<EcheanceRow & EcheanceGroupable>(echeances);
@@ -84,9 +90,24 @@ export function GrilleMois({
           </Link>
         </div>
         <span className="text-sm text-muted-foreground">
-          {nbTotal} échéance{nbTotal > 1 ? "s" : ""} ce mois
+          {tronque ? `${nbTotal}+ ` : `${nbTotal} `}
+          échéance{nbTotal > 1 ? "s" : ""} ce mois
         </span>
       </div>
+
+      {tronque && (
+        <div
+          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800"
+          role="status"
+        >
+          Ce mois compte plus de {nbTotal} échéances : seules les {nbTotal} premières sont affichées
+          ici. Affinez les filtres (statut, type, client) ou passez en{" "}
+          <Link href={hrefListe} className="font-medium underline">
+            vue liste
+          </Link>{" "}
+          pour toutes les voir.
+        </div>
+      )}
 
       {nbTotal === 0 ? (
         <EmptyState

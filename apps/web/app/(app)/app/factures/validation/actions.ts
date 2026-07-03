@@ -39,37 +39,50 @@ const optNullStr = z
   .nullable()
   .optional();
 
-const ValiderSchema = z.object({
-  proposition_id: z.string().uuid(),
-  fournisseur_raison_sociale: z.string().trim().min(1, "Raison sociale requise"),
-  fournisseur_ide: optNullStr,
-  fournisseur_numero_tva: optNullStr,
-  fournisseur_iban: optNullStr,
-  fournisseur_bic: optNullStr,
-  numero_facture: z.string().trim().min(1, "Numéro de facture requis"),
-  date_emission: z.string().regex(DATE_RE, "Date d'émission AAAA-MM-JJ requise"),
-  date_echeance: z
-    .string()
-    .trim()
-    .transform((v) => (v === "" ? null : v))
-    .nullable()
-    .optional()
-    .refine((v) => v === null || v === undefined || DATE_RE.test(v), "Date d'échéance invalide"),
-  total_ht: z.coerce.number(),
-  total_tva: z.coerce.number().default(0),
-  total_ttc: z.coerce.number(),
-  montant_a_payer: z.coerce.number(),
-  taux_tva_principal: z
-    .string()
-    .trim()
-    .transform((v) => (v === "" ? null : Number(v)))
-    .nullable()
-    .optional(),
-  devise: z.enum(["CHF", "EUR", "USD", "autre"]).default("CHF"),
-  iban_paiement: optNullStr,
-  categorie: optNullStr,
-  compte_charge: z.string().trim().min(1, "Compte de charge requis"),
-});
+const ValiderSchema = z
+  .object({
+    proposition_id: z.string().uuid(),
+    fournisseur_raison_sociale: z.string().trim().min(1, "Raison sociale requise"),
+    fournisseur_ide: optNullStr,
+    fournisseur_numero_tva: optNullStr,
+    fournisseur_iban: optNullStr,
+    fournisseur_bic: optNullStr,
+    numero_facture: z.string().trim().min(1, "Numéro de facture requis"),
+    date_emission: z.string().regex(DATE_RE, "Date d'émission AAAA-MM-JJ requise"),
+    date_echeance: z
+      .string()
+      .trim()
+      .transform((v) => (v === "" ? null : v))
+      .nullable()
+      .optional()
+      .refine((v) => v === null || v === undefined || DATE_RE.test(v), "Date d'échéance invalide"),
+    // `.finite()` rejette NaN/Infinity avant l'insert numeric (message métier vs erreur Postgres
+    // brute). Pas de `.nonnegative()` ici : une proposition peut être un avoir (montants signés).
+    total_ht: z.coerce.number().finite(),
+    total_tva: z.coerce.number().finite().default(0),
+    total_ttc: z.coerce.number().finite(),
+    montant_a_payer: z.coerce.number().finite(),
+    taux_tva_principal: z
+      .string()
+      .trim()
+      .transform((v) => (v === "" ? null : Number(v)))
+      .nullable()
+      .optional()
+      .refine((v) => v === null || v === undefined || Number.isFinite(v), "Taux de TVA invalide"),
+    devise: z.enum(["CHF", "EUR", "USD", "autre"]).default("CHF"),
+    iban_paiement: optNullStr,
+    categorie: optNullStr,
+    compte_charge: z.string().trim().min(1, "Compte de charge requis"),
+  })
+  .refine(
+    // Miroir de la contrainte DB `chk_facture_montants` (migration 0030) : échoue tôt et lisiblement
+    // au lieu de laisser Postgres rejeter au dernier moment. Tolérance 0.05 identique.
+    (v) => Math.abs(v.total_ttc - (v.total_ht + v.total_tva)) <= 0.05,
+    {
+      message: "Incohérence des montants : le TTC doit égaler HT + TVA (± 0.05).",
+      path: ["total_ttc"],
+    },
+  );
 
 /** Valide une proposition de facture → crée facture.facture + fournisseur (E5a). */
 export async function validerFactureAction(

@@ -227,4 +227,50 @@ describe("creerFactureManuelleAction (RUN4)", () => {
 
     await cleanupTestUsers(sql, user);
   });
+
+  test("montants incohérents (TTC ≠ HT + TVA) → rejeté tôt, aucune proposition", async () => {
+    const user = await createTestUser(sql, { cabinet_id: cabinetA.id, role: "collaborateur" });
+    authState.user = user.authUser;
+    const doc = await seedDocumentEligible(cabinetA.id, clientA.id);
+
+    const res = await creerFactureManuelleAction(
+      {},
+      fd(clientA.id, doc.id, { total_ht: "100", total_tva: "8", total_ttc: "200" }),
+    );
+    expect(res.error).toMatch(/incohérence|coh/i);
+    const [{ n }] = await sql<{ n: number }[]>`
+      SELECT COUNT(*)::int AS n FROM facture.proposition_facture WHERE document_id = ${doc.id}
+    `;
+    expect(n).toBe(0);
+
+    await cleanupTestUsers(sql, user);
+  });
+
+  test("montant négatif ou non numérique → rejeté (Zod), aucune proposition", async () => {
+    const user = await createTestUser(sql, { cabinet_id: cabinetA.id, role: "collaborateur" });
+    authState.user = user.authUser;
+    const docNeg = await seedDocumentEligible(cabinetA.id, clientA.id);
+    const negatif = await creerFactureManuelleAction(
+      {},
+      fd(clientA.id, docNeg.id, { total_ht: "-100", total_tva: "0", total_ttc: "-100" }),
+    );
+    expect(negatif.error).toBeTruthy();
+    expect(negatif.success).toBeUndefined();
+
+    const docNaN = await seedDocumentEligible(cabinetA.id, clientA.id);
+    const nonNum = await creerFactureManuelleAction(
+      {},
+      fd(clientA.id, docNaN.id, { total_ttc: "abc" }),
+    );
+    expect(nonNum.error).toBeTruthy();
+    expect(nonNum.success).toBeUndefined();
+
+    const [{ n }] = await sql<{ n: number }[]>`
+      SELECT COUNT(*)::int AS n FROM facture.proposition_facture
+      WHERE document_id IN (${docNeg.id}, ${docNaN.id})
+    `;
+    expect(n).toBe(0);
+
+    await cleanupTestUsers(sql, user);
+  });
 });
