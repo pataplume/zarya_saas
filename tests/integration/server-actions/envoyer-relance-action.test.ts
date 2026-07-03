@@ -59,6 +59,7 @@ const {
   envoyerLotAction,
   modifierRelanceAction,
   genererRelancesManuelAction,
+  snoozerRelanceAction,
 } = await import("../../../apps/web/app/(app)/app/calendrier/relances/actions");
 
 const sql = createServiceClient();
@@ -230,5 +231,67 @@ describe("Server actions file relances (C3a)", () => {
     } finally {
       await cleanupTestUsers(sql, gestionnaireB);
     }
+  });
+
+  // ─── Snooze persistant (RUN6 usabilité — snoozerRelanceAction, migration 0055) ──────────
+
+  async function getSnoozedUntil(relanceId: string): Promise<Date | null> {
+    const [row] = await sql<{ snoozed_until: Date | null }[]>`
+      SELECT snoozed_until FROM crm.relance WHERE id = ${relanceId}
+    `;
+    return row?.snoozed_until ?? null;
+  }
+
+  async function isInFileValidation(relanceId: string): Promise<boolean> {
+    const [row] = await sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM calendar.v_relances_a_valider WHERE relance_id = ${relanceId}
+    `;
+    return (row?.n ?? 0) > 0;
+  }
+
+  test("snooze — RBAC : un lecteur ne peut pas reporter", async () => {
+    const relanceId = await seedBrouillon(cabinetA.id, clientAId);
+    authState.user = lecteur.authUser;
+    const res = await snoozerRelanceAction(relanceId, 1);
+    expect(res.error).toMatch(/droits/i);
+    expect(await getSnoozedUntil(relanceId)).toBeNull();
+  });
+
+  test("snooze — anti-fuite : reporter une relance d'un autre cabinet → introuvable", async () => {
+    const relanceB = await seedBrouillon(cabinetB.id, clientBId);
+    authState.user = responsable.authUser;
+    const res = await snoozerRelanceAction(relanceB, 1);
+    expect(res.error).toMatch(/introuvable/i);
+    expect(await getSnoozedUntil(relanceB)).toBeNull();
+  });
+
+  test("snooze — nominal : pose snoozed_until ~N jours dans le futur", async () => {
+    const relanceId = await seedBrouillon(cabinetA.id, clientAId);
+    authState.user = responsable.authUser;
+    const res = await snoozerRelanceAction(relanceId, 3);
+    expect(res.success).toBe(true);
+
+    const snoozedUntil = await getSnoozedUntil(relanceId);
+    expect(snoozedUntil).not.toBeNull();
+    const attendu = Date.now() + 3 * 24 * 60 * 60 * 1000;
+    expect(Math.abs((snoozedUntil as Date).getTime() - attendu)).toBeLessThan(60_000);
+  });
+
+  test("snooze — paramètre jours hors bornes rejeté (Zod)", async () => {
+    const relanceId = await seedBrouillon(cabinetA.id, clientAId);
+    authState.user = responsable.authUser;
+    const res = await snoozerRelanceAction(relanceId, 31);
+    expect(res.error).toMatch(/invalides/i);
+    expect(await getSnoozedUntil(relanceId)).toBeNull();
+  });
+
+  test("snooze — la relance snoozée disparaît de la file de validation", async () => {
+    const relanceId = await seedBrouillon(cabinetA.id, clientAId);
+    authState.user = responsable.authUser;
+    expect(await isInFileValidation(relanceId)).toBe(true);
+
+    const res = await snoozerRelanceAction(relanceId, 1);
+    expect(res.success).toBe(true);
+    expect(await isInFileValidation(relanceId)).toBe(false);
   });
 });

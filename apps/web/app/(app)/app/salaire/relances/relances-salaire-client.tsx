@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { helpAttrs } from "@/lib/help-attrs";
-import { envoyerLotRelancesSalaireAction, envoyerRelanceSalaireAction } from "./actions";
+import {
+  envoyerLotRelancesSalaireAction,
+  envoyerRelanceSalaireAction,
+  snoozerRelanceSalaireAction,
+} from "./actions";
+
+/** Durée du snooze déclenché par le bouton « Traiter plus tard » (RUN6 usabilité). */
+const SNOOZE_JOURS_DEFAUT = 1;
 
 export interface RelanceSalaireItem {
   relance_id: string;
@@ -45,6 +52,19 @@ export function RelancesSalaireFile({
     startTransition(async () => {
       const res = await envoyerRelanceSalaireAction(id);
       setMessage(res.success ? "Relance envoyée." : (res.error ?? "Erreur."));
+      router.refresh();
+    });
+  }
+
+  function snoozer(id: string) {
+    startTransition(async () => {
+      const res = await snoozerRelanceSalaireAction(id, SNOOZE_JOURS_DEFAUT);
+      if (res.success) {
+        setDismissed((s) => toggle(s, id));
+        setMessage("Relance reportée à demain.");
+      } else {
+        setMessage(res.error ?? "Échec du report.");
+      }
       router.refresh();
     });
   }
@@ -151,11 +171,12 @@ export function RelancesSalaireFile({
                   )}
                   <button
                     type="button"
-                    onClick={() => setDismissed((s) => toggle(s, r.relance_id))}
-                    className="inline-flex items-center gap-1 text-sm text-slate-500"
+                    disabled={pending}
+                    onClick={() => snoozer(r.relance_id)}
+                    className="inline-flex items-center gap-1 text-sm text-slate-500 disabled:opacity-40"
                     {...helpAttrs(
                       "Traiter plus tard",
-                      "Masque cette relance de la file pour l'instant, sans l'envoyer. Elle réapparaîtra au prochain chargement de la page.",
+                      "Reporte cette relance d'un jour : elle disparaît de la file et réapparaîtra demain.",
                     )}
                   >
                     <Clock className="size-3.5" aria-hidden />

@@ -5,11 +5,14 @@ import {
   client as clientTable,
   db,
   eq,
+  isNull,
+  lte,
   periode as periodeTable,
   relanceSalaire,
+  sql,
 } from "@zarya/db";
 import { buildRelanceTemplate } from "@zarya/extraction";
-import { asc, inArray } from "drizzle-orm";
+import { asc, inArray, or } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { type RelanceSalaireItem, RelancesSalaireFile } from "./relances-salaire-client";
 
@@ -41,7 +44,11 @@ export default async function RelancesSalairePage() {
     .innerJoin(periodeTable, eq(periodeTable.id, relanceSalaire.periode_id))
     .innerJoin(clientTable, eq(clientTable.id, relanceSalaire.client_id))
     .where(
-      and(eq(relanceSalaire.cabinet_id, cabinet_id), eq(relanceSalaire.valide_par_humain, false)),
+      and(
+        eq(relanceSalaire.cabinet_id, cabinet_id),
+        eq(relanceSalaire.valide_par_humain, false),
+        or(isNull(relanceSalaire.snoozed_until), lte(relanceSalaire.snoozed_until, sql`now()`)),
+      ),
     )
     .orderBy(asc(periodeTable.date_limite_validation))
     .limit(200);

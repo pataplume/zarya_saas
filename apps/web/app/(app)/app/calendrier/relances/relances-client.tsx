@@ -22,7 +22,11 @@ import {
   envoyerRelanceAction,
   genererRelancesManuelAction,
   modifierRelanceAction,
+  snoozerRelanceAction,
 } from "./actions";
+
+/** Durée du snooze déclenché par le bouton « Plus tard » (RUN6 usabilité). */
+const SNOOZE_JOURS_DEFAUT = 1;
 
 export interface RelanceItem {
   relance_id: string;
@@ -91,6 +95,19 @@ export function RelancesFile({
       // Seul le succès fait disparaître la carte (la disparition EST le feedback, pas de
       // toast de succès unitaire) ; tout autre statut → rollback + toast d'erreur.
       if (!res.success) toast.error(res.error ?? "Échec de l'envoi.");
+      router.refresh();
+    });
+  }
+
+  function snoozer(id: string) {
+    startTransition(async () => {
+      const res = await snoozerRelanceAction(id, SNOOZE_JOURS_DEFAUT);
+      if (res.success) {
+        setDismissed((s) => toggle(s, id));
+        toast.success("Relance reportée à demain.");
+      } else {
+        toast.error(res.error ?? "Échec du report.");
+      }
       router.refresh();
     });
   }
@@ -302,11 +319,12 @@ export function RelancesFile({
                   )}
                   <button
                     type="button"
-                    onClick={() => setDismissed((s) => toggle(s, r.relance_id))}
-                    className="inline-flex items-center gap-1 text-sm text-slate-500"
+                    disabled={pending}
+                    onClick={() => snoozer(r.relance_id)}
+                    className="inline-flex items-center gap-1 text-sm text-slate-500 disabled:opacity-40"
                     {...helpAttrs(
                       "Plus tard",
-                      "Masque cette relance de la file pour l'instant, sans l'envoyer ni la supprimer. Elle réapparaîtra au prochain rechargement de la page.",
+                      "Reporte cette relance d'un jour : elle disparaît de la file de validation et réapparaîtra demain.",
                     )}
                   >
                     <Clock className="size-3.5" aria-hidden />

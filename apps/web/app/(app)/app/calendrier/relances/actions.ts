@@ -45,6 +45,11 @@ export type GenererRelancesManuelState = {
   candidats?: number;
 };
 
+const snoozerSchema = z.object({
+  relanceId: z.string().uuid(),
+  jours: z.number().int().min(1).max(30),
+});
+
 function acteur(user: { app_metadata: Record<string, unknown> }) {
   return {
     cabinet_id: user.app_metadata.cabinet_id as string | undefined,
@@ -137,6 +142,36 @@ export async function modifierRelanceAction(formData: FormData): Promise<Relance
     )
     .returning({ id: relance.id });
   if (updated.length === 0) return { error: "Relance introuvable ou déjà envoyée." };
+
+  revalidatePath(RELANCES_PATH);
+  return { success: true };
+}
+
+/**
+ * Reporte une relance en brouillon ("Plus tard") : elle redevient invisible de la file de
+ * validation jusqu'à `snoozed_until` (RUN6 usabilité — snooze persistant, migration 0055).
+ * `snoozed_par` n'est volontairement pas résolu ici : il référence `crm.cabinet_membre.id`,
+ * pas `auth.users.id`, et aucun helper de résolution user→cabinet_membre n'existe dans ce
+ * repo — le champ reste `null` (traçabilité optionnelle, pas bloquant).
+ */
+export async function snoozerRelanceAction(
+  relanceId: string,
+  jours: number,
+): Promise<RelanceActionState> {
+  const { cabinet_id, role } = acteur(await requireAuth());
+  if (!cabinet_id) return { error: "Cabinet introuvable." };
+  if (!ROLES_VALIDATION.has(role)) return { error: "Droits insuffisants." };
+
+  const parsed = snoozerSchema.safeParse({ relanceId, jours });
+  if (!parsed.success) return { error: "Paramètres invalides." };
+
+  const snoozedUntil = new Date(Date.now() + parsed.data.jours * 24 * 60 * 60 * 1000);
+  const updated = await db
+    .update(relance)
+    .set({ snoozed_until: snoozedUntil, updated_at: new Date() })
+    .where(and(eq(relance.id, parsed.data.relanceId), eq(relance.cabinet_id, cabinet_id)))
+    .returning({ id: relance.id });
+  if (updated.length === 0) return { error: "Relance introuvable." };
 
   revalidatePath(RELANCES_PATH);
   return { success: true };

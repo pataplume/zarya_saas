@@ -4,6 +4,7 @@ import { requireAuth } from "@zarya/auth";
 import { accesClient, and, db, eq, relanceSalaire } from "@zarya/db";
 import { envoyerRelanceSalaire } from "@zarya/extraction";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { getMembreSignature } from "@/lib/membre-signature";
 
 // Run F1 — server actions de la file de validation des relances salaire (mode A, G5b).
@@ -22,6 +23,11 @@ export type RelanceSalaireLotState = {
   echecs?: number;
   ignores?: number;
 };
+
+const snoozerSchema = z.object({
+  relanceId: z.string().uuid(),
+  jours: z.number().int().min(1).max(30),
+});
 
 function acteur(user: { app_metadata: Record<string, unknown> }) {
   return {
@@ -105,4 +111,36 @@ export async function envoyerLotRelancesSalaireAction(
   }
   revalidatePath(RELANCES_PATH);
   return { envoyees, echecs, ignores };
+}
+
+/**
+ * Reporte une relance salaire en brouillon ("Traiter plus tard") — symétrique à
+ * `snoozerRelanceAction` du module Calendar (RUN6 usabilité, migration 0055).
+ * `snoozed_par` n'est volontairement pas résolu ici : il référence `crm.cabinet_membre.id`,
+ * pas `auth.users.id`, et aucun helper de résolution user→cabinet_membre n'existe dans ce
+ * repo — le champ reste `null` (traçabilité optionnelle, pas bloquant).
+ */
+export async function snoozerRelanceSalaireAction(
+  relanceId: string,
+  jours: number,
+): Promise<RelanceSalaireActionState> {
+  const { cabinet_id, role } = acteur(await requireAuth());
+  if (!cabinet_id) return { error: "Cabinet introuvable." };
+  if (!ROLES_VALIDATION.has(role)) return { error: "Droits insuffisants." };
+
+  const parsed = snoozerSchema.safeParse({ relanceId, jours });
+  if (!parsed.success) return { error: "Paramètres invalides." };
+
+  const snoozedUntil = new Date(Date.now() + parsed.data.jours * 24 * 60 * 60 * 1000);
+  const updated = await db
+    .update(relanceSalaire)
+    .set({ snoozed_until: snoozedUntil })
+    .where(
+      and(eq(relanceSalaire.id, parsed.data.relanceId), eq(relanceSalaire.cabinet_id, cabinet_id)),
+    )
+    .returning({ id: relanceSalaire.id });
+  if (updated.length === 0) return { error: "Relance introuvable." };
+
+  revalidatePath(RELANCES_PATH);
+  return { success: true };
 }
