@@ -1,8 +1,13 @@
 import { getCurrentUser } from "@zarya/auth";
-import { cabinet, db, eq, vCoutParCabinet } from "@zarya/db";
+import { cabinet, db, eq, invocation, vCoutParCabinet } from "@zarya/db";
 import { resolveExtractionMode } from "@zarya/extraction";
+import { and, desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { IaClient } from "./ia-client";
+
+// Nombre d'invocations récentes de classification inspectées pour détecter un repli
+// StubClassifier malgré une IA activée (appel live qui a échoué — ADR 0023 § repli).
+const NB_DERNIERES_INVOCATIONS_CLASSIFICATION = 10;
 
 // IA-c — Onglet IA des paramètres cabinet : activer/désactiver l'IA du cabinet (self-service
 // responsable) + suivi des coûts. L'effet réel dépend du kill-switch global EXTRACTION_MODE
@@ -31,11 +36,26 @@ export default async function IaPage() {
     .where(eq(vCoutParCabinet.cabinet_id, cabinet_id))
     .limit(1);
 
+  // Dernières invocations de classification (scopées cabinet_id) : sert à détecter un
+  // repli StubClassifier récent (model_used='stub' ou status≠'success' malgré l'IA
+  // activée pour ce cabinet — le live a échoué et l'appel est retombé sur l'heuristique).
+  const dernieresClassifications = await db
+    .select({ model_used: invocation.model_used, status: invocation.status })
+    .from(invocation)
+    .where(and(eq(invocation.cabinet_id, cabinet_id), eq(invocation.context, "classification_doc")))
+    .orderBy(desc(invocation.created_at))
+    .limit(NB_DERNIERES_INVOCATIONS_CLASSIFICATION);
+
+  const repliRecentDetecte = dernieresClassifications.some(
+    (i) => i.model_used === "stub" || i.status !== "success",
+  );
+
   return (
     <IaClient
       isResponsable={role === "responsable"}
       cabinetActive={cab?.active ?? false}
       globalLive={resolveExtractionMode() === "live"}
+      repliRecentDetecte={repliRecentDetecte}
       cout={
         cout
           ? {

@@ -114,6 +114,8 @@ const ANCRES: { id: string; label: string }[] = [
   { id: "vue-ensemble", label: "Vue d'ensemble" },
   { id: "completude", label: "Complétude" },
   { id: "identite", label: "Dossier" },
+  { id: "contacts", label: "Contacts" },
+  { id: "adresses", label: "Adresses" },
   { id: "services", label: "Services" },
   { id: "documents", label: "Documents" },
   { id: "echeances", label: "Échéances" },

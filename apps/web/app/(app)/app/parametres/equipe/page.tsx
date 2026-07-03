@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@zarya/auth";
 import { cabinetMembre, db, invitationMembre } from "@zarya/db";
-import { and, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { EquipeClient } from "./equipe-client";
 
@@ -47,8 +47,9 @@ export default async function EquipePage() {
     isSelf: m.user_id === user?.id,
   }));
 
-  // Invitations en attente (envoyée ou lue, non expirées)
-  const invitations = await db
+  // Invitations en attente (envoyée ou lue) — expirées incluses, pour permettre
+  // de les renvoyer depuis l'UI plutôt que de les faire disparaître silencieusement.
+  const invitationsRaw = await db
     .select({
       id: invitationMembre.id,
       email: invitationMembre.email,
@@ -63,10 +64,15 @@ export default async function EquipePage() {
       and(
         eq(invitationMembre.cabinet_id, cabinet_id),
         inArray(invitationMembre.statut, ["envoyee", "lue"]),
-        gt(invitationMembre.token_expire_at, new Date()),
       ),
     )
     .orderBy(invitationMembre.date_envoi);
+
+  const now = Date.now();
+  const invitations = invitationsRaw.map((inv) => ({
+    ...inv,
+    isExpired: inv.token_expire_at.getTime() <= now,
+  }));
 
   return <EquipeClient membres={membres} invitations={invitations} isResponsable={isResponsable} />;
 }

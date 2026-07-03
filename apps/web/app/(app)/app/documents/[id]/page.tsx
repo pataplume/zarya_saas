@@ -120,6 +120,19 @@ export default async function FicheDocumentPage({ params }: { params: Promise<{ 
                 Ouvrir le document
               </a>
             </Button>
+            <Button
+              asChild
+              variant="secondary"
+              size="sm"
+              {...helpAttrs(
+                "Télécharger le document",
+                "Télécharge le fichier d'origine sur votre appareil.",
+              )}
+            >
+              <a href={`/api/documents/${doc.fichier_physique_id}/apercu?download=1`}>
+                Télécharger
+              </a>
+            </Button>
             {peutArchiver && <ArchiverButton documentId={doc.id} />}
           </>
         }
