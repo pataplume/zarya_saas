@@ -280,6 +280,22 @@ export function libelleStatutPeriode(slug: string): string {
   return PERIODE_STATUT[slug] ?? slug;
 }
 
+const PERIODE_STATUT_FAMILLE: Record<string, FamilleBadge> = {
+  non_demandee: "neutre",
+  en_attente: "attention",
+  relancee: "attention",
+  validee: "info",
+  en_retard: "danger",
+  exportee: "info",
+  cloturee: "succes",
+  non_applicable: "termine",
+};
+
+/** Libellé + famille du statut d'une période salaire (badge). Fallback = neutre. */
+export function badgeStatutPeriode(slug: string): { label: string; famille: FamilleBadge } {
+  return { label: libelleStatutPeriode(slug), famille: PERIODE_STATUT_FAMILLE[slug] ?? "neutre" };
+}
+
 // ─── Salaire : statut d'un employé au référentiel (salaire.employe.statut) ────────
 
 const EMPLOYE_STATUT: Record<string, { label: string; famille: FamilleBadge }> = {
