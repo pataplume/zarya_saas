@@ -24,9 +24,12 @@ vi.mock("@zarya/auth", () => ({
   },
 }));
 
-const { marquerTraiteeAction, annulerEcheanceAction, reporterEcheanceAction } = await import(
-  "../../../apps/web/app/(app)/app/calendrier/echeances/actions"
-);
+const {
+  marquerTraiteeAction,
+  annulerEcheanceAction,
+  reporterEcheanceAction,
+  creerEcheanceManuelleAction,
+} = await import("../../../apps/web/app/(app)/app/calendrier/echeances/actions");
 
 const sql = createServiceClient();
 
@@ -125,5 +128,94 @@ describe("Server actions échéances (C3b)", () => {
       reporte_a: "2026-12-31",
       motif_report: "Client en vacances",
     });
+  });
+
+  // ─── Création manuelle (RUN4 usabilité) ──────────────────────────────────────────
+
+  function fdCreerEcheance(over: Record<string, string> = {}): FormData {
+    const fd = new FormData();
+    fd.set("client_id", over.client_id ?? clientAId);
+    fd.set("libelle", over.libelle ?? "Dépôt statuts modifiés");
+    fd.set("date_echeance", over.date_echeance ?? "2026-12-31");
+    if (over.date_alerte !== undefined) fd.set("date_alerte", over.date_alerte);
+    return fd;
+  }
+
+  test("création manuelle — RBAC : un lecteur ne peut pas créer", async () => {
+    authState.user = lecteur.authUser;
+    const res = await creerEcheanceManuelleAction({}, fdCreerEcheance());
+    expect(res.error).toMatch(/droits/i);
+    const [row] = await sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM crm.echeance
+      WHERE cabinet_id = ${cabinetA.id} AND libelle = 'Dépôt statuts modifiés'
+    `;
+    expect(row?.n).toBe(0);
+  });
+
+  test("création manuelle — anti-fuite : client d'un autre cabinet → introuvable", async () => {
+    authState.user = responsable.authUser;
+    const res = await creerEcheanceManuelleAction({}, fdCreerEcheance({ client_id: clientBId }));
+    expect(res.error).toMatch(/introuvable/i);
+    const [row] = await sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM crm.echeance
+      WHERE cabinet_id = ${cabinetA.id} AND libelle = 'Dépôt statuts modifiés'
+    `;
+    expect(row?.n).toBe(0);
+  });
+
+  test("création manuelle — nominal : crée une échéance personnalisée", async () => {
+    authState.user = responsable.authUser;
+    const res = await creerEcheanceManuelleAction(
+      {},
+      fdCreerEcheance({ libelle: "Dépôt statuts modifiés — nominal", date_alerte: "2026-12-15" }),
+    );
+    expect(res.success).toBe(true);
+    const [row] = await sql<
+      {
+        type: string;
+        libelle: string;
+        date_echeance: string;
+        date_alerte: string | null;
+        statut: string;
+      }[]
+    >`
+      SELECT type, libelle, to_char(date_echeance,'YYYY-MM-DD') AS date_echeance,
+             to_char(date_alerte,'YYYY-MM-DD') AS date_alerte, statut
+      FROM crm.echeance
+      WHERE cabinet_id = ${cabinetA.id} AND client_id = ${clientAId}
+        AND libelle = 'Dépôt statuts modifiés — nominal'
+    `;
+    expect(row).toMatchObject({
+      type: "personnalisee",
+      libelle: "Dépôt statuts modifiés — nominal",
+      date_echeance: "2026-12-31",
+      date_alerte: "2026-12-15",
+      statut: "a_venir",
+    });
+  });
+
+  test("création manuelle — libellé vide → erreur, rien en base", async () => {
+    authState.user = responsable.authUser;
+    const res = await creerEcheanceManuelleAction({}, fdCreerEcheance({ libelle: "" }));
+    expect(res.error).toBeTruthy();
+    const [row] = await sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM crm.echeance
+      WHERE cabinet_id = ${cabinetA.id} AND client_id = ${clientAId} AND libelle = ''
+    `;
+    expect(row?.n).toBe(0);
+  });
+
+  test("création manuelle — date malformée → erreur, rien en base", async () => {
+    authState.user = responsable.authUser;
+    const res = await creerEcheanceManuelleAction(
+      {},
+      fdCreerEcheance({ libelle: "Date invalide", date_echeance: "31-12-2026" }),
+    );
+    expect(res.error).toBeTruthy();
+    const [row] = await sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM crm.echeance
+      WHERE cabinet_id = ${cabinetA.id} AND libelle = 'Date invalide'
+    `;
+    expect(row?.n).toBe(0);
   });
 });

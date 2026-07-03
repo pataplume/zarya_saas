@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAuth } from "@zarya/auth";
-import { db, echeance } from "@zarya/db";
+import { client, db, echeance, evenement } from "@zarya/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -118,4 +118,75 @@ export async function reporterEcheanceAction(formData: FormData): Promise<Echean
     reporte_a: parsed.data.reporteA,
     motif_report: parsed.data.motif ?? null,
   });
+}
+
+// ─── Création manuelle (RUN4 usabilité) ────────────────────────────────────────────
+// `crm.echeance` n'avait jusqu'ici aucune voie de création hors génération auto. Le
+// type `personnalisee` existe déjà dans typeEcheanceEnum — aucune migration requise.
+
+const creerEcheanceSchema = z.object({
+  client_id: z.string().uuid(),
+  libelle: z.string().trim().min(1, "Libellé requis").max(200),
+  date_echeance: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date d'échéance requise (AAAA-MM-JJ)"),
+  date_alerte: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? null : v))
+    .nullable()
+    .optional()
+    .refine(
+      (v) => v === null || v === undefined || /^\d{4}-\d{2}-\d{2}$/.test(v),
+      "Date d'alerte invalide",
+    ),
+});
+
+/** Crée une échéance personnalisée (RUN4 usabilité) — le type `personnalisee` existe déjà. */
+export async function creerEcheanceManuelleAction(
+  _prev: EcheanceActionState,
+  formData: FormData,
+): Promise<EcheanceActionState> {
+  const user = await requireAuth();
+  const { cabinet_id, role } = acteur(user);
+  if (!cabinet_id) return { error: "Cabinet introuvable." };
+  if (!ROLES_ECRITURE.has(role)) return { error: "Droits insuffisants." };
+
+  const parsed = creerEcheanceSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Champs invalides." };
+  const v = parsed.data;
+
+  // Anti-fuite : le client doit appartenir à ce cabinet.
+  const [cli] = await db
+    .select({ id: client.id })
+    .from(client)
+    .where(and(eq(client.id, v.client_id), eq(client.cabinet_id, cabinet_id)))
+    .limit(1);
+  if (!cli) return { error: "Client introuvable." };
+
+  const [nouvelle] = await db
+    .insert(echeance)
+    .values({
+      cabinet_id,
+      client_id: v.client_id,
+      type: "personnalisee",
+      libelle: v.libelle,
+      date_echeance: v.date_echeance,
+      date_alerte: v.date_alerte ?? null,
+    })
+    .returning({ id: echeance.id });
+  if (!nouvelle) return { error: "Échec de la création." };
+
+  await db.insert(evenement).values({
+    cabinet_id,
+    client_id: v.client_id,
+    type: "echeance_creee",
+    acteur_type: "cabinet_membre",
+    acteur_id: user.id,
+    ressource_type: "crm.echeance",
+    ressource_id: nouvelle.id,
+    description: `Échéance créée manuellement : ${v.libelle}`,
+    metadata: { libelle: v.libelle, date_echeance: v.date_echeance },
+  });
+
+  revalidatePath(ECHEANCES_PATH);
+  return { success: true };
 }

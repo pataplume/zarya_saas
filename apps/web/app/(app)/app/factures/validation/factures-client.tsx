@@ -22,6 +22,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -63,6 +64,8 @@ export interface FactureItem {
   taux_tva_principal: number | null;
   devise: string;
   categorie: string;
+  /** Origine de la proposition (RUN4 usabilité) — saisie manuelle vs extraction IA. */
+  origine_saisie: "extraction_ia" | "saisie_manuelle";
   qr_facture_detecte: boolean;
   /** L'IBAN-du-QR est chiffré au Vault dès la proposition (C6.1) → pré-rempli, pas retapé. */
   a_iban_qr: boolean;
@@ -329,12 +332,15 @@ function FactureCard({
           />
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-foreground">
+          <p className="flex flex-wrap items-center gap-1.5 font-medium text-foreground">
             {f.fournisseur_raison_sociale || "Fournisseur à saisir"}{" "}
             {f.qr_facture_detecte ? (
               <span title="QR-facture détectée">
                 <QrCode className="inline size-3.5 text-emerald-700" aria-hidden />
               </span>
+            ) : null}
+            {f.origine_saisie === "saisie_manuelle" ? (
+              <Badge famille="info">Saisie manuelle</Badge>
             ) : null}
           </p>
           <p className="text-[13px] text-muted-foreground">
@@ -437,6 +443,11 @@ function FactureCard({
             titre={f.fournisseur_raison_sociale || f.numero_facture || "facture à valider"}
           />
           <div className="min-w-0">
+            {f.origine_saisie === "saisie_manuelle" ? (
+              <p className="mb-3">
+                <Badge famille="info">Saisie manuelle</Badge>
+              </p>
+            ) : null}
             {f.fichier_id !== null ? (
               <a
                 href={`/api/documents/${f.fichier_id}/apercu`}

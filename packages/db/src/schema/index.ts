@@ -102,6 +102,7 @@ export {
   factureSchema,
   fournisseur,
   mappingExport,
+  origineSaisieEnum,
   propositionFacture,
   statutFactureEnum,
   statutPropositionEnum,

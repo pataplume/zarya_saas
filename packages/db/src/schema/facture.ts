@@ -39,6 +39,13 @@ export const statutFactureEnum = factureSchema.enum("statut_facture", [
   "payee",
   "annulee",
 ]);
+// Origine de la proposition (RUN4 usabilité — arbitrage founder "double validation") :
+// une saisie manuelle passe par la MÊME file de validation que l'extraction IA, sans
+// invocation IA (extraction_invocation_id nullable, migration 0054).
+export const origineSaisieEnum = factureSchema.enum("origine_saisie", [
+  "extraction_ia",
+  "saisie_manuelle",
+]);
 
 // ─── facture.fournisseur — référentiel par couple (cabinet, client) ───────────
 export const fournisseur = factureSchema.table(
@@ -92,10 +99,13 @@ export const propositionFacture = factureSchema.table(
       .notNull()
       .unique()
       .references(() => document.id, { onDelete: "restrict" }),
-    extraction_invocation_id: uuid("extraction_invocation_id")
-      .notNull()
-      .references(() => invocation.id, { onDelete: "restrict" }),
+    extraction_invocation_id: uuid("extraction_invocation_id").references(() => invocation.id, {
+      onDelete: "restrict",
+    }),
     statut: statutPropositionEnum("statut").notNull().default("a_valider"),
+    // Saisie manuelle (RUN4 usabilité) : même file de validation que l'extraction IA,
+    // sans invocation IA — migration 0054.
+    origine_saisie: origineSaisieEnum("origine_saisie").notNull().default("extraction_ia"),
     fournisseur_existant_id: uuid("fournisseur_existant_id").references(() => fournisseur.id, {
       onDelete: "set null",
     }),
