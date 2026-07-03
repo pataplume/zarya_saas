@@ -26,6 +26,11 @@ const TABS = [
     aide: "Activez ou désactivez l'IA du cabinet et suivez sa consommation.",
   },
   {
+    href: "/app/parametres/echeances",
+    label: "Échéances",
+    aide: "Consultez le catalogue des modèles de génération d'échéances et ajoutez vos propres modèles.",
+  },
+  {
     href: "/app/parametres/profil",
     label: "Mon profil",
     aide: "Vos informations personnelles, votre signature email et votre mot de passe.",
