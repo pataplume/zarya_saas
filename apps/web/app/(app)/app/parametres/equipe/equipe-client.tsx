@@ -7,6 +7,8 @@ import {
   changerRoleAction,
   type InviterState,
   inviterMembreAction,
+  type RenvoyerInvitationState,
+  renvoyerInvitationAction,
   revoquerMembreAction,
 } from "./actions";
 
@@ -31,6 +33,7 @@ type Invitation = {
   role_propose: string;
   date_envoi: Date;
   token_expire_at: Date;
+  isExpired: boolean;
 };
 
 type Props = {
@@ -194,15 +197,22 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
 
                 {/* Expire */}
                 <div className="shrink-0 text-right">
-                  <p className="text-xs text-amber-700">En attente</p>
+                  <p className={`text-xs ${inv.isExpired ? "text-red-600" : "text-amber-700"}`}>
+                    {inv.isExpired ? "Expirée" : "En attente"}
+                  </p>
                   <p className="text-xs text-slate-400">
-                    Expire le{" "}
+                    {inv.isExpired ? "Expirée le" : "Expire le"}{" "}
                     {inv.token_expire_at.toLocaleDateString("fr-CH", {
                       day: "numeric",
                       month: "short",
                     })}
                   </p>
                 </div>
+
+                {/* Renvoyer */}
+                {isResponsable && (
+                  <RenvoyerInvitationButton invitationId={inv.id} email={inv.email} />
+                )}
 
                 {/* Annuler */}
                 {isResponsable && (
@@ -332,5 +342,41 @@ export function EquipeClient({ membres, invitations, isResponsable }: Props) {
         </section>
       )}
     </div>
+  );
+}
+
+// ─── Bouton « Renvoyer l'invitation » ──────────────────────────────────────────
+// Invitation en attente ou expirée uniquement (jamais acceptée/refusée/annulée —
+// ces statuts ne sont de toute façon plus retournés par la page).
+
+function RenvoyerInvitationButton({
+  invitationId,
+  email,
+}: {
+  invitationId: string;
+  email: string;
+}) {
+  const [state, action, isPending] = useActionState<RenvoyerInvitationState, FormData>(
+    async () => renvoyerInvitationAction(invitationId),
+    {},
+  );
+
+  return (
+    <form action={action} className="shrink-0 text-right">
+      <button
+        type="submit"
+        disabled={isPending}
+        className="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 focus:outline-none disabled:opacity-50"
+        aria-label={`Renvoyer l'invitation à ${email}`}
+        {...helpAttrs(
+          "Renvoyer l'invitation",
+          "Génère un nouveau lien valable 7 jours et renvoie l'email d'invitation. Utile si le lien précédent a expiré ou n'est jamais arrivé.",
+        )}
+      >
+        {isPending ? "Envoi…" : "Renvoyer"}
+      </button>
+      {state.error && <p className="mt-0.5 text-[11px] text-red-600">{state.error}</p>}
+      {state.success && <p className="mt-0.5 text-[11px] text-green-600">Renvoyée ✓</p>}
+    </form>
   );
 }

@@ -3,19 +3,43 @@
 // H4b — Recherche conversationnelle (RAG) : server action. auth + scope cabinet. answerQuestion
 // orchestre intent → récupération (scopée cabinet) → génération sourcée anti-injection → trace.
 import { getCurrentUser } from "@zarya/auth";
-import { and, db, eq, searchRequete } from "@zarya/db";
+import { and, db, document, eq, inArray, searchRequete } from "@zarya/db";
 import { type AnswerSource, answerQuestion } from "@zarya/extraction";
 import { z } from "zod";
+
+// Source enrichie du libellé du document (pour affichage — lien cliquable vers la fiche
+// document, cf. RUN 6 « Sources de recherche cliquables »). Le libellé est résolu par une
+// requête SÉPARÉE, scopée cabinet_id (jamais depuis l'input utilisateur) : si un document a
+// été archivé/supprimé entre l'indexation et la requête, `document_libelle` est absent et
+// l'UI retombe sur l'UUID tronqué (pas de lien mort silencieux).
+export type RechercheSource = AnswerSource & { document_libelle?: string };
 
 export type RechercheState = {
   error?: string;
   answer?: string;
-  sources?: AnswerSource[];
+  sources?: RechercheSource[];
   intent?: string;
   requete_id?: string | null;
 };
 
 const QuestionSchema = z.object({ question: z.string().min(3).max(1000) });
+
+/**
+ * Résout le libellé lisible des documents cités en source, STRICTEMENT scopé
+ * (cabinet_id, id IN sources). Ne fuit jamais un document d'un autre cabinet : un id qui
+ * n'appartient pas au cabinet courant est simplement absent du résultat.
+ */
+async function resolveLibellesDocuments(
+  cabinet_id: string,
+  documentIds: string[],
+): Promise<Map<string, string>> {
+  if (documentIds.length === 0) return new Map();
+  const rows = await db
+    .select({ id: document.id, libelle: document.libelle })
+    .from(document)
+    .where(and(eq(document.cabinet_id, cabinet_id), inArray(document.id, documentIds)));
+  return new Map(rows.map((r) => [r.id, r.libelle]));
+}
 
 export async function rechercheAction(
   _prev: RechercheState,
@@ -34,9 +58,17 @@ export async function rechercheAction(
       question: parsed.data.question,
       utilisateur_id: user.id,
     });
+    const libelles = await resolveLibellesDocuments(
+      cabinet_id,
+      res.sources.map((s) => s.document_id),
+    );
+    const sources: RechercheSource[] = res.sources.map((s) => {
+      const libelle = libelles.get(s.document_id);
+      return libelle ? { ...s, document_libelle: libelle } : s;
+    });
     return {
       answer: res.answer,
-      sources: res.sources,
+      sources,
       intent: res.intent,
       requete_id: res.requete_id,
     };

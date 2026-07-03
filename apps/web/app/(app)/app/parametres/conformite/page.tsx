@@ -1,20 +1,13 @@
 import { getCurrentUser } from "@zarya/auth";
-import { client, db, demandeSuppression } from "@zarya/db";
-import { and, desc, eq } from "drizzle-orm";
+import { client, db, demandeSuppression, evenement } from "@zarya/db";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { badgeStatutDemandeRgpd, styleFamille } from "@/lib/libelles";
+import { ConformiteListe, type DemandeNote, type DemandeRow } from "./conformite-client";
 
-// Demandes RGPD : visibilité côté cabinet des demandes de suppression émises par les
-// clients (droit à l'effacement, droits-personnes.md). Scopé cabinet_id du JWT, cible='client'.
-// C4.1 — libellés/statuts centralisés dans `@/lib/libelles`.
-
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("fr-CH", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
-}
+// Demandes RGPD : visibilité + traitement côté cabinet des demandes de suppression émises
+// par les clients (droit à l'effacement, droits-personnes.md). Scopé cabinet_id du JWT,
+// cible='client'. C4.1 — libellés/statuts centralisés dans `@/lib/libelles`. Actions
+// (changement de statut, note) réservées au rôle responsable — cf. `./actions.ts`.
 
 export default async function ConformitePage() {
   const user = await getCurrentUser();
@@ -54,70 +47,60 @@ export default async function ConformitePage() {
     )
     .orderBy(desc(demandeSuppression.created_at));
 
+  // Historique (notes + changements de statut) — tracé dans crm.evenement (pas de colonne
+  // notes sur crm.demande_suppression ; ressource_type "crm.demande_suppression").
+  const demandeIds = demandes.map((d) => d.id);
+  const evenements =
+    demandeIds.length > 0
+      ? await db
+          .select({
+            ressource_id: evenement.ressource_id,
+            description: evenement.description,
+            metadata: evenement.metadata,
+            created_at: evenement.created_at,
+          })
+          .from(evenement)
+          .where(
+            and(
+              eq(evenement.cabinet_id, cabinet_id),
+              eq(evenement.ressource_type, "crm.demande_suppression"),
+              inArray(evenement.ressource_id, demandeIds),
+            ),
+          )
+          .orderBy(asc(evenement.created_at))
+      : [];
+
+  const notesParDemande = new Map<string, DemandeNote[]>();
+  for (const ev of evenements) {
+    if (!ev.ressource_id) continue;
+    const liste = notesParDemande.get(ev.ressource_id) ?? [];
+    liste.push({
+      description: ev.description,
+      metadata: (ev.metadata as Record<string, unknown> | null) ?? null,
+      created_at: ev.created_at.toISOString(),
+    });
+    notesParDemande.set(ev.ressource_id, liste);
+  }
+
+  const rows: DemandeRow[] = demandes.map((demande) => ({
+    id: demande.id,
+    client_raison_sociale: demande.client_raison_sociale,
+    demandeur_email: demande.demandeur_email,
+    motif: demande.motif,
+    statut: demande.statut,
+    created_at: demande.created_at.toISOString(),
+    historique: notesParDemande.get(demande.id) ?? [],
+  }));
+
   return (
-    <section className="max-w-4xl">
+    <section className="max-w-5xl">
       <h1 className="text-xl font-semibold text-slate-900">Demandes RGPD</h1>
       <p className="mt-1 text-sm text-slate-500">
         Demandes de suppression de données émises par vos clients (droit à l'effacement). Le
         traitement définitif relève de votre responsabilité de fiduciaire.
       </p>
 
-      {demandes.length === 0 ? (
-        <p className="mt-6 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          Aucune demande de suppression pour le moment.
-        </p>
-      ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-slate-200">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Client
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Demandeur
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Date
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Motif
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Statut
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {demandes.map((demande) => (
-                <tr key={demande.id}>
-                  <td className="px-4 py-3 text-sm font-medium text-slate-900">
-                    {demande.client_raison_sociale ?? "Client supprimé"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-700">
-                    {demande.demandeur_email ?? "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-700">
-                    {formatDate(demande.created_at)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-700">
-                    {demande.motif ? demande.motif : <span className="text-slate-400">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${styleFamille(
-                        badgeStatutDemandeRgpd(demande.statut).famille,
-                      )}`}
-                    >
-                      {badgeStatutDemandeRgpd(demande.statut).label}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ConformiteListe demandes={rows} />
     </section>
   );
 }

@@ -159,19 +159,32 @@ export default async function FacturesValidationPage({
         title="Factures à valider"
         description={`${total} facture${total > 1 ? "s" : ""} en attente`}
         actions={
-          peutValider ? (
-            <Button asChild variant="secondary" size="sm">
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm">
               <Link
-                href="/app/factures/nouvelle"
+                href="/app/factures/historique"
                 {...helpAttrs(
-                  "Facture manuelle",
-                  "Créez une facture depuis les informations papier ou verbales du client, sans passer par l'extraction automatique. Elle rejoint la même file de validation ci-dessous.",
+                  "Historique",
+                  "Consultez les factures déjà validées, exportées ou payées de ce cabinet.",
                 )}
               >
-                + Facture manuelle
+                Historique
               </Link>
             </Button>
-          ) : undefined
+            {peutValider ? (
+              <Button asChild variant="secondary" size="sm">
+                <Link
+                  href="/app/factures/nouvelle"
+                  {...helpAttrs(
+                    "Facture manuelle",
+                    "Créez une facture depuis les informations papier ou verbales du client, sans passer par l'extraction automatique. Elle rejoint la même file de validation ci-dessous.",
+                  )}
+                >
+                  + Facture manuelle
+                </Link>
+              </Button>
+            ) : null}
+          </div>
         }
       />
 

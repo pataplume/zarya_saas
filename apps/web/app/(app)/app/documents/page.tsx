@@ -208,23 +208,38 @@ function DocumentsTable({ uploads, peutAgir }: { uploads: UploadRow[]; peutAgir:
                     </Button>
                   )}
                   {u.fichier_physique_id && (
-                    <Button
-                      asChild
-                      variant="secondary"
-                      size="sm"
-                      {...helpAttrs(
-                        "Ouvrir le document",
-                        "Ouvre le fichier d'origine dans un nouvel onglet pour le consulter.",
-                      )}
-                    >
-                      <a
-                        href={`/api/documents/${u.fichier_physique_id}/apercu`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <>
+                      <Button
+                        asChild
+                        variant="secondary"
+                        size="sm"
+                        {...helpAttrs(
+                          "Ouvrir le document",
+                          "Ouvre le fichier d'origine dans un nouvel onglet pour le consulter.",
+                        )}
                       >
-                        Ouvrir
-                      </a>
-                    </Button>
+                        <a
+                          href={`/api/documents/${u.fichier_physique_id}/apercu`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Ouvrir
+                        </a>
+                      </Button>
+                      <Button
+                        asChild
+                        variant="secondary"
+                        size="sm"
+                        {...helpAttrs(
+                          "Télécharger le document",
+                          "Télécharge le fichier d'origine sur votre appareil.",
+                        )}
+                      >
+                        <a href={`/api/documents/${u.fichier_physique_id}/apercu?download=1`}>
+                          Télécharger
+                        </a>
+                      </Button>
+                    </>
                   )}
                 </span>
               </TableCell>

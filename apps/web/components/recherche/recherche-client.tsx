@@ -2,6 +2,7 @@
 
 // H4b — Interface de recherche conversationnelle (RAG). Formulaire + réponse sourcée + feedback.
 // useActionState ; sources visibles (UX ZARYA §5 traçabilité). Citations [N] → liste des sources.
+import Link from "next/link";
 import { useActionState, useEffect, useRef } from "react";
 import {
   feedbackRechercheAction,
@@ -83,8 +84,17 @@ export function RechercheClient({ questionInitiale }: { questionInitiale?: strin
               <ul className="mt-1 space-y-1 text-xs text-gray-600">
                 {state.sources.map((s) => (
                   <li key={s.chunk_id}>
-                    <span className="font-medium">[{s.n}]</span> document{" "}
-                    {s.document_id.slice(0, 8)}…
+                    <span className="font-medium">[{s.n}]</span>{" "}
+                    <Link
+                      href={`/app/documents/${s.document_id}`}
+                      className="text-primary hover:text-primary-hover hover:underline"
+                      {...helpAttrs(
+                        "Ouvrir le document source",
+                        "Ouvre la fiche du document cité par ZARYA dans sa réponse.",
+                      )}
+                    >
+                      {s.document_libelle ?? `document ${s.document_id.slice(0, 8)}…`}
+                    </Link>
                   </li>
                 ))}
               </ul>

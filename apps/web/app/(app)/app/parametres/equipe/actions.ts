@@ -1,7 +1,8 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { createSupabaseAdminClient, requireAuth } from "@zarya/auth";
-import { cabinetMembre, db, invitationMembre } from "@zarya/db";
+import { cabinetMembre, db, evenement, invitationMembre } from "@zarya/db";
 import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -10,6 +11,8 @@ const ROLES = ["responsable", "gestionnaire_salaires", "collaborateur", "lecteur
 type Role = (typeof ROLES)[number];
 
 const RoleSchema = z.enum(ROLES, { errorMap: () => ({ message: "Rôle invalide" }) });
+
+const DUREE_VALIDITE_INVITATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours
 
 // ─── Inviter un membre ────────────────────────────────────────────────────────
 
@@ -45,7 +48,7 @@ export async function inviterMembreAction(
   }
 
   const { email, prenom, nom, role: rolePropose } = parsed.data;
-  const expireAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 jours
+  const expireAt = new Date(Date.now() + DUREE_VALIDITE_INVITATION_MS);
 
   await db.insert(invitationMembre).values({
     cabinet_id,
@@ -183,4 +186,82 @@ export async function annulerInvitationAction(formData: FormData): Promise<void>
     );
 
   revalidatePath("/app/parametres/equipe");
+}
+
+// ─── Renvoyer une invitation (token expiré ou email jamais reçu) ─────────────
+
+export type RenvoyerInvitationState = { error?: string; success?: boolean };
+
+export async function renvoyerInvitationAction(
+  invitationId: string,
+): Promise<RenvoyerInvitationState> {
+  const user = await requireAuth();
+  const cabinet_id = user.app_metadata.cabinet_id as string | undefined;
+  if (!cabinet_id) return { error: "Cabinet non configuré" };
+
+  // Seul le responsable peut gérer les invitations (cohérent avec inviter/annuler)
+  const role = user.app_metadata.role as string | undefined;
+  if (role !== "responsable") return { error: "Action réservée au responsable" };
+
+  if (!invitationId) return { error: "Invitation introuvable" };
+
+  const [invitation] = await db
+    .select({
+      id: invitationMembre.id,
+      email: invitationMembre.email,
+      role_propose: invitationMembre.role_propose,
+      prenom: invitationMembre.prenom,
+      nom: invitationMembre.nom,
+      statut: invitationMembre.statut,
+    })
+    .from(invitationMembre)
+    .where(and(eq(invitationMembre.id, invitationId), eq(invitationMembre.cabinet_id, cabinet_id)))
+    .limit(1);
+
+  if (!invitation) return { error: "Invitation introuvable" };
+  // Une invitation déjà acceptée/refusée/annulée ne se renvoie pas.
+  if (invitation.statut !== "envoyee" && invitation.statut !== "lue") {
+    return { error: "Cette invitation n'est plus en attente" };
+  }
+
+  const nouveauToken = randomUUID();
+  const expireAt = new Date(Date.now() + DUREE_VALIDITE_INVITATION_MS);
+
+  await db
+    .update(invitationMembre)
+    .set({
+      token: nouveauToken,
+      token_expire_at: expireAt,
+      statut: "envoyee",
+      date_envoi: new Date(),
+      updated_at: new Date(),
+    })
+    .where(and(eq(invitationMembre.id, invitationId), eq(invitationMembre.cabinet_id, cabinet_id)));
+
+  const admin = createSupabaseAdminClient();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  await admin.auth.admin.inviteUserByEmail(invitation.email, {
+    redirectTo: `${appUrl}/auth/callback`,
+    data: {
+      cabinet_id,
+      role: invitation.role_propose,
+      prenom: invitation.prenom,
+      nom: invitation.nom,
+    },
+  });
+
+  await db.insert(evenement).values({
+    cabinet_id,
+    client_id: null,
+    type: "note_ajoutee",
+    acteur_type: "cabinet_membre",
+    acteur_id: user.id,
+    ressource_type: "crm.invitation_membre",
+    ressource_id: invitationId,
+    description: "Invitation équipe renvoyée",
+    metadata: { role_propose: invitation.role_propose },
+  });
+
+  revalidatePath("/app/parametres/equipe");
+  return { success: true };
 }

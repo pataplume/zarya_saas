@@ -19,11 +19,13 @@ export function IaClient({
   isResponsable,
   cabinetActive,
   globalLive,
+  repliRecentDetecte,
   cout,
 }: {
   isResponsable: boolean;
   cabinetActive: boolean;
   globalLive: boolean;
+  repliRecentDetecte: boolean;
   cout: CoutCabinet | null;
 }) {
   return (
@@ -45,6 +47,15 @@ export function IaClient({
         </p>
       )}
 
+      {globalLive && cabinetActive && repliRecentDetecte && (
+        <p className="rounded-md border-l-4 border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+          Des documents récents ont été classés par la méthode de secours (heuristique) plutôt que
+          par l'IA : le service IA a rencontré une erreur temporaire. Rien n'est perdu — ces
+          documents restent dans la file de validation — mais le classement automatique peut être
+          moins précis en ce moment.
+        </p>
+      )}
+
       <section className="rounded-lg border border-border bg-card p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -52,12 +63,18 @@ export function IaClient({
             <p className="mt-1 text-sm text-slate-600">
               {cabinetActive
                 ? globalLive
-                  ? "Active — les nouveaux documents sont traités par l'IA."
+                  ? repliRecentDetecte
+                    ? "Activée — mais des documents récents sont retombés sur le classement heuristique de secours."
+                    : "Active — les nouveaux documents sont traités par l'IA."
                   : "Activée pour ce cabinet — en attente de l'activation globale."
-                : "Désactivée — traitement 100 % manuel."}
+                : "Désactivée — traitement 100 % manuel (classement heuristique uniquement)."}
             </p>
           </div>
-          <StatusBadge cabinetActive={cabinetActive} globalLive={globalLive} />
+          <StatusBadge
+            cabinetActive={cabinetActive}
+            globalLive={globalLive}
+            repliRecentDetecte={repliRecentDetecte}
+          />
         </div>
 
         <div className="mt-5">
@@ -128,10 +145,19 @@ function ToggleButton({
 function StatusBadge({
   cabinetActive,
   globalLive,
+  repliRecentDetecte,
 }: {
   cabinetActive: boolean;
   globalLive: boolean;
+  repliRecentDetecte: boolean;
 }) {
+  if (cabinetActive && globalLive && repliRecentDetecte) {
+    return (
+      <span className="whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+        Repli heuristique
+      </span>
+    );
+  }
   if (cabinetActive && globalLive) {
     return (
       <span className="whitespace-nowrap rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
