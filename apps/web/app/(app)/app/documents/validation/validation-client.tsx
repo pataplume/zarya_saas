@@ -1,5 +1,6 @@
 "use client";
 
+import { ExternalLink, Eye, RotateCw } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -33,6 +34,14 @@ export type InboxItem = {
   confiance_globale: string | null;
   anomalies: string[];
   nom_fichier: string | null;
+  /**
+   * Fichier physique source (doc.v_inbox_a_valider.fichier_physique_id), servi par
+   * /api/documents/[fichierId]/apercu (session + cabinet re-vérifiés côté route). Null si
+   * la vue ne rattache pas de fichier → pas d'aperçu.
+   */
+  fichier_id: string | null;
+  /** Type MIME du fichier (décide si l'iframe peut rendre l'aperçu nativement). */
+  type_mime: string | null;
 };
 
 const CATEGORIES = [
@@ -58,6 +67,76 @@ function estComplete(item: InboxItem): boolean {
   return Boolean(item.client_id_propose && item.type_propose && item.libelle_propose);
 }
 
+/** Types MIME que le navigateur sait rendre nativement dans une iframe (PDF, images, texte). */
+function estPrevisualisable(typeMime: string | null): boolean {
+  if (!typeMime) return true; // inconnu → on tente l'iframe plutôt que de priver d'aperçu
+  return (
+    typeMime === "application/pdf" || typeMime.startsWith("image/") || typeMime.startsWith("text/")
+  );
+}
+
+/**
+ * Aperçu du document source d'une proposition (toggle par item), via
+ * /api/documents/[fichierId]/apercu (URL signée Storage, TTL 300 s — la route re-vérifie
+ * session + cabinet, on ne contourne rien). Même pattern que la file des factures. L'URL
+ * signée expirant après 5 min, « Recharger l'aperçu » re-set le src avec un cache-buster.
+ * Si le format ne se rend pas en iframe → repli « Ouvrir le document » (nouvel onglet).
+ */
+function ApercuDocument({
+  fichierId,
+  typeMime,
+  titre,
+}: {
+  fichierId: string;
+  typeMime: string | null;
+  titre: string;
+}) {
+  const [version, setVersion] = useState(0);
+  if (!estPrevisualisable(typeMime)) {
+    return (
+      <div className="mt-3 flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-input bg-secondary p-6">
+        <p className="text-sm text-muted-foreground">Aperçu intégré indisponible pour ce format</p>
+        <a
+          href={`/api/documents/${fichierId}/apercu`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          {...helpAttrs(
+            "Ouvrir le document",
+            "Ouvre le document source dans un nouvel onglet, quand l'aperçu intégré n'est pas disponible pour ce format.",
+          )}
+        >
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+          Ouvrir le document
+        </a>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-3">
+      <iframe
+        key={version}
+        src={`/api/documents/${fichierId}/apercu${version > 0 ? `?v=${version}` : ""}`}
+        title={`Aperçu du document — ${titre}`}
+        className="h-[70vh] w-full rounded-md border border-border bg-secondary"
+      />
+      <button
+        type="button"
+        onClick={() => setVersion(Date.now())}
+        title="L'aperçu expire après 5 minutes — recharger si la page grise"
+        className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        {...helpAttrs(
+          "Recharger l'aperçu",
+          "Régénère l'aperçu du document. À utiliser si l'image devient grise : le lien d'aperçu expire après 5 minutes.",
+        )}
+      >
+        <RotateCw className="h-3 w-3" aria-hidden />
+        Recharger l'aperçu
+      </button>
+    </div>
+  );
+}
+
 export function ValidationInbox({
   propositions,
   clients,
@@ -67,6 +146,8 @@ export function ValidationInbox({
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [cursor, setCursor] = useState(0);
+  // Aperçu ouvert (toggle par item) : id de la proposition dont on affiche le document.
+  const [apercuOuvert, setApercuOuvert] = useState<string | null>(null);
   const [correcting, setCorrecting] = useState<InboxItem | null>(null);
   const [rejecting, setRejecting] = useState<InboxItem | null>(null);
   const [confirmLot, setConfirmLot] = useState<string[] | null>(null);
@@ -336,6 +417,25 @@ export function ValidationInbox({
                     Valider
                   </Button>
                   <div className="flex gap-1.5">
+                    {item.fichier_id !== null && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() =>
+                          setApercuOuvert((cur) =>
+                            cur === item.proposition_id ? null : item.proposition_id,
+                          )
+                        }
+                        {...helpAttrs(
+                          "Aperçu du document",
+                          "Affiche la pièce d'origine sous la proposition pour la vérifier avant de valider. Un nouveau clic referme l'aperçu.",
+                        )}
+                      >
+                        <Eye className="h-3.5 w-3.5" aria-hidden />
+                        Aperçu
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="secondary"
@@ -365,6 +465,13 @@ export function ValidationInbox({
                   </div>
                 </div>
               </div>
+              {apercuOuvert === item.proposition_id && item.fichier_id !== null && (
+                <ApercuDocument
+                  fichierId={item.fichier_id}
+                  typeMime={item.type_mime}
+                  titre={item.nom_fichier ?? "document à valider"}
+                />
+              )}
             </li>
           );
         })}

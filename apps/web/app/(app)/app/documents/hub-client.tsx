@@ -3,8 +3,16 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { helpAttrs } from "@/lib/help-attrs";
-import { reclasserDocumentAction } from "./actions";
+import { archiverDocumentAction, reclasserDocumentAction } from "./actions";
 
 // Hub Documents — interactivité client minimale : onglets pilotés par ?tab=
 // (replaceState superficiel, pas de re-fetch serveur) + bouton « Reclasser ».
@@ -185,5 +193,89 @@ export function ReclasserButton({ uploadBrutId }: { uploadBrutId: string }) {
         </span>
       )}
     </span>
+  );
+}
+
+// RUN 3 — Bouton « Archiver » (soft-delete) avec confirmation (action destructive).
+// Retire un document validé mal classé / en double des listes. Bloqué s'il a déjà produit
+// une facture (le garde-fou vit dans archiverDocumentAction). Sur succès, retour au hub :
+// le document n'apparaît plus dans les listings (`redirectTo` par défaut = /app/documents).
+export function ArchiverButton({
+  documentId,
+  redirectTo = "/app/documents",
+}: {
+  documentId: string;
+  redirectTo?: string;
+}) {
+  const router = useRouter();
+  const [ouvert, setOuvert] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  function confirmer() {
+    setErreur(null);
+    startTransition(async () => {
+      const r = await archiverDocumentAction(documentId);
+      if (r.success) {
+        setOuvert(false);
+        router.push(redirectTo);
+        router.refresh();
+      } else {
+        setErreur(r.error ?? "L'archivage a échoué.");
+      }
+    });
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="destructive"
+        size="sm"
+        onClick={() => {
+          setErreur(null);
+          setOuvert(true);
+        }}
+        {...helpAttrs(
+          "Archiver le document",
+          "Retire ce document mal classé ou en double des listes. Bloqué s'il a déjà produit une facture.",
+        )}
+      >
+        Archiver
+      </Button>
+
+      <Dialog open={ouvert} onOpenChange={setOuvert}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archiver ce document ?</DialogTitle>
+            <DialogDescription>
+              Le document sera retiré des listes (dépôts, dossier client). Utile pour un document
+              mal classé ou en double. Un document ayant déjà produit une facture ne peut pas être
+              archivé.
+            </DialogDescription>
+          </DialogHeader>
+          {erreur && <p className="text-sm text-rose-600">{erreur}</p>}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setOuvert(false)}
+              disabled={isPending}
+            >
+              Retour
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmer}
+              disabled={isPending}
+              className="disabled:cursor-wait"
+            >
+              {isPending ? "Archivage…" : "Archiver"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

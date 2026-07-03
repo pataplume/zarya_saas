@@ -1,12 +1,14 @@
 import { getCurrentUser } from "@zarya/auth";
 import { client, db, vInboxAValider } from "@zarya/db";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import { type InboxItem, ValidationInbox } from "./validation-client";
 
 // File de validation — module Doc (doc.md § 5 & § 7, Bloc B7). L'IA propose,
@@ -14,7 +16,15 @@ import { type InboxItem, ValidationInbox } from "./validation-client";
 // doc.v_inbox_a_valider (migration 0022) scopée cabinet_id (frontière de
 // sécurité réelle sur le chemin service-role — ADR 0005 addendum).
 
-export default async function ValidationPage() {
+// Pagination serveur (?page=) : taille de page de la file de validation. Au-delà,
+// le backlog reste accessible page par page (état dans l'URL, partageable).
+const PAR_PAGE = 25;
+
+export default async function ValidationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const user = await getCurrentUser();
   const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
   if (!cabinet_id) {
@@ -23,6 +33,19 @@ export default async function ValidationPage() {
 
   const role = (user?.app_metadata.role as string | undefined) ?? "lecteur";
   const peutValider = role !== "lecteur";
+
+  // Total des propositions à valider (mêmes WHERE que la requête paginée : scope cabinet).
+  // Sert au compteur d'en-tête ET au nombre de pages.
+  const [enAttente] = await db
+    .select({ n: count() })
+    .from(vInboxAValider)
+    .where(eq(vInboxAValider.cabinet_id, cabinet_id));
+  const total = enAttente?.n ?? 0;
+
+  const nbPages = Math.max(1, Math.ceil(total / PAR_PAGE));
+  const sp = await searchParams;
+  const pageDemandee = z.coerce.number().int().positive().catch(1).parse(sp.page);
+  const page = Math.min(pageDemandee, nbPages);
 
   const [rows, clients] = await Promise.all([
     db
@@ -37,10 +60,16 @@ export default async function ValidationPage() {
         confiance_globale: vInboxAValider.confiance_globale,
         anomalies: vInboxAValider.anomalies_detectees,
         nom_fichier: vInboxAValider.nom_fichier_original,
+        // Aperçu du document : identifiant du fichier physique servi par
+        // /api/documents/[fichierId]/apercu (qui re-vérifie session + cabinet) + type MIME.
+        // Aucune donnée sensible supplémentaire (pas de chemin storage, pas d'IBAN).
+        fichier_id: vInboxAValider.fichier_physique_id,
+        type_mime: vInboxAValider.type_mime,
       })
       .from(vInboxAValider)
       .where(eq(vInboxAValider.cabinet_id, cabinet_id))
-      .limit(100),
+      .limit(PAR_PAGE)
+      .offset((page - 1) * PAR_PAGE),
     db
       .select({ id: client.id, raison_sociale: client.raison_sociale })
       .from(client)
@@ -59,12 +88,14 @@ export default async function ValidationPage() {
     confiance_globale: r.confiance_globale,
     anomalies: r.anomalies ?? [],
     nom_fichier: r.nom_fichier,
+    fichier_id: r.fichier_id,
+    type_mime: r.type_mime,
   }));
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader
-        title={`À valider${propositions.length > 0 ? ` (${propositions.length})` : ""}`}
+        title={`À valider${total > 0 ? ` (${total})` : ""}`}
         description="ZARYA propose un classement pour chaque document. Vérifiez, corrigez si besoin, puis validez."
         actions={
           <Button asChild variant="secondary" size="sm">
@@ -77,7 +108,7 @@ export default async function ValidationPage() {
         <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
           Votre rôle (lecteur) ne permet pas de valider des documents.
         </div>
-      ) : propositions.length === 0 ? (
+      ) : total === 0 ? (
         <EmptyState
           icon={CheckCircle2}
           title="Rien à valider"
@@ -96,6 +127,12 @@ export default async function ValidationPage() {
             </div>
           )}
           <ValidationInbox propositions={propositions} clients={clients} />
+          <Pagination
+            page={page}
+            total={total}
+            parPage={PAR_PAGE}
+            hrefPour={(p) => `/app/documents/validation?page=${p}`}
+          />
         </>
       )}
     </div>
