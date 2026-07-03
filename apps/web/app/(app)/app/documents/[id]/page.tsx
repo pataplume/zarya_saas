@@ -27,6 +27,10 @@ import {
   normaliserConfianceParChamp,
 } from "../../factures/validation/confiance-provenance";
 import { ChampBadge } from "../../factures/validation/factures-client";
+import { ArchiverButton } from "../hub-client";
+
+// Rôles autorisés à archiver un document (écriture — jamais le lecteur).
+const ROLES_ECRITURE = new Set(["responsable", "gestionnaire_salaires", "collaborateur"]);
 
 // C2.3 — Fiche document : en-tête (libellé, type traduit, client cliquable, statut) +
 // bouton Ouvrir (aperçu) + bloc Extraction (provenance par champ QR✓/IA + anomalies pour
@@ -60,6 +64,9 @@ export default async function FicheDocumentPage({ params }: { params: Promise<{ 
   const user = await getCurrentUser();
   const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
   if (!cabinet_id) redirect("/onboarding");
+
+  const role = (user?.app_metadata.role as string | undefined) ?? "lecteur";
+  const peutArchiver = ROLES_ECRITURE.has(role);
 
   // Scope STRICT (cabinet_id, document_id) : null ⇒ 404 indistinct (anti-fuite cross-tenant).
   const detail = await getDocumentDetail(cabinet_id, id);
@@ -113,6 +120,7 @@ export default async function FicheDocumentPage({ params }: { params: Promise<{ 
                 Ouvrir le document
               </a>
             </Button>
+            {peutArchiver && <ArchiverButton documentId={doc.id} />}
           </>
         }
       />

@@ -394,6 +394,8 @@ export default async function DocumentsPage({
         and(
           eq(document.fichier_physique_id, fichierPhysique.id),
           eq(document.cabinet_id, cabinet_id),
+          // RUN 3 — un document archivé (mal classé / doublon) ne relie plus l'upload à sa fiche.
+          isNull(document.archived_at),
         ),
       )
       .leftJoin(emailBrut, eq(emailBrut.id, uploadBrut.email_brut_id))
@@ -415,6 +417,10 @@ export default async function DocumentsPage({
         confiance_globale: vInboxAValider.confiance_globale,
         anomalies: vInboxAValider.anomalies_detectees,
         nom_fichier: vInboxAValider.nom_fichier_original,
+        // Aperçu du document (servi par /api/documents/[fichierId]/apercu, qui re-vérifie
+        // session + cabinet) : identifiant du fichier physique + type MIME.
+        fichier_id: vInboxAValider.fichier_physique_id,
+        type_mime: vInboxAValider.type_mime,
       })
       .from(vInboxAValider)
       .where(eq(vInboxAValider.cabinet_id, cabinet_id))
@@ -519,6 +525,8 @@ export default async function DocumentsPage({
     confiance_globale: r.confiance_globale,
     anomalies: r.anomalies ?? [],
     nom_fichier: r.nom_fichier,
+    fichier_id: r.fichier_id,
+    type_mime: r.type_mime,
   }));
 
   const docsParEmail = new Map<string, number>();

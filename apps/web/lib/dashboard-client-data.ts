@@ -113,6 +113,7 @@ export async function getDocumentsClient(
     LEFT JOIN doc.fichier_physique fp ON fp.upload_brut_id = ub.id
     LEFT JOIN doc.document d
       ON d.fichier_physique_id = fp.id AND d.cabinet_id = ub.cabinet_id
+      AND d.archived_at IS NULL
     WHERE ub.cabinet_id = ${cabinet_id}
       AND ub.client_id = ${client_id}
       AND ub.source = 'upload_client'
