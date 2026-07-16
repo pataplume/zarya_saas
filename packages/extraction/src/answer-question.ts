@@ -1,13 +1,17 @@
 // H4b — Orchestration de la recherche conversationnelle (RAG) : intent → récupération → génération
 // sourcée → persistance de la trace search.requete. Réf : search.md §6 ; KICKOFF H4. Strictement
 // scopée cabinet (retrieveChunks). Robuste : un échec de génération renvoie quand même les passages.
+// P0-4 (AUDIT-MVP §8) : intent `agregation` → templates paramétrés (réponse chiffrée déterministe,
+// scopée cabinet) ; si aucun template ne matche → repli RAG textuel (comportement antérieur).
 
 import { db, searchRequete } from "@zarya/db";
+import { AggregationError, runAggregation } from "./aggregation-templates";
 import { detectIntent, type SearchIntent } from "./detect-intent";
 import { type AnswerSource, generateAnswer } from "./generate-answer";
 import type { EmbeddingsClient } from "./index-document";
 import type { ChatModelClient } from "./infomaniak-classifier";
 import { retrieveChunks } from "./retrieve";
+import { selectAggregationTemplate } from "./select-aggregation";
 
 const HORS_SCOPE_MESSAGE =
   "Cette question semble sortir du périmètre des documents du cabinet. Je ne peux y répondre qu'à partir de vos documents.";
@@ -57,6 +61,16 @@ export async function answerQuestion(
     return { requete_id, intent, answer: HORS_SCOPE_MESSAGE, sources: [], nb_chunks: 0 };
   }
 
+  // Agrégation (« combien / total ») : réponse chiffrée par requête paramétrée (jamais de SQL
+  // libre, cabinet_id imposé) plutôt que RAG textuel potentiellement faux. Aucun match → RAG.
+  if (intent === "agregation") {
+    const answer = await tryAggregation(input, opts);
+    if (answer !== null) {
+      const requete_id = await persistRequete(input, intent, answer, [], 0, Date.now() - start);
+      return { requete_id, intent, answer, sources: [], nb_chunks: 0 };
+    }
+  }
+
   const chunks = await retrieveChunks(
     {
       cabinet_id: input.cabinet_id,
@@ -94,6 +108,38 @@ export async function answerQuestion(
     Date.now() - start,
   );
   return { requete_id, intent, answer, sources, nb_chunks: chunks.length };
+}
+
+/**
+ * Tente de répondre par un template d'agrégation paramétré (scopé cabinet). Retourne la réponse
+ * chiffrée (avec mention de la source de calcul) ou null si aucun template ne matche / si les
+ * paramètres sont refusés — l'appelant retombe alors sur le RAG textuel.
+ */
+async function tryAggregation(
+  input: AnswerQuestionInput,
+  opts: { chatClient?: ChatModelClient },
+): Promise<string | null> {
+  const selection = await selectAggregationTemplate(input.question, {
+    ...(opts.chatClient ? { client: opts.chatClient } : {}),
+  });
+  if (!selection) return null;
+  try {
+    const res = await runAggregation({
+      cabinet_id: input.cabinet_id,
+      template_id: selection.template_id,
+      params: selection.params,
+    });
+    return (
+      `${res.answer}\n\n` +
+      `Résultat calculé directement sur la base documentaire du cabinet ` +
+      `(requête « ${res.template_id} »), sans génération par l'IA.`
+    );
+  } catch (err) {
+    // Catch CIBLÉ : seuls les refus du moteur d'agrégation (template/paramètres invalides)
+    // retombent sur le RAG. Toute autre erreur (ex. DB) remonte à l'appelant.
+    if (err instanceof AggregationError) return null;
+    throw err;
+  }
 }
 
 async function persistRequete(

@@ -26,6 +26,8 @@ interface AggregationTemplate {
   validate: (params: unknown) => ValidationResult;
   /** Construit une requête PARAMÉTRÉE. cabinet_id imposé ; jamais de concaténation de valeurs. */
   build: (cabinetId: string, params: Record<string, unknown>) => ReturnType<typeof sql>;
+  /** Formate les lignes en réponse chiffrée lisible (français) — déterministe, sans LLM. */
+  format: (rows: Array<Record<string, unknown>>) => string;
 }
 
 /** Valide un sous-ensemble {client_id?: uuid, annee?: entier 2000-2100} avec clés strictes. */
@@ -74,6 +76,12 @@ const COMPTER_DOCUMENTS: AggregationTemplate = {
       ${p.annee ? sql`AND EXTRACT(year FROM created_at) = ${p.annee as number}` : sql``}
     GROUP BY type
     ORDER BY n DESC`,
+  format: (rows) => {
+    if (rows.length === 0) return "Aucun document ne correspond à ces critères.";
+    const total = rows.reduce((s, r) => s + Number(r.n ?? 0), 0);
+    const lignes = rows.map((r) => `- ${String(r.type ?? "inconnu")} : ${Number(r.n ?? 0)}`);
+    return `${total} document${total > 1 ? "s" : ""} au total :\n${lignes.join("\n")}`;
+  },
 };
 
 export const AGGREGATION_TEMPLATES: readonly AggregationTemplate[] = [COMPTER_DOCUMENTS];
@@ -92,10 +100,11 @@ export interface RunAggregationInput {
 /**
  * Exécute un template d'agrégation. Rejette (AggregationError) tout template inconnu ou tout
  * paramètre non conforme. cabinet_id imposé par l'appelant (sécurité multi-tenant), jamais par le LLM.
+ * `answer` = rendu français déterministe des lignes (réponse chiffrée, sans LLM).
  */
 export async function runAggregation(
   input: RunAggregationInput,
-): Promise<{ template_id: string; rows: Array<Record<string, unknown>> }> {
+): Promise<{ template_id: string; rows: Array<Record<string, unknown>>; answer: string }> {
   const template = AGGREGATION_TEMPLATES.find((t) => t.id === input.template_id);
   if (!template) {
     throw new AggregationError(`Template d'agrégation inconnu : "${input.template_id}".`);
@@ -107,5 +116,5 @@ export async function runAggregation(
   const rows = (await db.execute(
     template.build(input.cabinet_id, validated.value),
   )) as unknown as Array<Record<string, unknown>>;
-  return { template_id: template.id, rows };
+  return { template_id: template.id, rows, answer: template.format(rows) };
 }

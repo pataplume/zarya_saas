@@ -324,6 +324,11 @@ export {
   type RelanceContexte,
 } from "./salaire-relances";
 export {
+  type AggregationSelection,
+  SELECT_AGGREGATION_PROMPT_VERSION,
+  selectAggregationTemplate,
+} from "./select-aggregation";
+export {
   assertOnboardingTermine,
   type CompletudeOnboarding,
   enregistrerActiviteOnboarding,
