@@ -50,6 +50,21 @@ describe("@zarya/logger — redact (ADR 0017, CLAUDE.md §2)", () => {
     expect(headers.cookie).toBe(REDACT_CENSOR);
   });
 
+  it("censure les clés PII financière/sociale (iban, numero_avs, avs)", () => {
+    const { log, lines } = captureLogger();
+    log.info({
+      iban: "CH93 0076 2011 6238 5295 7",
+      numero_avs: "756.1234.5678.97",
+      employe: { avs: "756.9999.8888.77", iban: "CH56 0483 5012 3456 7800 9" },
+    });
+    const [entry] = lines;
+    expect(entry?.iban).toBe(REDACT_CENSOR);
+    expect(entry?.numero_avs).toBe(REDACT_CENSOR);
+    const employe = entry?.employe as Record<string, unknown>;
+    expect(employe.avs).toBe(REDACT_CENSOR);
+    expect(employe.iban).toBe(REDACT_CENSOR);
+  });
+
   it("ne touche pas aux champs non sensibles", () => {
     const { log, lines } = captureLogger();
     log.info({ cabinet_id: "cab-1", statut: "actif", vault_secret_id: "uuid-non-sensible" });

@@ -2,6 +2,9 @@ import { escaladerPeriodesEnRetard, genererBrouillonsRelancesSalaire } from "@za
 import { logger } from "@zarya/logger";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { pingCronHeartbeat } from "@/lib/ops/heartbeat";
+
+const HEARTBEAT_SLUG = "salaire-relances";
 
 // Bloc G5b — relances salaire (Vercel Cron quotidien). Mode A : génère les BROUILLONS de
 // relance (sans envoi ; l'envoi = validation humaine) + escalade les périodes en retard.
@@ -19,12 +22,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const brouillons = await genererBrouillonsRelancesSalaire({ annee, mois });
     const escalade = await escaladerPeriodesEnRetard({ annee, mois });
     logger.info({ annee, mois, ...brouillons, ...escalade }, "[salaire.relances] cycle terminé");
+    await pingCronHeartbeat(HEARTBEAT_SLUG, true);
     return NextResponse.json({ annee, mois, ...brouillons, ...escalade });
   } catch (err) {
     logger.error(
       { error: err instanceof Error ? err.message : "inconnu" },
       "[salaire.relances] échec",
     );
+    await pingCronHeartbeat(HEARTBEAT_SLUG, false);
     return NextResponse.json({ error: "Échec des relances" }, { status: 500 });
   }
 }

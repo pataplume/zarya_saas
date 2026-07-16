@@ -2,6 +2,9 @@ import { escaladerRelances, genererBrouillonsRelances } from "@zarya/calendar";
 import { logger } from "@zarya/logger";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { pingCronHeartbeat } from "@/lib/ops/heartbeat";
+
+const HEARTBEAT_SLUG = "calendar-generer-relances";
 
 // Bloc C2a + Lot 6 — génération quotidienne des brouillons de relance (Vercel Cron).
 // Mode A (validation humaine) : ce job crée les brouillons prêts à valider ; il
@@ -26,12 +29,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { generation, escalade },
       "[calendar.generer-relances] génération + escalade terminées",
     );
+    await pingCronHeartbeat(HEARTBEAT_SLUG, true);
     return NextResponse.json({ generation, escalade });
   } catch (err) {
     logger.error(
       { error: err instanceof Error ? err.message : "inconnu" },
       "[calendar.generer-relances] échec de la génération",
     );
+    await pingCronHeartbeat(HEARTBEAT_SLUG, false);
     return NextResponse.json({ error: "Échec de la génération" }, { status: 500 });
   }
 }

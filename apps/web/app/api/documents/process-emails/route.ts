@@ -2,8 +2,11 @@ import { logger } from "@zarya/logger";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { indexPendingDocuments } from "@/lib/index-pending-documents";
+import { pingCronHeartbeat } from "@/lib/ops/heartbeat";
 import { processPendingEmails } from "@/lib/process-emails";
 import { reprocessPendingDocuments } from "@/lib/reprocess-documents";
+
+const HEARTBEAT_SLUG = "documents-process-emails";
 
 export const runtime = "nodejs";
 // Le téléchargement des pièces jointes + OCR + classif + indexation peut être long sur un lot.
@@ -29,12 +32,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { emails, reclassement, indexation },
       "[documents.process-emails] traitement terminé",
     );
+    await pingCronHeartbeat(HEARTBEAT_SLUG, true);
     return NextResponse.json({ emails, reclassement, indexation });
   } catch (err) {
     logger.error(
       { error: err instanceof Error ? err.message : "inconnu" },
       "[documents.process-emails] échec du traitement",
     );
+    await pingCronHeartbeat(HEARTBEAT_SLUG, false);
     return NextResponse.json({ error: "Échec du traitement" }, { status: 500 });
   }
 }

@@ -2,5 +2,7 @@ packages:
   - 'apps/*'
   - 'packages/*'
 allowBuilds:
+  # Binaire sentry-cli inutile (pas d'upload de sourcemaps au MVP — cf. P0-1)
+  '@sentry/cli': false
   esbuild: true
   sharp: true
