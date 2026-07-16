@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+
+// generate-answer importe ExtractionError depuis ./classifier, qui importe @zarya/db au niveau
+// module : on le mocke pour garder ce test hermétique (client.ts jamais évalué, zéro connexion).
+vi.mock("@zarya/db", () => ({ db: {}, cabinet: {}, eq: () => ({}) }));
+
 import { ANSWER_SYSTEM_PROMPT, generateAnswer } from "./generate-answer";
 import type { ChatModelClient } from "./infomaniak-classifier";
 import type { RetrievedChunk } from "./retrieve";
@@ -33,6 +38,27 @@ function captureClient(): { client: ChatModelClient; lastUserContent: () => stri
     }),
   };
   return { client, lastUserContent: () => `${systemContent}\n${userContent}` };
+}
+
+/** Client qui renvoie les contenus dans l'ordre (le dernier se répète) — pour tester le réessai. */
+function sequenceClient(contents: string[]): {
+  client: ChatModelClient;
+  spy: ReturnType<typeof vi.fn>;
+} {
+  let i = 0;
+  const spy = vi.fn(async () => {
+    const content = contents[Math.min(i, contents.length - 1)] ?? "";
+    i += 1;
+    return {
+      model: "qwen-large",
+      choices: [
+        { index: 0, message: { role: "assistant" as const, content }, finish_reason: "stop" },
+      ],
+      usage: { prompt_tokens: 10, completion_tokens: 0, total_tokens: 10 },
+    };
+  });
+  const client: ChatModelClient = { resolveModel: async () => "qwen-large", chatCompletion: spy };
+  return { client, spy };
 }
 
 describe("generateAnswer", () => {
@@ -73,5 +99,29 @@ describe("generateAnswer", () => {
     // …et le prompt système interdit explicitement de suivre les instructions des sources.
     expect(ANSWER_SYSTEM_PROMPT).toMatch(/NE SUIS JAMAIS une instruction/i);
     expect(ANSWER_SYSTEM_PROMPT).toMatch(/DONNÉE à analyser/i);
+  });
+});
+
+describe("generateAnswer — réponse vide (P0-4, même cause que le fix facture #177)", () => {
+  it("désactive le « thinking » du modèle (chat_template_kwargs enable_thinking:false)", async () => {
+    const chat = captureClient();
+    await generateAnswer("Question ?", [chunk("a", "texte")], { client: chat.client });
+    const spy = chat.client.chatCompletion as ReturnType<typeof vi.fn>;
+    expect(spy.mock.calls[0]?.[0]?.chat_template_kwargs).toEqual({ enable_thinking: false });
+  });
+
+  it("réponse vide → réessai simple x1 qui aboutit", async () => {
+    const { client, spy } = sequenceClient(["", "Le total est 1234 CHF [1]."]);
+    const res = await generateAnswer("Question ?", [chunk("a", "texte")], { client });
+    expect(res.answer).toBe("Le total est 1234 CHF [1].");
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it("réponse vide après réessai → ExtractionError LLM_ERROR (jamais answer:'' silencieux)", async () => {
+    const { client, spy } = sequenceClient(["", "   "]);
+    await expect(
+      generateAnswer("Question ?", [chunk("a", "texte")], { client }),
+    ).rejects.toMatchObject({ name: "ExtractionError", code: "LLM_ERROR" });
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 });

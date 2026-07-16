@@ -41,4 +41,11 @@ describe("detectIntent", () => {
     const garbage = chatReturning("pas du json");
     expect((await detectIntent("x", { client: garbage })).intent).toBe("recherche");
   });
+
+  it("désactive le « thinking » du modèle (garde-fou aligné sur le fix facture #177)", async () => {
+    const client = chatReturning(JSON.stringify({ intent: "factuelle" }));
+    await detectIntent("Question ?", { client });
+    const spy = client.chatCompletion as ReturnType<typeof vi.fn>;
+    expect(spy.mock.calls[0]?.[0]?.chat_template_kwargs).toEqual({ enable_thinking: false });
+  });
 });

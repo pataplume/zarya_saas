@@ -25,6 +25,12 @@ export function RechercheClient({ questionInitiale }: { questionInitiale?: strin
   const [state, action, pending] = useActionState(rechercheAction, INITIAL);
   const formRef = useRef<HTMLFormElement>(null);
 
+  // Robustesse (P0-4) : une réponse vide ne doit JAMAIS produire une page silencieuse — si des
+  // sources existent, on les affiche toujours, avec un message explicite à la place de la réponse.
+  const aReponse = typeof state.answer === "string" && state.answer.trim().length > 0;
+  const aSources = (state.sources?.length ?? 0) > 0;
+  const aResultat = state.answer !== undefined || aSources;
+
   // Question passée en ?q= (barre « demande à ZARYA » du dashboard) : on exécute
   // une fois au montage, sans re-jouer si l'utilisateur reformule ensuite.
   const dejaLance = useRef(false);
@@ -69,14 +75,20 @@ export function RechercheClient({ questionInitiale }: { questionInitiale?: strin
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
       )}
 
-      {state.answer && (
+      {aResultat && (
         <article className="space-y-4 rounded-lg border border-gray-200 bg-white p-5">
           {state.intent && (
             <span className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
               {INTENT_LABEL[state.intent] ?? state.intent}
             </span>
           )}
-          <p className="whitespace-pre-wrap text-sm text-gray-900">{state.answer}</p>
+          {aReponse ? (
+            <p className="whitespace-pre-wrap text-sm text-gray-900">{state.answer}</p>
+          ) : (
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              La génération de la réponse a échoué — voici les documents les plus pertinents.
+            </p>
+          )}
 
           {state.sources && state.sources.length > 0 && (
             <div className="border-t border-gray-100 pt-3">
