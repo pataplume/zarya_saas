@@ -3,9 +3,11 @@
 import { randomUUID } from "node:crypto";
 import { createSupabaseAdminClient, requireAuth } from "@zarya/auth";
 import { cabinetMembre, db, evenement, invitationMembre } from "@zarya/db";
+import { logger } from "@zarya/logger";
 import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { messageErreurInvitation } from "@/lib/invitation-erreurs";
 
 const ROLES = ["responsable", "gestionnaire_salaires", "collaborateur", "lecteur"] as const;
 type Role = (typeof ROLES)[number];
@@ -50,22 +52,49 @@ export async function inviterMembreAction(
   const { email, prenom, nom, role: rolePropose } = parsed.data;
   const expireAt = new Date(Date.now() + DUREE_VALIDITE_INVITATION_MS);
 
-  await db.insert(invitationMembre).values({
-    cabinet_id,
-    email,
-    prenom,
-    nom,
-    role_propose: rolePropose,
-    envoyee_par: user.id,
-    token_expire_at: expireAt,
-  });
+  const [invitationCreee] = await db
+    .insert(invitationMembre)
+    .values({
+      cabinet_id,
+      email,
+      prenom,
+      nom,
+      role_propose: rolePropose,
+      envoyee_par: user.id,
+      token_expire_at: expireAt,
+    })
+    .returning({ id: invitationMembre.id });
 
   const admin = createSupabaseAdminClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  await admin.auth.admin.inviteUserByEmail(email, {
+  const { error: erreurEnvoi } = await admin.auth.admin.inviteUserByEmail(email, {
     redirectTo: `${appUrl}/auth/callback`,
     data: { cabinet_id, role: rolePropose, prenom, nom },
   });
+
+  if (erreurEnvoi) {
+    // Cohérence : pas de ligne « envoyée » si l'email n'est pas parti → rollback.
+    if (invitationCreee) {
+      await db
+        .delete(invitationMembre)
+        .where(
+          and(
+            eq(invitationMembre.id, invitationCreee.id),
+            eq(invitationMembre.cabinet_id, cabinet_id),
+          ),
+        );
+    }
+    logger.error(
+      {
+        cabinet_id,
+        code: erreurEnvoi.code,
+        status: erreurEnvoi.status,
+        error: erreurEnvoi.message,
+      },
+      "[parametres.equipe] échec envoi invitation Supabase",
+    );
+    return { error: messageErreurInvitation(erreurEnvoi, { renvoiDisponible: true }) };
+  }
 
   revalidatePath("/app/parametres/equipe");
   return { success: true };
@@ -224,6 +253,33 @@ export async function renvoyerInvitationAction(
     return { error: "Cette invitation n'est plus en attente" };
   }
 
+  // Envoi d'abord : on ne rafraîchit le token/date_envoi que si l'email est réellement parti.
+  const admin = createSupabaseAdminClient();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const { error: erreurEnvoi } = await admin.auth.admin.inviteUserByEmail(invitation.email, {
+    redirectTo: `${appUrl}/auth/callback`,
+    data: {
+      cabinet_id,
+      role: invitation.role_propose,
+      prenom: invitation.prenom,
+      nom: invitation.nom,
+    },
+  });
+
+  if (erreurEnvoi) {
+    logger.error(
+      {
+        cabinet_id,
+        invitation_id: invitationId,
+        code: erreurEnvoi.code,
+        status: erreurEnvoi.status,
+        error: erreurEnvoi.message,
+      },
+      "[parametres.equipe] échec renvoi invitation Supabase",
+    );
+    return { error: messageErreurInvitation(erreurEnvoi) };
+  }
+
   const nouveauToken = randomUUID();
   const expireAt = new Date(Date.now() + DUREE_VALIDITE_INVITATION_MS);
 
@@ -237,18 +293,6 @@ export async function renvoyerInvitationAction(
       updated_at: new Date(),
     })
     .where(and(eq(invitationMembre.id, invitationId), eq(invitationMembre.cabinet_id, cabinet_id)));
-
-  const admin = createSupabaseAdminClient();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  await admin.auth.admin.inviteUserByEmail(invitation.email, {
-    redirectTo: `${appUrl}/auth/callback`,
-    data: {
-      cabinet_id,
-      role: invitation.role_propose,
-      prenom: invitation.prenom,
-      nom: invitation.nom,
-    },
-  });
 
   await db.insert(evenement).values({
     cabinet_id,

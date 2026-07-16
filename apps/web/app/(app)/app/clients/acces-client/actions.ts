@@ -2,9 +2,11 @@
 
 import { createSupabaseAdminClient, requireAuth } from "@zarya/auth";
 import { accesClient, client as clientTable, contact, db } from "@zarya/db";
+import { logger } from "@zarya/logger";
 import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { messageErreurInvitation } from "@/lib/invitation-erreurs";
 
 // Création d'un accès contact RH client (mini-dashboard) — Bloc F1 (onboarding-client §auth).
 // Le CABINET crée le compte ; le contact reçoit un email d'invitation Supabase et active son
@@ -84,14 +86,26 @@ export async function creerAccesClientAction(
   const { data, error } = await admin.auth.admin.inviteUserByEmail(ct.email, {
     redirectTo: `${appUrl}/auth/callback`,
   });
-  if (error || !data.user) return { error: "Échec de l'invitation." };
+  if (error || !data.user) {
+    logger.error(
+      { cabinet_id, client_id, code: error?.code, status: error?.status, error: error?.message },
+      "[acces-client] échec envoi invitation Supabase",
+    );
+    return { error: messageErreurInvitation(error) };
+  }
   const authUserId = data.user.id;
 
   // 2. app_metadata SERVER-CONTROLLED (sécurité : jamais user_metadata) : rôle + scope client.
   const { error: majErr } = await admin.auth.admin.updateUserById(authUserId, {
     app_metadata: { role: "client_contact", client_id, cabinet_id },
   });
-  if (majErr) return { error: "Échec de la configuration du compte." };
+  if (majErr) {
+    logger.error(
+      { cabinet_id, client_id, code: majErr.code, status: majErr.status, error: majErr.message },
+      "[acces-client] échec configuration app_metadata du compte invité",
+    );
+    return { error: "Échec de la configuration du compte." };
+  }
 
   // 3. Persistance : acces_client + marque le contact comme contact RH.
   await db.insert(accesClient).values({
