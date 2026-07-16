@@ -8,17 +8,13 @@
  * Référence : /docs/architecture/multi-tenant.md § 5
  */
 import postgres from "postgres";
+import { resoudreUrlBaseDeTest } from "./base-de-test";
 
 /** Crée un client postgres.js avec le service role (bypass RLS, pour setup/teardown) */
 export function createServiceClient(): postgres.Sql {
-  const url = process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error(
-      "[tests/helpers/rls] DATABASE_URL env var manquante.\n" +
-        "En local : vérifier .env.local\n" +
-        "En CI : vérifier les secrets GitHub Actions",
-    );
-  }
+  // Garde-fou P0-2 : lit EXCLUSIVEMENT TEST_DATABASE_URL (jamais DATABASE_URL) — jette avec
+  // la marche à suivre si absente, et refuse toute URL contenant la ref du projet de PROD.
+  const url = resoudreUrlBaseDeTest(process.env);
   return postgres(url, {
     // Désactiver le prepare pour les queries dynamiques de test
     prepare: false,

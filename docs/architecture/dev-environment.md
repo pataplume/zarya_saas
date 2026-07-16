@@ -383,6 +383,30 @@ Ces tests **doivent passer** en CI, sinon merge bloqué.
 ### 7.4 Données de test
 Fixtures dans `packages/db/seed/`. Plusieurs cabinets, plusieurs clients par cabinet, états variés (en onboarding, opérationnel, en retard).
 
+### 7.5 Base de tests (`TEST_DATABASE_URL` — jamais la prod)
+
+Les tests d'intégration (`tests/integration/**`) tournent contre une **base Supabase dédiée
+aux tests**, lue **exclusivement** via `TEST_DATABASE_URL`. `DATABASE_URL` n'est **jamais**
+lue par la suite : `tests/setup.ts` l'écarte systématiquement du process de test (garde-fou
+P0-2, `AUDIT-MVP.md` § 8 — le 16.07.2026, une suite lancée contre la prod a saturé ses
+connexions Postgres, erreur `53300`, et rendu l'app indisponible ~2 min).
+
+Règles :
+
+- `TEST_DATABASE_URL` est **obligatoire** pour `pnpm test` / `pnpm test:integration` :
+  absente, chaque fichier de `tests/integration/` échoue immédiatement avec la marche à
+  suivre ; les tests unitaires purs (`tests/unit/`, `packages/**`) tournent sans (aucune
+  connexion DB, une URL factice inconnectable est substituée).
+- **Interdiction absolue** de la pointer sur la prod : toute URL contenant la ref du projet
+  Supabase de production est refusée au démarrage de la suite (échec immédiat).
+- Provisionnement : créer un projet (ou une branche) Supabase dédié aux tests, appliquer les
+  migrations `packages/db/migrations/`, puis poser `TEST_DATABASE_URL` dans `.env.local`
+  (local) et en secret GitHub Actions (CI).
+- ⚠️ Les tests d'intégration créent aussi de vrais users via l'API admin GoTrue :
+  `NEXT_PUBLIC_SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` du contexte de test doivent
+  pointer le **même projet de test** (en CI : secrets `TEST_SUPABASE_URL` /
+  `TEST_SUPABASE_SERVICE_ROLE_KEY`), jamais le projet de prod.
+
 ## 8. CI/CD
 
 ### 8.1 Pipelines GitHub Actions

@@ -49,14 +49,12 @@ jobs:
         run: pnpm typecheck
 
   # Tests unitaires (packages/ + tests/unit) — purs/mockés, AUCUNE base, ~quelques secondes.
-  # Bloquants sur CHAQUE PR : c'est le filet rapide. La DATABASE_URL est fournie uniquement
-  # pour que le chargement du module @zarya/db (new URL() au import) ne casse pas ; aucune
-  # requête réelle n'est émise par ces tests.
+  # Bloquants sur CHAQUE PR : c'est le filet rapide. Aucun secret DB nécessaire : le garde-fou
+  # P0-2 de tests/setup.ts écarte DATABASE_URL et substitue une URL factice inconnectable pour
+  # que le chargement du module @zarya/db (new URL() au import) ne casse pas.
   test-unit:
     name: Tests unitaires (rapides)
     runs-on: ubuntu-latest
-    env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -92,9 +90,13 @@ jobs:
       group: integration-tests-shared-db
       cancel-in-progress: false
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # ⚠️ Garde-fou P0-2 (AUDIT-MVP.md § 8) : les tests ne lisent QUE TEST_DATABASE_URL —
+      # jamais DATABASE_URL — et refusent toute URL contenant la ref du projet de PROD.
+      # Ces trois secrets doivent pointer le projet Supabase DE TEST (jamais la prod) :
+      # les tests créent aussi de vrais users via l'API admin GoTrue du projet pointé.
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
       # Base Supabase PARTAGÉE plafonnée à max_connections=60 (~57 utilisables), en concurrence
       # avec PostgREST/GoTrue/pg_cron + les déploiements Vercel. On borne le footprint du singleton
       # `db` (sinon 10 connexions par défaut) pour éviter la saturation `53300`. Tests sérialisés
