@@ -10,7 +10,12 @@ import {
   paramComptable,
   service,
 } from "@zarya/db";
-import { createServiceSchema, supprimerServiceSchema, updateServiceSchema } from "@zarya/schemas";
+import {
+  createServiceSchema,
+  regimeTvaSchema,
+  supprimerServiceSchema,
+  updateServiceSchema,
+} from "@zarya/schemas";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -45,6 +50,8 @@ export type ServicesActionState = {
   success?: boolean;
   nb_services?: number;
   nb_documents?: number;
+  /** Échéances effectivement créées par la (re)génération (hors doublons idempotents). */
+  nb_echeances?: number;
 };
 
 const Schema = z.object({
@@ -54,7 +61,7 @@ const Schema = z.object({
     .enum(["bexio", "abacus", "cresus", "winbiz", "banana", "excel", "officemaker", "autre"])
     .optional(),
   compta_plan: z.string().trim().optional(),
-  tva_regime: z.string().trim().optional(),
+  tva_regime: regimeTvaSchema.optional(),
   tva_frequence: z.enum(["trimestrielle", "semestrielle"]).optional(),
 });
 
@@ -104,7 +111,11 @@ export async function configurerServicesClientAction(
       type === "comptabilite"
         ? { logiciel: v.compta_logiciel ?? null, plan_comptable: v.compta_plan ?? null }
         : type === "tva"
-          ? { regime: v.tva_regime ?? null }
+          ? // P0-5 : clé `regime_tva` = celle que lit le moteur d'échéances (genererEcheances-
+            // PourClient / fn_generer_echeances). L'ancienne clé `regime` n'était jamais lue
+            // (le régime saisi à l'onboarding était perdu pour le matching) ; le moteur garde
+            // un fallback de lecture sur `regime` pour les lignes historiques.
+            { regime_tva: v.tva_regime ?? null }
           : null;
     const frequence =
       type === "tva" ? (v.tva_frequence ?? "trimestrielle") : FREQUENCE_DEFAUT[type];
@@ -166,12 +177,18 @@ export async function configurerServicesClientAction(
   }
 
   // Lot 2 (ADR 0025 / ADR 0011 Run 6) : maintenant que les services + documents attendus
-  // existent, on matérialise les échéances récurrentes du client (idempotent).
-  await genererEcheancesPourClient(cabinet_id, v.client_id);
+  // existent, on matérialise les échéances récurrentes du client (idempotent). Le compteur
+  // remonte à l'UI (feedback P0-5 : « combien d'échéances ont été générées »).
+  const generation = await genererEcheancesPourClient(cabinet_id, v.client_id);
 
   revalidatePath("/app/clients");
   revalidatePath(`/app/clients/${v.client_id}`);
-  return { success: true, nb_services: nbServices, nb_documents: nbDocuments };
+  return {
+    success: true,
+    nb_services: nbServices,
+    nb_documents: nbDocuments,
+    nb_echeances: generation.echeances_creees,
+  };
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -184,7 +201,12 @@ export async function configurerServicesClientAction(
 
 const ROLES_CRUD = new Set(["responsable", "gestionnaire_salaires", "collaborateur"]);
 
-export type ServiceCrudState = { error?: string; success?: boolean };
+export type ServiceCrudState = {
+  error?: string;
+  success?: boolean;
+  /** Échéances effectivement créées par la (re)génération (hors doublons idempotents). */
+  nb_echeances?: number;
+};
 
 function optionnel(value: FormDataEntryValue | null): string | undefined {
   const s = typeof value === "string" ? value.trim() : "";
@@ -259,10 +281,10 @@ export async function createServiceAction(
     metadata: { type, frequence: frequence ?? null, regime_tva: regime_tva ?? null },
   });
 
-  await genererEcheancesPourClient(cabinet_id, client_id);
+  const generation = await genererEcheancesPourClient(cabinet_id, client_id);
 
   revalidatePath(`/app/clients/${client_id}`);
-  return { success: true };
+  return { success: true, nb_echeances: generation.echeances_creees };
 }
 
 export async function updateServiceAction(
@@ -322,10 +344,10 @@ export async function updateServiceAction(
   });
 
   // Re-génération idempotente (ne duplique pas, ne détruit pas l'historique traité).
-  await genererEcheancesPourClient(cabinet_id, cible.client_id);
+  const generation = await genererEcheancesPourClient(cabinet_id, cible.client_id);
 
   revalidatePath(`/app/clients/${cible.client_id}`);
-  return { success: true };
+  return { success: true, nb_echeances: generation.echeances_creees };
 }
 
 export async function supprimerServiceAction(

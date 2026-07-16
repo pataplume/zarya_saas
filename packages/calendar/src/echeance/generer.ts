@@ -9,8 +9,10 @@
 //
 // COHÉRENCE avec le SQL : le cœur de calcul de dates (catalogue.ts) reproduit la fonction
 // calendar.fn_generer_echeances. Les filtres d'applicabilité (service_requis, canton_
-// specifique, regime_tva, override herite_de_id) sont rejoués ici en SQL paramétré, scopés
-// au client. L'IDEMPOTENCE est garantie par la même clé que le SQL : (client_id, template_id,
+// specifique, override herite_de_id) sont rejoués ici en SQL paramétré, scopés au client ;
+// le filtre regime_tva est rejoué côté TS (regime-tva.ts) pour appliquer un régime PAR
+// DÉFAUT dérivé de la périodicité TVA quand le régime n'est pas renseigné (P0-5).
+// L'IDEMPOTENCE est garantie par la même clé que le SQL : (client_id, template_id,
 // date_echeance) non archivé. Re-générer après modif d'un service ne duplique ni ne détruit
 // l'historique (les échéances déjà traitées/reportées restent intactes).
 //
@@ -20,6 +22,7 @@
 
 import { and, db, documentAttendu, echeance, eq, inArray, isNull, sql } from "@zarya/db";
 import { calculerOccurrences, type Occurrence, type TemplateRule } from "./catalogue";
+import { templateMatcheRegimeTva } from "./regime-tva";
 
 export interface GenererEcheancesOptions {
   /** Horizon de génération en mois (défaut 12, comme le cron SQL). */
@@ -50,6 +53,16 @@ type TemplateRow = {
   delai_alerte_jours: number;
   documents_requis_types: string[] | null;
   service_id: string | null;
+  /** Filtre régime TVA du template (NULL = tous régimes) — appliqué côté TS (regime-tva.ts). */
+  regime_tva: string[] | null;
+};
+
+// Type littéral (même contrainte Record<string, unknown> de db.execute<T> que TemplateRow),
+// structurellement compatible avec ServicePourRegimeTva (regime-tva.ts).
+type ServiceRow = {
+  type: string;
+  frequence: string | null;
+  regime_tva: string | null;
 };
 
 /** Date du jour au format ISO UTC `YYYY-MM-DD`. */
@@ -83,9 +96,27 @@ export async function genererEcheancesPourClient(
   `);
   if (!cible) return vide;
 
+  // Services actifs du client (type, périodicité, régime TVA) — support du filtre regime_tva
+  // rejoué côté TS (regime-tva.ts) pour appliquer le régime PAR DÉFAUT (P0-5). COALESCE sur
+  // la clé legacy 'regime' : l'action bulk d'onboarding a historiquement écrit le régime sous
+  // `parametres->>'regime'` (clé jamais lue par le moteur — bug corrigé), on guérit ces lignes
+  // à la lecture sans migration de données.
+  const servicesActifs = await db.execute<ServiceRow>(sql`
+    SELECT
+      s.type::text      AS type,
+      s.frequence::text AS frequence,
+      COALESCE(s.parametres ->> 'regime_tva', s.parametres ->> 'regime') AS regime_tva
+    FROM crm.service s
+    WHERE s.client_id = ${client_id}::uuid
+      AND s.cabinet_id = ${cabinet_id}::uuid
+      AND s.actif AND s.archived_at IS NULL
+  `);
+
   // Templates applicables AU CLIENT : on rejoue les mêmes filtres que fn_generer_echeances,
-  // scopés (cabinet_id, client_id). Un override de CE cabinet (herite_de_id → global)
-  // supplante son parent global. Le service rattaché = plus ancien service actif matchant.
+  // scopés (cabinet_id, client_id) — SAUF le filtre regime_tva, appliqué côté TS ci-dessous
+  // (templateMatcheRegimeTva) pour dériver un régime par défaut de la périodicité TVA (P0-5).
+  // Un override de CE cabinet (herite_de_id → global) supplante son parent global. Le service
+  // rattaché = plus ancien service actif matchant.
   const templates = await db.execute<TemplateRow>(sql`
     SELECT
       t.id::text          AS template_id,
@@ -97,6 +128,7 @@ export async function genererEcheancesPourClient(
       to_char(t.date_specifique, 'YYYY-MM-DD') AS date_specifique,
       t.delai_alerte_jours AS delai_alerte_jours,
       t.documents_requis_types AS documents_requis_types,
+      t.regime_tva        AS regime_tva,
       (SELECT s.id::text
          FROM crm.service s
         WHERE s.client_id = ${client_id}::uuid AND s.actif AND s.archived_at IS NULL
@@ -127,20 +159,23 @@ export async function genererEcheancesPourClient(
              ORDER BY (a.type = 'siege') DESC, a.est_principale DESC, a.id
              LIMIT 1
           ) = ANY(t.canton_specifique))
-      -- regime_tva : tous (NULL) ou régime porté par un service actif du client.
-      AND (t.regime_tva IS NULL OR EXISTS (
-            SELECT 1 FROM crm.service s2
-             WHERE s2.client_id = c.id AND s2.actif AND s2.archived_at IS NULL
-               AND s2.parametres ->> 'regime_tva' = ANY(t.regime_tva)))
   `);
+
+  // Filtre regime_tva côté TS : régime explicite du client, sinon régime PAR DÉFAUT
+  // (méthode effective — décompte ordinaire suisse) dérivé de la périodicité du service
+  // TVA. Règle documentée et testée dans regime-tva.ts (P0-5 : un régime NULL ne doit
+  // plus court-circuiter en silence la génération des échéances TVA).
+  const applicables = templates.filter((t) =>
+    templateMatcheRegimeTva(t.regime_tva, servicesActifs),
+  );
 
   const result: GenererEcheancesResult = {
     echeances_creees: 0,
     occurrences_calculees: 0,
-    templates_applicables: templates.length,
+    templates_applicables: applicables.length,
   };
 
-  for (const t of templates) {
+  for (const t of applicables) {
     const occurrences = calculerOccurrences(toRule(t), today, horizonMois);
     result.occurrences_calculees += occurrences.length;
     for (const occ of occurrences) {
