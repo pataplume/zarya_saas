@@ -90,7 +90,10 @@ const POIDS_RECOMMANDE = 1;
  *
  * Règles bloquantes (empêchent une génération d'échéance, alignées sur les filtres SQL de
  * genererEcheancesPourClient) :
- *  - service `tva` sans `regime_tva` → pas d'échéance TVA (le template filtre regime_tva) ;
+ *  - service `tva` sans `regime_tva` NI périodicité dérivable → pas d'échéance TVA. Avec une
+ *    périodicité mensuelle/trimestrielle/semestrielle, le moteur suppose désormais la méthode
+ *    effective par défaut (P0-5, cf. packages/calendar/src/echeance/regime-tva.ts) : le régime
+ *    manquant n'est alors que RECOMMANDÉ ;
  *  - service `bouclement` sans `param_comptable.date_bouclement` → date de bouclement inconnue ;
  *  - service `salaires` sans `salaire_config.date_validation_jour_du_mois` → jour de validation inconnu ;
  *  - aucune adresse avec canton alors qu'un service fiscal est actif → échéances cantonales impossibles.
@@ -166,10 +169,24 @@ export function calculerCompletude(input: CompletudeInput): CompletudeResult {
 
   if (aServiceTva) {
     const regimeOk = services.some((s) => s.type === "tva" && !!s.regime_tva);
+    // P0-5 : le moteur applique un régime PAR DÉFAUT (méthode effective, décompte ordinaire
+    // suisse) dérivé de la périodicité du service TVA — règle miroir de
+    // packages/calendar/src/echeance/regime-tva.ts (regimeTvaParDefaut). Le régime manquant
+    // n'est donc bloquant QUE si aucun défaut n'est dérivable (périodicité absente,
+    // annuelle ou ponctuelle).
+    const defautDerivable = services.some(
+      (s) =>
+        s.type === "tva" &&
+        (s.frequence === "mensuelle" ||
+          s.frequence === "trimestrielle" ||
+          s.frequence === "semestrielle"),
+    );
     critere(regimeOk, {
       cle: "service.tva.regime",
-      libelle: "Indiquez le régime TVA pour générer les échéances TVA.",
-      severite: "bloquant",
+      libelle: defautDerivable
+        ? "Précisez le régime TVA — méthode effective supposée par défaut pour les échéances."
+        : "Indiquez le régime TVA (ou la périodicité du service TVA) pour générer les échéances TVA.",
+      severite: defautDerivable ? "recommande" : "bloquant",
       service: "tva",
       ancre: "#services",
     });

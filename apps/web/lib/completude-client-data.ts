@@ -111,7 +111,9 @@ export async function getCompletudeClient(
     .filter((s): s is typeof s & { type: ServiceType } => SERVICE_TYPES.has(s.type as ServiceType))
     .map((s) => {
       const params = (s.parametres ?? {}) as Record<string, unknown>;
-      const regime = params.regime_tva;
+      // Fallback legacy `regime` : clé historiquement écrite par l'action bulk d'onboarding
+      // (P0-5) — même guérison à la lecture que le moteur et dossier-client-edit-data.ts.
+      const regime = params.regime_tva ?? params.regime;
       return {
         type: s.type,
         frequence: s.frequence ?? null,

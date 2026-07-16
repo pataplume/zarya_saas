@@ -64,15 +64,27 @@ describe("calculerCompletude — recommandations transverses", () => {
 });
 
 describe("calculerCompletude — bloquants de génération d'échéances", () => {
-  it("service TVA sans régime → bloquant 'service.tva.regime'", () => {
+  it("service TVA sans régime avec périodicité dérivable → RECOMMANDÉ (défaut effectif du moteur, P0-5)", () => {
     const r = calculerCompletude({
       ...vide(),
       services: [{ type: "tva", frequence: "trimestrielle", regime_tva: null }],
     });
     const item = r.manquants.find((m) => m.cle === "service.tva.regime");
-    expect(item?.severite).toBe("bloquant");
+    expect(item?.severite).toBe("recommande");
     expect(item?.service).toBe("tva");
-    expect(r.a_bloquants).toBe(true);
+    expect(r.a_bloquants).toBe(false);
+  });
+
+  it("service TVA sans régime NI périodicité dérivable → bloquant 'service.tva.regime'", () => {
+    for (const frequence of [null, "annuelle", "ponctuelle"]) {
+      const r = calculerCompletude({
+        ...vide(),
+        services: [{ type: "tva", frequence, regime_tva: null }],
+      });
+      const item = r.manquants.find((m) => m.cle === "service.tva.regime");
+      expect(item?.severite).toBe("bloquant");
+      expect(r.a_bloquants).toBe(true);
+    }
   });
 
   it("service TVA avec régime → plus de bloquant TVA", () => {

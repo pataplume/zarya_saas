@@ -80,18 +80,21 @@ describe("getCompletudeClient", () => {
     );
   });
 
-  test("service TVA sans régime → bloquant 'service.tva.regime' ; avec régime → résolu", async () => {
+  test("service TVA sans régime : recommandé (défaut effectif P0-5) ; avec régime → résolu", async () => {
     const cli = await seedClient(sql, cabinetA.id);
-    // Service TVA SANS regime_tva dans parametres.
+    // Service TVA SANS regime_tva dans parametres mais périodicité trimestrielle : le moteur
+    // suppose la méthode effective par défaut (P0-5, regime-tva.ts) → signalé en RECOMMANDÉ,
+    // plus en bloquant (les échéances TVA sont bien générées).
     await sql`
       INSERT INTO crm.service (id, cabinet_id, client_id, type, frequence)
       VALUES (${randomUUID()}, ${cabinetA.id}, ${cli.id}, 'tva', 'trimestrielle')
     `;
     let r = await getCompletudeClient(cabinetA.id, cli.id);
-    expect(r?.a_bloquants).toBe(true);
-    expect(r?.manquants.map((m) => m.cle)).toContain("service.tva.regime");
+    expect(r?.a_bloquants).toBe(false);
+    const item = r?.manquants.find((m) => m.cle === "service.tva.regime");
+    expect(item?.severite).toBe("recommande");
 
-    // On pose le régime → le bloquant disparaît.
+    // On pose le régime → l'item disparaît.
     await sql`
       UPDATE crm.service SET parametres = ${sql.json({ regime_tva: "effective_trimestre" })}
       WHERE client_id = ${cli.id} AND type = 'tva'

@@ -90,6 +90,14 @@ function resumeService(s: ServiceRegime): string {
   return parts.join(" · ");
 }
 
+// Feedback P0-5 : indique combien d'échéances la (re)génération a réellement créées
+// (0 = régénération idempotente sans nouveauté, message honnête).
+function messageEcheances(prefixe: string, nb: number | undefined): string {
+  if (nb == null) return `${prefixe} — échéances régénérées`;
+  if (nb === 0) return `${prefixe} — aucune nouvelle échéance`;
+  return `${prefixe} — ${nb} échéance${nb > 1 ? "s" : ""} générée${nb > 1 ? "s" : ""}`;
+}
+
 // ─── Ligne d'un service actif (désactivation granulaire) ─────────────────────
 
 function ServiceActifLigne({ service }: { service: ServiceRegime }) {
@@ -110,7 +118,7 @@ function ServiceActifLigne({ service }: { service: ServiceRegime }) {
   }, [state]);
   useEffect(() => {
     if (editState.success) {
-      toast.success("Service mis à jour — échéances régénérées");
+      toast.success(messageEcheances("Service mis à jour", editState.nb_echeances));
       setEditOuvert(false);
     }
   }, [editState]);
@@ -124,6 +132,14 @@ function ServiceActifLigne({ service }: { service: ServiceRegime }) {
           <span className="text-sm font-medium text-slate-800">{libelleService(service.type)}</span>
           {resumeService(service) && (
             <p className="text-xs text-slate-500">{resumeService(service)}</p>
+          )}
+          {/* P0-5 : le moteur suppose la méthode effective (décompte ordinaire suisse) quand
+              le régime TVA manque — on affiche l'hypothèse pour inviter à préciser. */}
+          {estTva && !service.regime_tva && (
+            <p className="mt-1 text-xs text-amber-600">
+              Régime TVA non renseigné — méthode effective supposée pour générer les échéances.
+              Précisez-le pour plus de justesse.
+            </p>
           )}
           <Erreur message={state.error} />
         </div>
@@ -220,7 +236,7 @@ function ServicesForm({
 
   useEffect(() => {
     if (state.success) {
-      toast.success("Services enregistrés — échéances régénérées");
+      toast.success(messageEcheances("Services enregistrés", state.nb_echeances));
       setExtras([]); // les services nouvellement actifs arrivent par revalidation serveur
     }
   }, [state]);
