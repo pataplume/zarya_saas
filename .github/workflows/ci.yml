@@ -69,22 +69,56 @@ jobs:
       - name: Run unit tests
         run: pnpm test:unit
 
-  # Suite d'intégration (tests/integration) — base Supabase PARTAGÉE, ~30-40 min, SÉRIALISÉE
-  # (un seul run à la fois sur toutes les branches). Ne tourne PAS sur chaque PR (trop lent) :
+  # Détecte si une PR touche des chemins sensibles pour la base (schéma, RLS, moteur métier) :
+  # dans ce cas la suite d'intégration (isolation multi-tenant) devient OBLIGATOIRE sur la PR,
+  # conformément à la règle n°1 du CLAUDE.md (tests d'isolation bloquants). Cf. ADR 0026.
+  changes:
+    name: Chemins sensibles DB
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: read
+    outputs:
+      db-sensitive: ${{ steps.filter.outputs.db-sensitive }}
+    steps:
+      # Sur pull_request, dorny/paths-filter interroge l'API GitHub : pas de checkout nécessaire.
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            db-sensitive:
+              - "packages/db/**"
+              - "apps/web/**"
+              - "packages/extraction/**"
+              - "packages/calendar/**"
+
+  # Suite d'intégration (tests/integration) — base Supabase de TEST dédiée, ~30-40 min, SÉRIALISÉE
+  # (un seul run à la fois sur toutes les branches). Tourne :
+  #  - sur toute PR qui touche packages/db/**, apps/web/**, packages/extraction/** ou
+  #    packages/calendar/** (tests d'isolation multi-tenant BLOQUANTS — règle n°1 CLAUDE.md) ;
+  #  - sur une PR portant le label `run-integration` (forçage hors chemins sensibles) ;
   #  - sur push develop/main (garde main vert) ;
   #  - chaque nuit (cron) ;
-  #  - à la demande (workflow_dispatch) ;
-  #  - sur une PR portant le label `run-integration` (validation ciblée avant merge sensible).
-  # Pas de check requis en protection de branche → un skip ne bloque pas le merge.
+  #  - à la demande (workflow_dispatch).
+  # FAIL-CLOSED : le job utilise EXCLUSIVEMENT les secrets TEST_* (base de test dédiée, jamais la
+  # prod — AUDIT-MVP.md § 8 P0-2/P0-3). S'ils manquent, le job échoue avec un message explicite
+  # plutôt que de retomber silencieusement sur la prod. Cf. ADR 0026.
+  # TODO ops : protéger main avec ce check requis (sinon un échec ne bloque pas le merge).
   test-integration:
     name: Tests (isolation multi-tenant)
     runs-on: ubuntu-latest
+    needs: changes
+    # `!cancelled()` : `changes` est skippé hors PR (push/cron/dispatch) et un `needs` skippé
+    # skipperait ce job par défaut ; on évalue donc la condition nous-mêmes.
     if: >
-      github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' &&
-       contains(github.event.pull_request.labels.*.name, 'run-integration'))
+      !cancelled() && (
+        github.event_name == 'push' ||
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'pull_request' &&
+         (needs.changes.outputs.db-sensitive == 'true' ||
+          contains(github.event.pull_request.labels.*.name, 'run-integration')))
+      )
     # Sérialise CE job entre TOUTES les exécutions : un seul run accède à la fois à la base
     # Supabase de test PARTAGÉE (collisions seed/cleanup sinon). Groupe constant + pas
     # d'annulation = file d'attente. Cf. addendum ADR 0005 (DB partagée).
@@ -92,16 +126,28 @@ jobs:
       group: integration-tests-shared-db
       cancel-in-progress: false
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      # Base Supabase PARTAGÉE plafonnée à max_connections=60 (~57 utilisables), en concurrence
-      # avec PostgREST/GoTrue/pg_cron + les déploiements Vercel. On borne le footprint du singleton
-      # `db` (sinon 10 connexions par défaut) pour éviter la saturation `53300`. Tests sérialisés
-      # (singleFork) → 3 suffisent ; idle_timeout libère vite les slots entre fichiers.
+      # Secrets TEST_* = projet Supabase de TEST dédié (URL DB + URL projet + service role du MÊME
+      # projet). Ne JAMAIS pointer ces secrets vers la prod.
+      DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+      # Base Supabase plafonnée à max_connections=60 (~57 utilisables), en concurrence
+      # avec PostgREST/GoTrue/pg_cron. On borne le footprint du singleton `db` (sinon 10 connexions
+      # par défaut) pour éviter la saturation `53300`. Tests sérialisés (singleFork) → 3 suffisent ;
+      # idle_timeout libère vite les slots entre fichiers.
       DB_POOL_MAX: "3"
       DB_IDLE_TIMEOUT: "10"
     steps:
+      - name: Garde fail-closed — base de test dédiée requise
+        run: |
+          manquants=""
+          if [ -z "$DATABASE_URL" ]; then manquants="$manquants TEST_DATABASE_URL"; fi
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ]; then manquants="$manquants TEST_NEXT_PUBLIC_SUPABASE_URL"; fi
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then manquants="$manquants TEST_SUPABASE_SERVICE_ROLE_KEY"; fi
+          if [ -n "$manquants" ]; then
+            echo "::error::Secrets GitHub Actions manquants :$manquants — la suite d'intégration exige une base Supabase de TEST dédiée (jamais la prod). Poser ces secrets dans Settings → Secrets and variables → Actions. Échec volontaire (fail-closed), cf. ADR 0026 et AUDIT-MVP.md § 8 (P0-2/P0-3)."
+            exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
