@@ -7,10 +7,18 @@
 // pas d'appel LLM (réponse « aucun document pertinent »).
 
 import { infomaniakClient } from "@zarya/integrations";
+import { ExtractionError } from "./classifier";
 import type { ChatModelClient } from "./infomaniak-classifier";
 import type { RetrievedChunk } from "./retrieve";
 
 export const ANSWER_PROMPT_VERSION = "search-answer-v1";
+
+// chat_large peut être servi par un modèle « reasoning » (Qwen3.5) qui, par défaut, émet une
+// longue trace de raisonnement AVANT la réponse : elle mange tout le budget max_tokens et le
+// content revient VIDE (answer:"" constaté en prod le 16.07). Même cause et même correctif que
+// l'extraction facture (fix #177, cf. infomaniak-facture-extractor.ts) : on désactive le
+// « thinking » via le template du modèle. No-op pour un modèle sans thinking.
+const THINKING_OFF = { enable_thinking: false } as const;
 
 export const ANSWER_SYSTEM_PROMPT =
   "Tu es l'assistant de recherche documentaire d'un fiduciaire suisse. Réponds à la question " +
@@ -58,20 +66,35 @@ export async function generateAnswer(
   const sourcesBlock = chunks.map((c, i) => formatSource(c, i + 1)).join("\n\n");
 
   const model = await client.resolveModel("chat_large");
-  const res = await client.chatCompletion({
+  const params = {
     model,
     temperature: 0.1,
     max_tokens: opts.maxTokens ?? 1024,
+    chat_template_kwargs: THINKING_OFF,
     messages: [
-      { role: "system", content: ANSWER_SYSTEM_PROMPT },
+      { role: "system" as const, content: ANSWER_SYSTEM_PROMPT },
       {
-        role: "user",
+        role: "user" as const,
         content: `Question : ${question}\n\nExtraits disponibles :\n${sourcesBlock}`,
       },
     ],
-  });
+  };
 
-  const answer = (res.choices[0]?.message?.content ?? "").trim();
+  // Réponse vide (content "" malgré un appel réussi) : réessai simple x1, puis erreur typée —
+  // l'appelant (answerQuestion) retombe alors sur son mode dégradé « sources sans réponse ».
+  let res = await client.chatCompletion(params);
+  let answer = (res.choices[0]?.message?.content ?? "").trim();
+  if (answer === "") {
+    res = await client.chatCompletion(params);
+    answer = (res.choices[0]?.message?.content ?? "").trim();
+  }
+  if (answer === "") {
+    throw new ExtractionError(
+      "LLM_ERROR",
+      "Le modèle a renvoyé une réponse vide (après réessai) — génération indisponible.",
+    );
+  }
+
   const sources: AnswerSource[] = chunks.map((c, i) => ({
     n: i + 1,
     chunk_id: c.chunk_id,

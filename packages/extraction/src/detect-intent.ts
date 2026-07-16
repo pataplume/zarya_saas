@@ -23,6 +23,11 @@ const INTENT_SYSTEM_PROMPT =
   "'agregation' (un calcul/comptage : combien, total, somme), 'synthese' (résumer plusieurs sources), " +
   "'hors_scope' (sans rapport avec les documents du cabinet). Réponds en JSON {\"intent\": <catégorie>}.";
 
+// Garde-fou aligné sur le fix #177 (cf. infomaniak-facture-extractor.ts) : si la catégorie
+// chat_small est un jour servie par un modèle « reasoning », la trace de raisonnement viderait
+// le budget de 32 tokens (content vide). No-op pour un modèle sans thinking.
+const THINKING_OFF = { enable_thinking: false } as const;
+
 const INTENT_JSON_SCHEMA = {
   name: "search_intent",
   strict: true,
@@ -55,6 +60,7 @@ export async function detectIntent(
       model,
       temperature: 0,
       max_tokens: 32,
+      chat_template_kwargs: THINKING_OFF,
       response_format: { type: "json_schema", json_schema: INTENT_JSON_SCHEMA },
       messages: [
         { role: "system", content: INTENT_SYSTEM_PROMPT },
