@@ -100,4 +100,4 @@ export {
   verifyOAuthState,
 } from "./microsoft";
 export type { ZefixAddress, ZefixCompanyDetail, ZefixCompanySummary, ZefixResultat } from "./zefix";
-export { ZefixClient, ZefixError, zefixClient } from "./zefix";
+export { ZefixAuthError, ZefixClient, ZefixError, zefixClient } from "./zefix";

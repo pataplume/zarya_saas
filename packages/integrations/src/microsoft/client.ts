@@ -16,7 +16,7 @@
 // (ici envoi BRUT). Hors-scope D2 (→ D4) : les webhooks/subscriptions.
 
 import { type ApiExterneAuditEntry, recordApiExterne } from "@zarya/db";
-import { logger } from "@zarya/logger";
+import { logger, sendOpsAlert } from "@zarya/logger";
 import { MicrosoftGraphError } from "./errors";
 import type {
   AttachmentMeta,
@@ -421,8 +421,15 @@ export class MicrosoftGraphClient {
       }
 
       // 401 → token révoqué/insuffisant : reconnexion requise (§9.2). Pas de retry.
+      // Credentials cassés → alerte ops critique (CLAUDE.md §Errors, AUDIT-MVP §8 P0-1).
       if (status === 401) {
         await this.audit(init.auditEndpoint, method, 401, false, "revoked", latency, { attempt });
+        await sendOpsAlert("Microsoft Graph : accès refusé (401) — reconnexion requise", {
+          provider: GRAPH_PROVIDER,
+          status: 401,
+          endpoint: init.auditEndpoint,
+          cabinet_id: this.cabinet_id,
+        });
         throw new MicrosoftGraphError(
           "revoked",
           "Accès Microsoft refusé (401) — reconnexion requise.",
@@ -435,6 +442,17 @@ export class MicrosoftGraphClient {
           attempt,
           ...(graphCode ? { graph_code: graphCode } : {}),
         });
+        // 403 → permissions insuffisantes / consentement retiré : credentials cassés
+        // → alerte ops critique (même règle que le 401, sans changer l'erreur typée).
+        if (status === 403) {
+          await sendOpsAlert("Microsoft Graph : accès interdit (403) — permissions à vérifier", {
+            provider: GRAPH_PROVIDER,
+            status: 403,
+            endpoint: init.auditEndpoint,
+            cabinet_id: this.cabinet_id,
+            ...(graphCode ? { graph_code: graphCode } : {}),
+          });
+        }
         throw new MicrosoftGraphError(
           "api_error",
           `Microsoft Graph a retourné ${status}${graphCode ? ` (${graphCode})` : ""}.`,

@@ -1,3 +1,4 @@
+import { sendOpsAlert } from "@zarya/logger";
 import type { ZefixCompanyDetail, ZefixCompanySummary, ZefixResultat } from "./types";
 
 // Base URL configurable via ZEFIX_BASE_URL (cf. ADR 0009)
@@ -33,6 +34,27 @@ export class ZefixError extends Error {
     super(message);
     this.name = "ZefixError";
   }
+}
+
+// Erreur d'authentification Zefix (HTTP Basic refusé — ADR 0009).
+// Sous-classe de ZefixError : les route handlers `err instanceof ZefixError` continuent
+// de fonctionner ; le message reste sûr pour l'UI (pas de détail credentials).
+export class ZefixAuthError extends ZefixError {
+  constructor(public readonly status: number) {
+    super("api_error", "Zefix a refusé l'authentification — le support a été alerté");
+    this.name = "ZefixAuthError";
+  }
+}
+
+// 401/403 Zefix = credentials plateforme cassés → alerte ops critique (CLAUDE.md §Errors),
+// puis erreur typée. Ne throw que sur 401/403 ; no-op sinon.
+async function verifierAuthZefix(response: Response, endpoint: string): Promise<void> {
+  if (response.status !== 401 && response.status !== 403) return;
+  await sendOpsAlert(
+    `Zefix : authentification refusée (${response.status}) — vérifier ZEFIX_USERNAME/ZEFIX_PASSWORD`,
+    { provider: "zefix", status: response.status, endpoint },
+  );
+  throw new ZefixAuthError(response.status);
 }
 
 // Normalise le statut Zefix vers le vocabulaire ZARYA
@@ -141,6 +163,7 @@ export class ZefixClient {
       body: JSON.stringify(body),
     });
 
+    await verifierAuthZefix(response, "/company/search");
     if (response.status === 429) {
       throw new ZefixError("rate_limit", "Quota Zefix atteint, réessayez dans quelques secondes");
     }
@@ -172,6 +195,7 @@ export class ZefixClient {
     const response = await fetchAvecTimeout(url);
 
     if (response.status === 404) return null;
+    await verifierAuthZefix(response, "/company/uid");
     if (response.status === 429) {
       throw new ZefixError("rate_limit", "Quota Zefix atteint");
     }

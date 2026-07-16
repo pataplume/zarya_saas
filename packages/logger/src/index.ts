@@ -26,6 +26,10 @@ const SENSITIVE_KEYS = [
   "client_secret",
   "token",
   "secret",
+  // PII financière / sociale (CLAUDE.md §2 : jamais d'IBAN/AVS dans les logs — filet).
+  "iban",
+  "numero_avs",
+  "avs",
 ] as const;
 
 // Racine + un niveau imbriqué (`*.key`) + en-têtes HTTP (`req.headers.key`).
@@ -52,3 +56,5 @@ export function childLogger(bindings: Record<string, unknown>) {
 }
 
 export type Logger = typeof logger;
+
+export { sendOpsAlert } from "./ops-alert";

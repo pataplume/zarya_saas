@@ -2,6 +2,9 @@ import { genererPeriodesMensuelles } from "@zarya/extraction";
 import { logger } from "@zarya/logger";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { pingCronHeartbeat } from "@/lib/ops/heartbeat";
+
+const HEARTBEAT_SLUG = "salaire-generer-periodes";
 
 // Bloc G2 — génération mensuelle des périodes de paie (Vercel Cron, mensuel).
 // App-code : crée la période du mois courant pour chaque client éligible (service salaires
@@ -23,12 +26,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const result = await genererPeriodesMensuelles({ annee, mois });
     logger.info({ annee, mois, ...result }, "[salaire.generer-periodes] génération terminée");
+    await pingCronHeartbeat(HEARTBEAT_SLUG, true);
     return NextResponse.json({ annee, mois, ...result });
   } catch (err) {
     logger.error(
       { error: err instanceof Error ? err.message : "inconnu" },
       "[salaire.generer-periodes] échec de la génération",
     );
+    await pingCronHeartbeat(HEARTBEAT_SLUG, false);
     return NextResponse.json({ error: "Échec de la génération" }, { status: 500 });
   }
 }
