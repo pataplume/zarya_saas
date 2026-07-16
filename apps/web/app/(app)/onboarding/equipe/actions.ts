@@ -2,9 +2,11 @@
 
 import { createSupabaseAdminClient, requireAuth } from "@zarya/auth";
 import { db, invitationMembre, sessionOnboardingFiduciaire } from "@zarya/db";
-import { eq } from "drizzle-orm";
+import { logger } from "@zarya/logger";
+import { and, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { messageErreurInvitation } from "@/lib/invitation-erreurs";
 
 const MembreSchema = z.object({
   email: z.string().email("Email invalide"),
@@ -70,27 +72,46 @@ export async function inviterMembresAction(
 
   const admin = createSupabaseAdminClient();
   const expireAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 jours
+  const rowErrors: Array<{ index: number; message: string }> = [];
 
-  for (const membre of parsed.data.membres) {
+  for (const [index, membre] of parsed.data.membres.entries()) {
+    // Idempotence : une invitation encore en attente pour cet email n'est ni dupliquée
+    // ni renvoyée — permet de re-soumettre le formulaire après une erreur partielle.
+    const [dejaInvitee] = await db
+      .select({ id: invitationMembre.id })
+      .from(invitationMembre)
+      .where(
+        and(
+          eq(invitationMembre.cabinet_id, cabinet_id),
+          eq(invitationMembre.email, membre.email),
+          inArray(invitationMembre.statut, ["envoyee", "lue"]),
+        ),
+      )
+      .limit(1);
+    if (dejaInvitee) continue;
+
     // Créer le record d'invitation en DB
-    await db.insert(invitationMembre).values({
-      cabinet_id,
-      session_id: session?.id ?? null,
-      email: membre.email,
-      prenom: membre.prenom,
-      nom: membre.nom,
-      role_propose: membre.role as
-        | "responsable"
-        | "gestionnaire_salaires"
-        | "collaborateur"
-        | "lecteur",
-      envoyee_par: user.id,
-      token_expire_at: expireAt,
-    });
+    const [invitationCreee] = await db
+      .insert(invitationMembre)
+      .values({
+        cabinet_id,
+        session_id: session?.id ?? null,
+        email: membre.email,
+        prenom: membre.prenom,
+        nom: membre.nom,
+        role_propose: membre.role as
+          | "responsable"
+          | "gestionnaire_salaires"
+          | "collaborateur"
+          | "lecteur",
+        envoyee_par: user.id,
+        token_expire_at: expireAt,
+      })
+      .returning({ id: invitationMembre.id });
 
     // Envoyer l'invitation via Supabase (magic link)
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    await admin.auth.admin.inviteUserByEmail(membre.email, {
+    const { error: erreurEnvoi } = await admin.auth.admin.inviteUserByEmail(membre.email, {
       redirectTo: `${appUrl}/auth/callback`,
       data: {
         cabinet_id,
@@ -99,6 +120,32 @@ export async function inviterMembresAction(
         nom: membre.nom,
       },
     });
+
+    if (erreurEnvoi) {
+      // Cohérence : pas de ligne « envoyée » si l'email n'est pas parti → rollback.
+      if (invitationCreee) {
+        await db.delete(invitationMembre).where(eq(invitationMembre.id, invitationCreee.id));
+      }
+      logger.error(
+        {
+          cabinet_id,
+          index,
+          code: erreurEnvoi.code,
+          status: erreurEnvoi.status,
+          error: erreurEnvoi.message,
+        },
+        "[onboarding.equipe] échec envoi invitation Supabase",
+      );
+      rowErrors.push({ index, message: messageErreurInvitation(erreurEnvoi) });
+    }
+  }
+
+  if (rowErrors.length > 0) {
+    return {
+      error:
+        "Certaines invitations n'ont pas pu être envoyées. Corrigez les lignes en erreur puis réessayez — les invitations déjà envoyées ne seront pas dupliquées.",
+      rowErrors,
+    };
   }
 
   // Marquer l'étape B comme terminée
