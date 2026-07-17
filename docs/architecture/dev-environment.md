@@ -383,6 +383,49 @@ Ces tests **doivent passer** en CI, sinon merge bloqué.
 ### 7.4 Données de test
 Fixtures dans `packages/db/seed/`. Plusieurs cabinets, plusieurs clients par cabinet, états variés (en onboarding, opérationnel, en retard).
 
+### 7.5 Base de tests — mode live bridé par défaut, `TEST_DATABASE_URL` en opt-in
+
+**Décision founder du 17.07.2026** : il n'y aura **pas de base de test dédiée avant le
+lancement** (ni le temps ni le budget). Les tests d'intégration (`tests/integration/**`)
+tournent donc **contre la base live** (celle de `DATABASE_URL`, y compris la prod), **en
+connaissance de cause et risque assumé**, avec des brides automatiques. Contexte : le
+16.07.2026, une suite lancée sans brides contre la prod a saturé ses connexions Postgres
+(erreur `53300`) et rendu l'app indisponible ~2 min (`AUDIT-MVP.md` § 8) — les brides
+existent pour que cela ne se reproduise jamais.
+
+Résolution de l'URL et du mode (fonction pure `resoudreBaseDeTest`,
+`tests/integration/helpers/base-de-test.ts`, consommée par `tests/setup.ts`,
+`vitest.config.ts` et `tests/integration/helpers/rls.ts`) :
+
+- **`TEST_DATABASE_URL` posée** (et ne contenant pas la ref du projet de prod) → base
+  dédiée, **plein régime**. C'est la porte **opt-in post-lancement** : créer un
+  projet/branche Supabase dédié, appliquer les migrations `packages/db/migrations/`, poser
+  la variable (`.env.local` en local ; secrets `TEST_DATABASE_URL` / `TEST_SUPABASE_URL` /
+  `TEST_SUPABASE_SERVICE_ROLE_KEY` en CI).
+- **Sinon** → repli sur `DATABASE_URL` en **mode live bridé** :
+  - pool de connexions **forcé à `DB_POOL_MAX=2` par process** (dans `tests/setup.ts`,
+    avant la création du client `@zarya/db`) ;
+  - concurrence vitest verrouillée (`fileParallelism: false`, 1 seul worker,
+    `maxConcurrency: 1` — `vitest.config.ts`) ;
+  - avertissement console explicite au démarrage du setup.
+- **Aucune des deux** → les tests unitaires purs tournent (URL factice inconnectable
+  substituée) ; chaque fichier de `tests/integration/` échoue immédiatement avec la marche
+  à suivre.
+
+Règles d'usage du mode live bridé :
+
+- **Ne jamais lancer la suite complète pendant une démo ou un pilote actif** : même
+  bridée, la suite écrit et supprime des données réelles et consomme des connexions de la
+  base live. Préférer des fichiers ciblés (`pnpm vitest run tests/integration/<fichier>`).
+- Les résidus de tests s'accumulent en base live : inventaire lecture seule via
+  `scripts/audit-residus-tests.sql` (procédure : `scripts/README.md`), purge manuelle
+  validée par le founder.
+- ⚠️ Les tests d'intégration créent aussi de vrais users via l'API admin GoTrue :
+  `NEXT_PUBLIC_SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` doivent pointer le **même
+  projet** que l'URL retenue.
+- Provisionner une vraie base de test reste l'objectif **après le lancement**
+  (`TEST_DATABASE_URL` redeviendra alors la voie normale).
+
 ## 8. CI/CD
 
 ### 8.1 Pipelines GitHub Actions

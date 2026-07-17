@@ -1,5 +1,22 @@
 import { fileURLToPath } from "node:url";
+import { config as chargerEnvLocal } from "dotenv";
 import { defineConfig } from "vitest/config";
+import { resoudreBaseDeTest } from "./tests/integration/helpers/base-de-test";
+
+// ── Brides du mode live bridé (P0-2 amendé, décision founder 17.07.2026) ──────────────────────
+// Cette config est évaluée dans le process principal Vitest, AVANT tests/setup.ts (qui tourne
+// dans les workers) : on lit donc .env.local ici aussi — sans muter process.env (processEnv
+// dédié) — pour décider des brides de concurrence. TEST_DATABASE_URL absente = la suite tourne
+// contre la base LIVE (repli DATABASE_URL) : on verrouille alors le parallélisme pour que le
+// nombre de connexions simultanées reste borné (incident 53300 du 16.07.2026 : ~16 workers ×
+// pool de 10 ont saturé la prod). Combiné au DB_POOL_MAX=2 forcé par tests/setup.ts, le
+// footprint reste de quelques connexions.
+const envLocal: Record<string, string> = {};
+chargerEnvLocal({
+  path: fileURLToPath(new URL("./.env.local", import.meta.url)),
+  processEnv: envLocal,
+});
+const modeLiveBride = resoudreBaseDeTest({ ...envLocal, ...process.env }).mode === "live_bride";
 
 export default defineConfig({
   resolve: {
@@ -65,5 +82,10 @@ export default defineConfig({
         singleFork: true,
       },
     },
+    // Mode live bridé (TEST_DATABASE_URL absente) : verrouille explicitement toute source de
+    // parallélisme — fichiers séquentiels (même si singleFork évoluait), 1 seul worker, aucun
+    // test.concurrent. Avec le DB_POOL_MAX=2 de tests/setup.ts + le pool max:2 des service
+    // clients, jamais plus d'une poignée de connexions simultanées vers la base live.
+    ...(modeLiveBride ? { fileParallelism: false as const, maxWorkers: 1, maxConcurrency: 1 } : {}),
   },
 });

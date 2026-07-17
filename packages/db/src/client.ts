@@ -17,13 +17,19 @@ if (!databaseUrl) {
 // `max_connections` (Supabase Pro = 60, dont 3 réservées superuser → ~57 utilisables, partagées
 // avec PostgREST/GoTrue/pg_cron + tous les déploiements Vercel). Sans borne, postgres-js ouvre
 // jusqu'à 10 connexions PAR instance serverless/worker → saturation (`53300`) sous charge.
-// Défaut 10 = défaut historique postgres-js (prod inchangée). Surchargeable par env :
-//  - Vercel serverless : DB_POOL_MAX=1 recommandé (1 requête par instance) ;
-//  - CI intégration : DB_POOL_MAX=3 + DB_IDLE_TIMEOUT=10 (footprint minimal sur la base partagée).
-const poolMax = Number(process.env.DB_POOL_MAX ?? 10);
+// Défaut :
+//  - sur Vercel (process.env.VERCEL posé par la plateforme) : 1 — chaque instance serverless
+//    traite une requête à la fois ; avec le défaut historique 10, N instances concurrentes
+//    ouvrent jusqu'à 10×N connexions et saturent le plafond ~60 de Supabase (erreur 53300
+//    constatée en prod le 16.07.2026) ;
+//  - ailleurs (dev local, scripts, workers longue durée) : 10 = défaut historique postgres-js.
+// Surchargeable explicitement par env : DB_POOL_MAX (CI intégration : DB_POOL_MAX=3 +
+// DB_IDLE_TIMEOUT=10, footprint minimal sur la base partagée).
+const defaultPoolMax = process.env.VERCEL ? 1 : 10;
+const poolMax = Number(process.env.DB_POOL_MAX ?? defaultPoolMax);
 const idleTimeout = process.env.DB_IDLE_TIMEOUT ? Number(process.env.DB_IDLE_TIMEOUT) : undefined;
 const queryClient = postgres(databaseUrl, {
-  max: Number.isFinite(poolMax) && poolMax > 0 ? poolMax : 10,
+  max: Number.isFinite(poolMax) && poolMax > 0 ? poolMax : defaultPoolMax,
   ...(idleTimeout && idleTimeout > 0 ? { idle_timeout: idleTimeout } : {}),
 });
 
