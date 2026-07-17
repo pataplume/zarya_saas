@@ -8,17 +8,21 @@
  * Référence : /docs/architecture/multi-tenant.md § 5
  */
 import postgres from "postgres";
-import { resoudreUrlBaseDeTest } from "./base-de-test";
+import { MESSAGE_AUCUNE_URL_BASE_DE_TEST, resoudreBaseDeTest } from "./base-de-test";
 
 /** Crée un client postgres.js avec le service role (bypass RLS, pour setup/teardown) */
 export function createServiceClient(): postgres.Sql {
-  // Garde-fou P0-2 : lit EXCLUSIVEMENT TEST_DATABASE_URL (jamais DATABASE_URL) — jette avec
-  // la marche à suivre si absente, et refuse toute URL contenant la ref du projet de PROD.
-  const url = resoudreUrlBaseDeTest(process.env);
+  // P0-2 amendé (décision founder 17.07) : même résolution que tests/setup.ts —
+  // TEST_DATABASE_URL (base dédiée, plein régime) sinon repli DATABASE_URL (mode live bridé).
+  // Aucune URL → erreur explicite avec la marche à suivre.
+  const { url } = resoudreBaseDeTest(process.env);
+  if (!url) {
+    throw new Error(MESSAGE_AUCUNE_URL_BASE_DE_TEST);
+  }
   return postgres(url, {
     // Désactiver le prepare pour les queries dynamiques de test
     prepare: false,
-    // Footprint connexions minimal : la base de test est PARTAGÉE et plafonnée à
+    // Footprint connexions minimal : la base pointée (live en mode bridé !) est plafonnée à
     // max_connections=60 (~57 utilisables), en concurrence avec le singleton `db`, GoTrue,
     // PostgREST et les déploiements Vercel. Un pool large (défaut 10) par fichier de test
     // sature la base (`53300`). Les tests sont sérialisés (singleFork) → 2 suffisent.

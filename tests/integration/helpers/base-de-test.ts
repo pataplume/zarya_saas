@@ -1,70 +1,102 @@
 /**
- * Garde-fou base de tests (P0-2 — AUDIT-MVP.md § 8).
+ * Résolution de la base de tests (P0-2 amendé — décision founder du 17.07.2026).
  *
  * Incident du 16.07.2026 : la `DATABASE_URL` de `.env.local` pointait la base de
  * PRODUCTION (ref projet xkwbtwikecihypjxundl) ; un `pnpm test` local a saturé ses
  * connexions Postgres (erreur 53300) et rendu les pages prod indisponibles ~2 min.
- * La base contient en outre ~929 cabinets, majoritairement des résidus de tests.
  *
- * Depuis, la suite de tests ne lit plus JAMAIS `DATABASE_URL` :
- *  - la SEULE source d'URL de base pour les tests est `TEST_DATABASE_URL` ;
- *  - absente → échec immédiat des tests d'intégration avec la marche à suivre ;
- *  - contenant la ref du projet de prod → échec immédiat, sans exception.
+ * Décision founder du 17.07.2026 : PAS de base de test dédiée avant le lancement
+ * (ni le temps ni le budget). Les tests d'intégration tournent donc contre la base
+ * LIVE, en connaissance de cause, mais avec des brides automatiques anti-53300 :
+ *
+ *  - `TEST_DATABASE_URL` posée (base dédiée) → mode « dediee », plein régime.
+ *    C'est la porte opt-in pour l'après-lancement.
+ *  - Sinon → mode « live_bride » : repli sur `DATABASE_URL` (même la prod) avec
+ *    (1) pool plafonné à DB_POOL_MAX=2 par process (tests/setup.ts, AVANT la création
+ *    du client @zarya/db), (2) concurrence vitest réduite (vitest.config.ts), et
+ *    (3) avertissement console explicite au démarrage du setup.
+ *  - Aucune URL → mode « aucune_url » : les tests unitaires purs tournent (URL factice
+ *    inconnectable substituée), les fichiers de tests/integration/ échouent
+ *    immédiatement avec la marche à suivre.
  *
  * Fonctions PURES (aucune connexion, aucun import) : testables en unitaire
- * (tests/unit/garde-fou-base-de-test.test.ts), consommées par tests/setup.ts
- * et tests/integration/helpers/rls.ts.
+ * (tests/unit/garde-fou-base-de-test.test.ts), consommées par tests/setup.ts,
+ * tests/integration/helpers/rls.ts et vitest.config.ts.
  */
 
-/** Ref du projet Supabase de PRODUCTION — toute URL de test la contenant est refusée. */
+/**
+ * Ref du projet Supabase de PRODUCTION. Une `TEST_DATABASE_URL` la contenant n'est PAS
+ * une base dédiée : elle est traitée en mode live bridé (jamais plein régime sur la prod).
+ */
 export const REF_PROJET_PROD = "xkwbtwikecihypjxundl";
 
-export const MESSAGE_TEST_DATABASE_URL_MANQUANTE = [
-  "[tests] TEST_DATABASE_URL manquante — les tests d'intégration ne peuvent pas tourner.",
-  "",
-  "Les tests ne lisent plus JAMAIS DATABASE_URL (incident du 16.07.2026 : la suite lancée",
-  "contre la base de PRODUCTION a saturé ses connexions Postgres et fait tomber la prod).",
-  "Pour provisionner une base de test :",
-  "  1. Créer un projet (ou une branche) Supabase DÉDIÉ aux tests — jamais le projet de prod.",
-  "  2. Appliquer les migrations de packages/db/migrations/ sur cette base.",
-  "  3. Poser dans .env.local :",
-  "     TEST_DATABASE_URL=postgresql://postgres:MOT_DE_PASSE@db.REF_PROJET_TEST.supabase.co:5432/postgres",
-  "  4. En CI : poser le secret GitHub Actions TEST_DATABASE_URL.",
-  "Voir docs/architecture/dev-environment.md § « Base de tests ».",
-].join("\n");
+/** Plafond de pool forcé par process en mode live bridé (valeur de DB_POOL_MAX). */
+export const POOL_MAX_MODE_LIVE_BRIDE = "2";
 
-export const MESSAGE_TEST_DATABASE_URL_PROD = [
-  `[tests] TEST_DATABASE_URL pointe sur la PROD (ref projet ${REF_PROJET_PROD}) — arrêt immédiat.`,
-  "Les tests ne doivent JAMAIS toucher la base de production : pointer TEST_DATABASE_URL vers",
-  "un projet ou une branche Supabase dédié aux tests.",
+/** Avertissement affiché au démarrage du setup quand la suite tourne en mode live bridé. */
+export const AVERTISSEMENT_MODE_LIVE_BRIDE =
+  "⚠️ TEST_DATABASE_URL absent — tests exécutés contre la base LIVE avec connexions bridées " +
+  "(décision founder 17.07). Provisionner une base de test après le lancement.";
+
+export const MESSAGE_AUCUNE_URL_BASE_DE_TEST = [
+  "[tests] Aucune URL de base disponible — les tests d'intégration ne peuvent pas tourner.",
+  "",
+  "Poser dans .env.local (ou dans l'environnement) :",
+  "  - DATABASE_URL : mode live bridé par défaut (pool plafonné à 2, concurrence vitest",
+  "    réduite — décision founder 17.07, en connaissance de cause) ;",
+  "  - ou TEST_DATABASE_URL : base Supabase DÉDIÉE aux tests, plein régime (opt-in",
+  "    recommandé après le lancement — migrations packages/db/migrations/ appliquées).",
   "Voir docs/architecture/dev-environment.md § « Base de tests ».",
 ].join("\n");
 
 /**
  * URL factice syntaxiquement valide mais inconnectable (port 1, refus immédiat).
- * Sert de `DATABASE_URL` de substitution pour les runs unitaires sans TEST_DATABASE_URL :
+ * Sert de `DATABASE_URL` de substitution pour les runs unitaires sans aucune URL :
  * `@zarya/db` fait `new URL()` au chargement du module, mais un test unitaire pur
  * n'ouvre jamais de connexion.
  */
 export const URL_FACTICE_TESTS_UNITAIRES =
   "postgresql://tests_unitaires:aucune_connexion@localhost:1/zarya_tests_sans_base";
 
+/** Mode de la suite vis-à-vis de la base : dédiée (plein régime), live bridé, ou sans URL. */
+export type ModeBaseDeTest = "dediee" | "live_bride" | "aucune_url";
+
+export interface ResolutionBaseDeTest {
+  mode: ModeBaseDeTest;
+  /** URL retenue pour la suite (absente uniquement en mode « aucune_url »). */
+  url?: string;
+  /** Avertissement à afficher au démarrage du setup (mode « live_bride » uniquement). */
+  avertissement?: string;
+}
+
 /**
- * Résout l'URL de la base de TEST depuis l'environnement.
+ * Résout l'URL de base et le mode de bridage depuis l'environnement.
  *
- * Lit EXCLUSIVEMENT `TEST_DATABASE_URL` (jamais `DATABASE_URL`). Jette une erreur
- * explicite (en français, avec la marche à suivre) si la variable est absente/vide,
- * ou si elle contient la ref du projet Supabase de production.
+ * Logique décisionnelle (décision founder 17.07.2026) :
+ *  1. `TEST_DATABASE_URL` posée et ne contenant PAS la ref du projet de prod
+ *     → base dédiée, plein régime.
+ *  2. Sinon → mode live bridé : `TEST_DATABASE_URL` si posée (même pointant la prod),
+ *     sinon repli sur `DATABASE_URL`. L'appelant applique les brides (pool ≤ 2,
+ *     concurrence réduite) et affiche `avertissement`.
+ *  3. Aucune URL exploitable (l'URL factice des runs unitaires ne compte pas)
+ *     → mode « aucune_url » : l'appelant substitue l'URL factice et fait échouer
+ *     les fichiers d'intégration avec `MESSAGE_AUCUNE_URL_BASE_DE_TEST`.
  */
-export function resoudreUrlBaseDeTest(env: Readonly<Record<string, string | undefined>>): string {
-  const url = env.TEST_DATABASE_URL?.trim();
-  if (!url) {
-    throw new Error(MESSAGE_TEST_DATABASE_URL_MANQUANTE);
+export function resoudreBaseDeTest(
+  env: Readonly<Record<string, string | undefined>>,
+): ResolutionBaseDeTest {
+  const urlDediee = env.TEST_DATABASE_URL?.trim();
+  if (urlDediee && !urlDediee.includes(REF_PROJET_PROD)) {
+    return { mode: "dediee", url: urlDediee };
   }
-  if (url.includes(REF_PROJET_PROD)) {
-    throw new Error(MESSAGE_TEST_DATABASE_URL_PROD);
+
+  const urlDatabase = env.DATABASE_URL?.trim();
+  const urlLive =
+    urlDediee || (urlDatabase !== URL_FACTICE_TESTS_UNITAIRES ? urlDatabase : undefined);
+  if (!urlLive) {
+    return { mode: "aucune_url" };
   }
-  return url;
+  return { mode: "live_bride", url: urlLive, avertissement: AVERTISSEMENT_MODE_LIVE_BRIDE };
 }
 
 /** Vrai si le fichier appartient à la suite d'intégration (`tests/integration/**`). */
