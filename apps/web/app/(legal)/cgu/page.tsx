@@ -21,10 +21,10 @@ export default function CguPage() {
       <p>
         Les présentes conditions générales d&apos;utilisation (les « CGU ») régissent l&apos;accès
         et l&apos;utilisation de la plateforme ZARYA (le « Service »), un logiciel en tant que
-        service (SaaS) édité par [Condere / raison sociale et siège à compléter] (l&apos;« Éditeur
-        »). ZARYA est un copilote opérationnel destiné aux fiduciaires suisses pour la gestion
-        documentaire, le suivi des échéances, le traitement des factures et le workflow salaires de
-        leurs clients PME.
+        service (SaaS) édité par CONDERE, société en cours de création, 1207 Genève, Suisse
+        (l&apos;« Éditeur »). ZARYA est un copilote opérationnel destiné aux fiduciaires suisses
+        pour la gestion documentaire, le suivi des échéances, le traitement des factures et le
+        workflow salaires de leurs clients PME.
       </p>
       <p>
         En créant un compte ou en utilisant le Service, le cabinet utilisateur accepte les présentes

@@ -26,7 +26,9 @@ export default function ConfidentialitePage() {
 
       <h2>1. Responsable du traitement et rôles</h2>
       <p>
-        L&apos;éditeur du Service est [Condere / raison sociale, siège et coordonnées à compléter].
+        L&apos;éditeur du Service est CONDERE, société en cours de création, 1207 Genève, Suisse
+        (contact : contact@condere.ch). Ces mentions seront complétées (forme juridique, IDE) dès
+        l&apos;inscription au registre du commerce.
       </p>
       <p>Deux situations sont à distinguer :</p>
       <ul>
@@ -225,8 +227,8 @@ export default function ConfidentialitePage() {
 
       <h2>10. Contact</h2>
       <p>
-        Pour toute question relative à la protection des données ou pour exercer vos droits : [email
-        de contact à compléter], ou par courrier à [adresse postale à compléter].
+        Pour toute question relative à la protection des données ou pour exercer vos droits :
+        contact@condere.ch, ou par courrier : CONDERE, 1207 Genève, Suisse.
       </p>
 
       <p className="mt-10 text-xs text-gray-400">
