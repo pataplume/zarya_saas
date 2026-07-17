@@ -3,6 +3,7 @@
 import { createSupabaseServerClient } from "@zarya/auth";
 import { logger } from "@zarya/logger";
 import { z } from "zod";
+import { inviteGatingActif, verifierCodeInvitation } from "@/lib/beta-invite";
 import { provisionNewCabinet } from "@/lib/provisioning";
 
 const SignupSchema = z
@@ -11,13 +12,16 @@ const SignupSchema = z
     password: z.string().min(12, "Le mot de passe doit contenir au moins 12 caractères"),
     confirmPassword: z.string(),
     acceptCgu: z.literal("on", { errorMap: () => ({ message: "Vous devez accepter les CGU" }) }),
+    // P0-7 — gating bêta optionnel : champ présent uniquement si BETA_INVITE_CODE est
+    // définie (la vérification de la valeur, dynamique, se fait après le parse).
+    inviteCode: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Les mots de passe ne correspondent pas",
     path: ["confirmPassword"],
   });
 
-const SIGNUP_FIELDS = ["email", "password", "confirmPassword", "acceptCgu"] as const;
+const SIGNUP_FIELDS = ["email", "password", "confirmPassword", "acceptCgu", "inviteCode"] as const;
 type SignupField = (typeof SIGNUP_FIELDS)[number];
 
 export type SignupFieldErrors = Partial<Record<SignupField, string>>;
@@ -42,6 +46,7 @@ export async function signupAction(
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
     acceptCgu: formData.get("acceptCgu"),
+    inviteCode: formData.get("inviteCode") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -57,6 +62,16 @@ export async function signupAction(
       return { fieldErrors };
     }
     return { error: "Données invalides" };
+  }
+
+  // P0-7 — vérification SERVEUR du code d'invitation (jamais côté client). Si
+  // BETA_INVITE_CODE est absente/vide, le gating est inactif : signup ouvert, inchangé.
+  const codeAttendu = process.env.BETA_INVITE_CODE;
+  if (
+    inviteGatingActif(codeAttendu) &&
+    !verifierCodeInvitation(parsed.data.inviteCode, codeAttendu)
+  ) {
+    return { fieldErrors: { inviteCode: "Code d'invitation invalide." } };
   }
 
   const supabase = await createSupabaseServerClient();
