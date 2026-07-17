@@ -3,6 +3,7 @@
 // Run D1 — enregistre une demande d'accès (prospect) en base (crm.demande_acces). Page
 // publique : pas d'auth. Validation Zod + honeypot anti-spam basique.
 import { db, demandeAcces } from "@zarya/db";
+import { sendOpsAlert } from "@zarya/logger";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -40,8 +41,17 @@ export async function creerDemandeAccesAction(
       cabinet_nom: parsed.data.cabinet_nom ?? null,
       message: parsed.data.message ?? null,
     });
-    return { success: true };
   } catch {
     return { error: "Une erreur est survenue. Réessayez." };
   }
+
+  // P0-7 — notification ops (le funnel n'était lu par personne). sendOpsAlert ne throw
+  // JAMAIS (no-op sans OPS_ALERT_WEBHOOK_URL, timeout 5 s) : l'alerte ne peut pas faire
+  // échouer l'enregistrement de la demande. Contexte minimal (cabinet + email du lead).
+  await sendOpsAlert("Nouvelle demande d'accès ZARYA", {
+    cabinet: parsed.data.cabinet_nom ?? "(non renseigné)",
+    email: parsed.data.email,
+  });
+
+  return { success: true };
 }
