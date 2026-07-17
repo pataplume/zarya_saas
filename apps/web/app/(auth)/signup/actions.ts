@@ -69,12 +69,26 @@ export async function signupAction(
     },
   });
 
+  // Message honnête quand l'email existe déjà (P0-8b) : l'ancien faux succès
+  // (« Vérifiez votre email ») laissait l'utilisateur attendre un email qui
+  // n'arrivait jamais. Arbitrage assumé : ce message révèle l'existence du compte,
+  // au même niveau que « Mot de passe oublié » — pas de détail supplémentaire.
+  const EMAIL_DEJA_ENREGISTRE =
+    "Un compte existe déjà pour cet email — connectez-vous ou utilisez « Mot de passe oublié ».";
+
   if (authError) {
-    // Ne pas révéler si l'email existe déjà (sécurité)
     if (authError.message.includes("already registered")) {
-      return { success: true, email: parsed.data.email };
+      return { error: EMAIL_DEJA_ENREGISTRE };
     }
     return { error: "Une erreur est survenue. Réessayez." };
+  }
+
+  // Confirmations email activées : Supabase ne renvoie PAS d'erreur pour un email
+  // déjà enregistré mais un user factice avec `identities: []` (id aléatoire
+  // inexistant dans auth.users). Sans ce garde, on provisionnait un cabinet
+  // fantôme rattaché à ce faux id ET on affichait un faux succès.
+  if (authData.user && (authData.user.identities?.length ?? 0) === 0) {
+    return { error: EMAIL_DEJA_ENREGISTRE };
   }
 
   // Provisioning du cabinet (atomique) : cabinet + membre + session onboarding
@@ -85,7 +99,8 @@ export async function signupAction(
         email: parsed.data.email,
       });
     } catch (err) {
-      // On retourne l'erreur mais le compte auth.users est créé — support peut corriger.
+      // Le compte auth.users est créé sans cabinet : le self-heal /auth/reparer (P0-8)
+      // reprendra la configuration à la prochaine connexion.
       // Contexte minimal (user_id technique), jamais l'email ni le mot de passe.
       logger.error(
         {
@@ -94,7 +109,10 @@ export async function signupAction(
         },
         "[signup] provisioning cabinet échoué",
       );
-      return { error: "Compte créé mais erreur de configuration. Contactez le support." };
+      return {
+        error:
+          "Votre compte a été créé mais sa configuration a échoué. Confirmez votre email puis connectez-vous : la configuration reprendra automatiquement.",
+      };
     }
   }
 

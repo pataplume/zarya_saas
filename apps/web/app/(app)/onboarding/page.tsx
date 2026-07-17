@@ -9,7 +9,8 @@ export default async function OnboardingIndexPage() {
   const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
 
   if (!cabinet_id) {
-    redirect("/login");
+    // Authentifié sans cabinet (provisioning échoué au signup) → self-heal P0-8.
+    redirect("/auth/reparer");
   }
 
   const [session] = await db
@@ -19,7 +20,9 @@ export default async function OnboardingIndexPage() {
     .limit(1);
 
   if (!session) {
-    redirect("/login");
+    // Cabinet référencé par le JWT mais session d'onboarding absente : état
+    // incohérent non auto-réparable — page d'erreur au lieu de boucler via /login.
+    redirect("/compte-incomplet");
   }
 
   const { statut } = session;
