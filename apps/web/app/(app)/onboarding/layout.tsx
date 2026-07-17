@@ -19,8 +19,10 @@ export default async function OnboardingLayout({ children }: Props) {
 
   const cabinet_id = user?.app_metadata.cabinet_id as string | undefined;
   if (!cabinet_id) {
-    // Pas encore provisionné — retour au login
-    redirect("/login");
+    // Authentifié sans cabinet (provisioning échoué au signup) → self-heal P0-8.
+    // (Rediriger vers /login bouclait à l'infini : le middleware renvoie un
+    // utilisateur connecté de /login vers /app, qui renvoie ici.)
+    redirect("/auth/reparer");
   }
 
   // Si l'onboarding est déjà terminé, rediriger vers l'app
